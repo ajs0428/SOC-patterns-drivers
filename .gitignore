@@ -4,4 +4,10 @@
 *.tif*
 /data
 *.zip
-
+*.qgz
+*.RData
+*.csv
+*.xlsx
+/writing/FiguresTables_files
+/writing/FiguresTables_cache
+*.png
