@@ -1,0 +1,2 @@
+*.js linguist-language=R
+*.html linguist-detectable=false
