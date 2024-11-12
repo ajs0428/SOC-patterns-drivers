@@ -54,11 +54,11 @@ pred_path <- "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/"
 Load in the best model 
 
 ```{r}
-model_1m <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Stocks_Model.RData"))
+GLM <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Stocks_Model.RData"))
 model_depths <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Model7d1_Spline.RData"))
 model_RF <- get(load("SOIL CARBON/All_WA/analysis/models/ALl_WA_RandomForest.RData"))
-formula(model_1m)
-coef(summary(model_1m))
+formula(GLM)
+coef(summary(GLM))
 formula(model_depths)
 coef(summary(model_depths))
 model_RF$call
@@ -186,7 +186,11 @@ rast_scale_pedons_func <- function(stack, path, params) {
                 overwrite = TRUE)
     return(stack_scale)
 }
+```
 
+
+```{r}
+#| eval: false
 hoh_stack_scale <- rast_scale_depths_func(hoh_stack, pred_path, wa_dat_scale_depths_rfm_params)
 mas_stack_scale <- rast_scale_depths_func(mas_stack, pred_path, wa_dat_scale_depths_rfm_params)
 col_stack_scale <- rast_scale_depths_func(col_stack, pred_path, wa_dat_scale_depths_rfm_params)
@@ -217,13 +221,14 @@ Lithology layer is having problems with `terra` it seems so I'm loading in the v
 hoh_consolidate_lith <- vect("SOIL CARBON/All_WA/data/Vectors/Hoh_lithology_consolidate.shp")
 mas_consolidate_lith <- vect("SOIL CARBON/All_WA/data/Vectors/Mas_lithology_consolidate.shp")
 col_consolidate_lith <- vect("SOIL CARBON/All_WA/data/Vectors/Col_lithology_consolidate.shp") 
+plot(hoh_consolidate_lith, "LITH")
 plot(col_consolidate_lith, "LITH")
 plot(col_stack_depths_scale$LITH)
 ```
 
 
 ```{r}
-
+#| eval: false
 hoh_stack_depths_scale$LITH <- subst(hoh_stack_depths_scale$LITH, from = c(0,1,2,3), c("glacial outwash", "glacial till and drift",
                                                                                      "sedimentary", "unconsolidated"))
 mas_stack_depths_scale$LITH <- subst(mas_stack_depths_scale$LITH, from = c(0,1,2,3,4), c("glacial outwash", "glacial till and drift",
@@ -317,6 +322,32 @@ plot(mas_stack_pedons_mask_scale$LITH)
 
 
 ```{r}
+#| eval: false
+hoh_stack_depths_mask_scale <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/hoh_stack_depths_water_urban_mask_scale.tif")
+mas_stack_depths_mask_scale <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/mas_stack_depths_water_urban_mask_scale.tif")
+col_stack_depths_mask_scal <- rast( "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/col_stack_depths_water_urban_mask_scale.tif")
+
+hoh_stack_pedons_mask_scale <- rast( "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/hoh_stack_pedons_water_urban_mask_scale.tif")
+mas_stack_pedons_mask_scale <- rast( "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/mas_stack_pedons_water_urban_mask_scale.tif")
+col_stack_pedons_mask_scale <- rast( "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/col_stack_pedons_water_urban_mask_scale.tif")
+
+hoh_stack_depths_mask_scale$LITH <- subst(hoh_stack_depths_mask_scale$LITH, from = c(1,2,3,4), c("glacial outwash", "glacial till and drift",
+                                                                                     "sedimentary", "unconsolidated"))
+mas_stack_depths_mask_scale$LITH <- subst(mas_stack_depths_mask_scale$LITH, from = c(1,2,3,4,5), c("glacial outwash", "glacial till and drift",
+                                                                                       "igneous", "sedimentary", "unconsolidated"))
+col_stack_depths_mask_scal$LITH <- subst(col_stack_depths_mask_scal$LITH, from = c(1,2,3,4,5,6), c("glacial outwash", "glacial till and drift",
+                                                                                         "igneous", "metamorphic", "sedimentary", "unconsolidated")) 
+
+hoh_stack_pedons_mask_scale$LITH <- subst(hoh_stack_pedons_mask_scale$LITH, from = c(1,2,3,4), c("glacial outwash", "glacial till and drift",
+                                                                                     "sedimentary", "unconsolidated"))
+mas_stack_pedons_mask_scale$LITH <- subst(mas_stack_pedons_mask_scale$LITH, from = c(1,2,3,4,5), c("glacial outwash", "glacial till and drift",
+                                                                                       "igneous", "sedimentary", "unconsolidated"))
+col_stack_pedons_mask_scale$LITH <- subst(col_stack_pedons_mask_scale$LITH, from = c(1,2,3,4,5,6), c("glacial outwash", "glacial till and drift",
+                                                                                         "igneous", "metamorphic", "sedimentary", "unconsolidated"))
+```
+
+
+```{r}
 SOC_pred_path <- "SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/"
 
 SOC_pred_func_depths <- function(stack, depths, model, site, path){
@@ -359,7 +390,7 @@ SOC_pred_func_depths <- function(stack, depths, model, site, path){
                                                     ".tif"),
                                   overwrite = TRUE)
           }
-      } else {
+      } else if (str_detect(deparse(substitute(model)), "depths") == TRUE){
         print("Linear Model")
         for(i in 1:depths){
                terra::predict(stack, model, #se.fit = TRUE,
@@ -377,11 +408,11 @@ SOC_pred_func_depths <- function(stack, depths, model, site, path){
                                                     ".tif"),
                                   overwrite = TRUE)
           }
-      }
+      } else {print("No Model")}
         
 }
 
-SOC_pred_func_pedon <- function(stack, model, path, uncertain, site){
+SOC_pred_func_pedon <- function(stack, model, path, site){
   terra::predict(stack, model, #se.fit = TRUE,
                      na.rm = TRUE, 
                      type = "response",
@@ -421,10 +452,10 @@ test_pred_depths <- SOC_pred_func_depths(stack = test, model = model_depths, dep
 
 test_pred_depths_rf <- SOC_pred_func_depths(stack = test, model = model_RF, depths = 1, site = "MAS", path = SOC_pred_path) 
 
-test_pred_pedon <- SOC_pred_func_pedon(stack = test, model = model_1m, path = SOC_pred_path)
+test_pred_pedon <- SOC_pred_func_pedon(stack = test, model = GLM, path = SOC_pred_path, site = "MAS")
 
-plot(10**rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/SOCpredict_depths_15.tif"))
-plot(rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/SOCpredict_depths_RF_15.tif"))
+plot(test_pred_depths)
+plot(rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/"))
 plot(test_pred_pedon)
 ```
 
@@ -432,11 +463,11 @@ plot(test_pred_pedon)
 
 ```{r}
 #| eval: false
-SOC_pred_func_pedon(stack = hoh_stack_pedons_mask_scale, model = model_1m, path = SOC_pred_path, 
+SOC_pred_func_pedon(stack = hoh_stack_pedons_mask_scale, model = GLM, path = SOC_pred_path, 
                     site = "hoh")
-SOC_pred_func_pedon(stack = mas_stack_pedons_mask_scale, model = model_1m, path = SOC_pred_path,
+SOC_pred_func_pedon(stack = mas_stack_pedons_mask_scale, model = GLM, path = SOC_pred_path,
                     site = "mas")
-SOC_pred_func_pedon(stack = col_stack_pedons_mask_scale, model = model_1m, path = SOC_pred_path,
+SOC_pred_func_pedon(stack = col_stack_pedons_mask_scale, model = GLM, path = SOC_pred_path,
                     site = "col")
 
 SOC_pred_func_depths(hoh_stack_depths_mask_scale, model = model_depths, depths = 4, site = "HOH", path = SOC_pred_path)
@@ -552,7 +583,9 @@ SurfaceWater_Mask <- function(mndwi, lyr, path) {
 }
 ```
 
+### Mask only if needed.
 
+- may not need to do this if already masked in geospatial prep script
 ```{r}
 #| eval: false
 
@@ -571,32 +604,7 @@ hoh_WIP_mask <- SurfaceWater_Mask(hoh_mndwi, hoh_stack$WIP, path = SOC_pred_path
 mas_WIP_mask <-SurfaceWater_Mask(mas_mndwi, mas_stack$WIP, path = SOC_pred_path)
 col_WIP_mask <- SurfaceWater_Mask(col_mndwi, col_stack$WIP, path = SOC_pred_path)
 ```
-
-
-```{r}
-#| eval: false
-
-hoh_1m_pedon <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/hoh__scaleSOCpredict_pedon_stocks.tif")
-mas_1m_pedon <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/mas__scaleSOCpredict_pedon_stocks.tif")
-col_1m_pedon <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/col__scaleSOCpredict_pedon_stocks.tif")
-
-hoh_mndwi <- rast("SOIL CARBON/All_WA/data/Rasters/Hoh_spectral.tif", lyr = "MNDWI_median") |> 
-  resample(y = hoh_stack_scale$WIP)
-mas_mndwi <- rast("SOIL CARBON/All_WA/data/Rasters/Mashel_spectral.tif", lyr = "MNDWI_median") |> 
-  resample(y = mas_stack_scale$WIP)
-col_mndwi <- rast("SOIL CARBON/All_WA/data/Rasters/Colville_spectral.tif", lyr = "MNDWI_median") |> 
-  resample(y = col_stack_scale$WIP)
-
-hoh_SOC_pedon_mask <- SurfaceWater_Mask(hoh_mndwi, hoh_1m_pedon, path = SOC_pred_path)
-mas_SOC_pedon_mask <-SurfaceWater_Mask(mas_mndwi, mas_1m_pedon, path = SOC_pred_path)
-col_SOC_pedon_mask <- SurfaceWater_Mask(col_mndwi, col_1m_pedon, path = SOC_pred_path)
-
-hoh_WIP_mask <- SurfaceWater_Mask(hoh_mndwi, hoh_stack$WIP, path = SOC_pred_path)
-mas_WIP_mask <-SurfaceWater_Mask(mas_mndwi, mas_stack$WIP, path = SOC_pred_path)
-col_WIP_mask <- SurfaceWater_Mask(col_mndwi, col_stack$WIP, path = SOC_pred_path)
-
-```
-
+### SOC prediction maps 
 
 ```{r}
 hoh_1m_pedon <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/hoh_SOCpredict_pedon_stocks.tif")
@@ -625,31 +633,10 @@ soc_list[str_detect(names(soc_list), "hoh_pedon")]
 
 ```
 
-Masking the parameter space
+### Calculate SOC stocks 
 
-```{r}
-#| eval: false
-ps_df <- data.frame(param = NA, min = NA, max = NA, sd = NA, mean = NA)
-for(i in 1:ncol(wa_dat_scale)){
-  if(is.numeric(wa_dat_scale[[i]]) == TRUE){
-    ps_df[i,1] <- colnames(wa_dat_scale)[i]
-    ps_df[i,2] <- min(wa_dat_scale[[i]])
-    ps_df[i,3] <- max(wa_dat_scale[[i]])
-    ps_df[i,4] <- sd(wa_dat_scale[[i]])
-    ps_df[i,5] <- round(mean(wa_dat_scale[[i]]), 4)
-  } else {
-    next
-  }
-}
-ps_df <- ps_df |> na.omit()
-
-hoh_SOC_sum100maskmap <- mask(hoh_SOC_sum100mask, hoh_stack_scale$MAP > 2, maskvalues = TRUE, updatevalue = NA) 
-plot(hoh_SOC_sum100maskmap)
-```
-
-
-
-Calculate SOC stocks 
+- First is a simple function to get area, mean, and total SOC stock in a given map
+- Second is a more complicated function to get SOC stock stats for wetlands and uplands based on the WIP > 50%
 
 ```{r}
 C_map_simp <- function(C_map){
@@ -660,12 +647,14 @@ C_map_simp <- function(C_map){
     
     area_tot <- sum(values(cell_size), na.rm = T)
     C_mean <- mean(values(C_map), na.rm = T) #mean value of all values of Mg/ha cells
+    C_max <- max(values(C_map), na.rm = T)
     TotalC_sum <- sum(values(carbon_cell), na.rm =T)
     
     
     return(data.frame("Name" = name, 
                       "Total_area" = area_tot, 
                       "AverageSOC_Mgha" = C_mean, 
+                      "MaxSOC_Mgha" = C_max,
                       "Total_Carbon_Tg" = TotalC_sum/1e6,
                       stringsAsFactors = T))
 }
@@ -700,6 +689,11 @@ C_map_wet_fractions <- function(C_map, WIP){
     C_mean_upl <- mean(values(C_map_upl), na.rm = T)
     #C_mean_mid <- mean(values(C_map_mid), na.rm = T)
     
+    C_quant_all <- quantile(values(C_map), probs = c(0.10, 0.90) , na.rm = T) #90th value of all values of Mg/ha cells
+    C_quant_wet <- quantile(values(C_map_wet), probs = c(0.10, 0.90), na.rm = T)
+    C_quant_upl <- quantile(values(C_map_upl), probs = c(0.10, 0.90), na.rm = T)
+    #C_mean_mid <- mean(values(C_map_mid), na.rm = T)
+    
     TotalC_sum <- sum(values(carbon_cell_all), na.rm =T)
     TotalC_sum_wet <- sum(values(carbon_cell_wet), na.rm =T)
     TotalC_sum_upl <- sum(values(carbon_cell_upl), na.rm =T)
@@ -708,17 +702,22 @@ C_map_wet_fractions <- function(C_map, WIP){
     return(data.frame("Name" = c(name, paste0(name, "_wet"), paste0(name, "_upl")), 
                       "Total_area" = c(area_tot, area_wet, area_upl),
                       "AverageSOC_Mgha" = c(C_mean_all, C_mean_wet, C_mean_upl), 
+                      "Perc10thSOC_Mgha" = c(C_quant_all["10%"], C_quant_wet["10%"], C_quant_upl["10%"]),
+                      "Perc90thSOC_Mgha" = c(C_quant_all["90%"], C_quant_wet["90%"], C_quant_upl["90%"]),
                       "Total_Carbon_Tg" = c(TotalC_sum/1e6, TotalC_sum_wet/1e6, 
                                             TotalC_sum_upl/1e6),
                       stringsAsFactors = T))
 }
 ```
 
+This is just a function to process SOC statistics for all map layers in a list then output them into a dataframe
 ```{r}
 soc_map_sum_classes <- function(list_of_soc, list_of_wip){
   SOC_df <- data.frame("Name" = NA, 
                       "Total_area" = NA,
-                      "AverageSOC_Mgha" = NA, 
+                      "AverageSOC_Mgha" = NA,
+                      "Perc10thSOC_Mgha" = NA,
+                      "Perc90thSOC_Mgha" = NA,
                       "Total_Carbon_Tg" = NA,
                       stringsAsFactors = T)
   for(i in 1:length(list_of_soc)){
@@ -743,42 +742,6 @@ mappedSOC_1m_depths_sum_df
 readr::write_csv(mappedSOC_1m_depths_sum_df, "SOIL CARBON/All_WA/data/dataframes/All_WA_MapSOC_wetupl_1m.csv")
 ```
 
-
-
-
-```{r}
-#| eval: false
-SOC_df <- data.frame(Name = character(), Total_area = double(), AverageSOC_Mgha = double(), total_Carbon_Tg = double())
-
-Map_SOC_func <- function(path, sumDepth){
-  filelist <-list.files(path, pattern = sumDepth, full.names = TRUE)
-  soc_list <- list()
-  for(i in 1:length(filelist)){
-    r <- rast(filelist[[i]])
-    soc_list[[i]] <-  C_map_simp(r)
-    #plot(r)
-  }
-  SOC_df <- rbind(soc_list)
-  return(SOC_df)
-}
-
-testdf <- Map_SOC_func(SOC_pred_path, "1mpedonmask")
-
-```
-
-
-```{r}
-#| eval: false
-hoh_100soc <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/hohSOCsum100mask.tif")
-mas_100soc <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/masSOCsum100mask.tif")
-col_100soc <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/colSOCsum100mask.tif")
-
-SOC_df <- rbind(C_map_simp(hoh_100soc),
-C_map_simp(mas_100soc),
-C_map_simp(col_100soc))
-
-readr::write_csv(SOC_df, "SOIL CARBON/All_WA/data/dataframes/All_WA_MapSOC100mask.csv")
-```
 
 
 ```{r}
@@ -821,6 +784,8 @@ SOC_df_form <- SOC_df |>
   rename("Study Area" = Name,
            "Total Area (ha)" = Total_area,
            "Mean SOC Stock (Mg ha-1)" = AverageSOC_Mgha,
+           "10th Percentile SOC Stock (Mg ha-1)" = Perc10thSOC_Mgha,
+           "90th Percentile SOC Stock (Mg ha-1)" = Perc90thSOC_Mgha,
            "Total SOC Stock (Tg)" = Total_Carbon_Tg) #|> 
   #readr::write_csv("SOIL CARBON/All_WA/data/dataframes/All_WA_MapSOC100mask_format.csv")
 
@@ -883,12 +848,20 @@ SOC_perc_df <- SOC_df |>
   rename("Study Area" = Name,
            "Total Area (ha)" = Total_area,
            "Mean SOC Stock (Mg ha-1)" = AverageSOC_Mgha,
+            "10th Percentile SOC Stock (Mg ha-1)" = Perc10thSOC_Mgha,
+           "90th Percentile SOC Stock (Mg ha-1)" = Perc90thSOC_Mgha,
            "Total SOC Stock (Tg)" = Total_Carbon_Tg)
 
 readr::write_csv(SOC_perc_df, "SOIL CARBON/All_WA/data/dataframes/All_WA_MapSOC100mask_perc_format.csv")
 
 
 ```
+
+```{r}
+t <- terra::merge(soc_list$hoh_pedon, soc_list$mas_pedon, soc_list$col_pedon)
+quantile(values(t), probs = c(10, 90), na.rm = T)
+```
+
 
 ### Uhran et al 
 

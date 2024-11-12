@@ -1231,42 +1231,7 @@ write.csv(test.uplscale, file = "SOIL CARBON/All_WA/data/dataframes/RFM_testuplD
 
 ```
 
-```{r}
-ggplot(rf_dat, aes(x = (SOC_stock_spline), y = (rf.all), colour = WIP)) +
-  geom_point(, show.legend = F) + 
-  geom_abline(slope = 1, intercept = 0) + 
-  geom_smooth(method = "lm", show.legend = F) +
-  xlim(0,4) + 
-  ylim(0,4)
 
-ggplot(test, aes(x = (SOC_stock_spline), y = (rf.test), colour = WIP)) +
-  geom_point(, show.legend = F) + 
-  geom_abline(slope = 1, intercept = 0) + 
-  geom_smooth(method = "lm", show.legend = F) +
-  xlim(0,4) + 
-  ylim(0,4)
-
-ggplot(test.wetscale, aes(x = (SOC_stock_spline), y = rf.wet.test, colour = MAP)) +
-  geom_point(, show.legend = F) + 
-  geom_abline(slope = 1, intercept = 0) + 
-  geom_smooth(method = "lm", show.legend = F) +
-  xlim(0,4) + 
-  ylim(0,4)
-
-
-ggplot(test.uplscale, aes(x = (SOC_stock_spline), y = rf.upl.test, colour = MAP)) +
-  geom_point(, show.legend = F) + 
-  geom_abline(slope = 1, intercept = 0) + 
-  geom_smooth(method = "lm", show.legend = F) +
-  xlim(0,4) + 
-  ylim(0,4)
-
-
-
-
-
-r.sq((rf_dat$SOC_stock_spline), rf.all)
-```
 
 ```{r}
 library(gridExtra)
@@ -1309,6 +1274,9 @@ rf_pdp_plots <- grid.arrange(wip_pdp, lower_pdp, MAP_pdp, grad_pdp, ncol = 2, nr
 save(rf_pdp_plots, file = "SOIL CARBON/All_WA/writing/Figures/RFM_PDP_plots.RData")
 ```
 
+
+
+
 ```{r}
 #| eval: false
 library(kernelshap)
@@ -1336,8 +1304,49 @@ sv_dependence(shapviz(ks), v = c("WIP", "MAP", "lower_depth", "grad_50"), color_
 
 
 ```{r}
-library(LongituRF)
+library(iml)
+
+# A Predictor object holds any machine learning model (mlr, caret, randomForest, ...) 
+# and the data to be used for analyzing the model. The interpretation methods in the iml package need the machine
+# learning model to be wrapped in a Predictor object.
+
+iml_mod <- Predictor$new(rf_model, data = rf_dat[-which(names(rf_dat) == "SOC_stock_spline")])
+ia_depth <- Interaction$new(iml_mod, feature = "lower_depth")
+ia_map <- Interaction$new(iml_mod, feature = "MAP")
+ia_wip <- Interaction$new(iml_mod, feature = "WIP")
+ia_grad <- Interaction$new(iml_mod, feature = "grad_300")
 
 
+```
+
+
+```{r}
+ia_depth$results |> data.frame() |> mutate(.feature = factor(.feature)) |>
+  mutate(.feature = fct_reorder(.feature, desc(.interaction))) |>
+  mutate(.feature = case_when(
+                              str_detect(.feature, "lower_depth") ~
+                                str_replace_all(.feature, "lower_depth", "Depth"),
+                              str_detect(.feature, "LITH:") ~
+                                str_replace_all(.feature, "LITH:", "Lithology "),
+                              )
+         ) 
+ia_map$results <- ia_map$results |> mutate(.feature = factor(.feature)) |>
+  mutate(.feature = fct_reorder(.feature, desc(.interaction)))
+ia_wip$results <- ia_wip$results |> mutate(.feature = factor(.feature)) |>
+  mutate(.feature = fct_reorder(.feature, desc(.interaction)))
+ia_grad$results <- ia_grad$results |> mutate(.feature = factor(.feature)) |>
+  mutate(.feature = fct_reorder(.feature, desc(.interaction)))
+
+
+
+ia_depth_plot <- plot(ia_depth)
+ia_map_plot <- plot(ia_map)
+ia_wip_plot <- plot(ia_wip)
+ia_grad_plot <- plot(ia_grad)
+
+save(ia_depth_plot, file = "SOIL CARBON/All_WA/writing/Figures/RFM_Interact_Depth_plot.RData")
+save(ia_map_plot, file = "SOIL CARBON/All_WA/writing/Figures/RFM_Interact_MAP_plot.RData")
+save(ia_wip_plot, file = "SOIL CARBON/All_WA/writing/Figures/RFM_Interact_WIP_plot.RData")
+save(ia_grad_plot, file = "SOIL CARBON/All_WA/writing/Figures/RFM_Interact_grad300_plot.RData")
 ```
 

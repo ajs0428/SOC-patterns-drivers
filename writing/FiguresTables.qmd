@@ -18,6 +18,7 @@ library(terra)
 library(sf)
 library(ggplot2)
 library(ggeffects)
+library(ggtext)
 library(merTools)
 library(glmnet)
 library(stats)
@@ -89,21 +90,29 @@ fit.lqmm <- get(load("SOIL CARBON/All_WA/analysis/models/mod7_fit_lqmm.RData"))
 wa_dat <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds.csv")
 
 wa_dat_scale <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled.csv") |>
-    select(-X) |> 
+    dplyr::select(-X) |> 
     mutate(across(where(is.character), ~case_when(TRUE ~ as.factor(.))),
-           site = forcats::fct_reorder(site, SOC_stock_spline, median))
+           site = forcats::fct_reorder(site, SOC_stock_spline, median)
+           )
 wa_dat_scale_wet <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_WET.csv")|>
-    select(-X) |> 
+    dplyr::select(-X) |> 
     mutate(across(where(is.character), ~case_when(TRUE ~ as.factor(.))),
            site = forcats::fct_reorder(site, SOC_stock_spline, median))
 wa_dat_scale_upl <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Upl.csv")|>
-    select(-X) |> 
+    dplyr::select(-X) |> 
     mutate(across(where(is.character), ~case_when(TRUE ~ as.factor(.))),
            site = forcats::fct_reorder(site, SOC_stock_spline, median))
 wa_dat_scale_mes <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_MES_SOC_ExtractPreds_Scaled.csv")|>
-    select(-X) |> 
+    dplyr::select(-X) |> 
     mutate(across(where(is.character), ~case_when(TRUE ~ as.factor(.))),
            site = forcats::fct_reorder(site, SOC_stock_spline, median))
+
+anova_ci_7 <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/anova7d1_confint95.csv"))
+anova_ci_w <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/anova_wet_confint95.csv"))
+anova_ci_u <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/anova_upl_confint95.csv"))
+ci_anova_stocks <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/anova_confint95_stocks.csv"))
+ci_anova_stocks_wet <- read.csv( paste0("SOIL CARBON/All_WA/data/dataframes/anova_wet_confint95_stocks.csv"))
+ci_anova_stocks_upl  <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/anova_upl_confint95_stocks.csv"))
 
 PI_trans_depths <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/PI_Full_Depths_Transformed_Dataframe.csv"))
 PIw_trans_depths <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/PIwet_Full_Depths_Transformed_Dataframe.csv"))
@@ -118,15 +127,15 @@ wa_stocks_scale <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks
 wa_stocks_wet <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_wet_preds_scale.csv")
 wa_stocks_upl <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_upl_preds_scale.csv")
 
-rf_dat <- wa_dat_scale |> select(SOC_stock_spline, WIP, MAP, site, LITH,
+rf_dat <- wa_dat_scale |> dplyr::select(SOC_stock_spline, WIP, MAP, site, LITH,
                                  MAT, CHM, HLI, LITH, EVI, lower_depth,
                                  dev_1000, dev_300, dev_50, grad_1000, grad_300,
                                  grad_50) 
-rf_dat_wet <- wa_dat_scale_wet |> select(SOC_stock_spline, WIP, MAP, site, LITH,
+rf_dat_wet <- wa_dat_scale_wet |> dplyr::select(SOC_stock_spline, WIP, MAP, site, LITH,
                                  MAT, CHM, HLI, LITH, EVI, lower_depth,
                                  dev_1000, dev_300, dev_50, grad_1000, grad_300,
                                  grad_50) 
-rf_dat_upl <- wa_dat_scale_upl |> select(SOC_stock_spline, WIP, MAP, site, LITH,
+rf_dat_upl <- wa_dat_scale_upl |> dplyr::select(SOC_stock_spline, WIP, MAP, site, LITH,
                                  MAT, CHM, HLI, LITH, EVI, lower_depth,
                                  dev_1000, dev_300, dev_50, grad_1000, grad_300,
                                  grad_50) 
@@ -135,10 +144,14 @@ rf.all <- predict(RFM, newdata = rf_dat)
 rf.wet <- predict(RFM, newdata = rf_dat_wet)
 rf.upl <- predict(RFM, newdata = rf_dat_upl)
 
-rf.test <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_testData_scalepreds.csv")
-rf.train <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_Train_data.csv")
-rf.testwet <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_testwetData_scalepreds.csv")
-rf.testupl <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_testuplData_scalepreds.csv")
+rf.test <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_testData_scalepreds.csv") |> select(-X) |>
+  dplyr::mutate(LITH = as.factor(LITH))
+rf.train <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_Train_data.csv") |> select(-X) |>
+  dplyr::mutate(LITH = as.factor(LITH))
+rf.testwet <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_testwetData_scalepreds.csv")|> select(-X) |>
+  dplyr::mutate(LITH = as.factor(LITH))
+rf.testupl <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_testuplData_scalepreds.csv")|> select(-X) |>
+ dplyr::mutate(LITH = as.factor(LITH))
 
 rf_ks <- get(load("SOIL CARBON/All_WA/analysis/models/KernelShap.RData"))
 
@@ -157,9 +170,9 @@ fit.lqmm_df <- read.csv("SOIL CARBON/All_WA/data/dataframes/lqmm_coef_df.csv")
 fit.lqmm_summ_df <- read.csv("SOIL CARBON/All_WA/data/dataframes/lqmm_summary_df.csv")
 fitted.lqmm <- predict(fit.lqmm)
 
-hoh_dat_scale <- wa_dat_scale |> filter(site == "HOH")
-mas_dat_scale <- wa_dat_scale |> filter(site == "MAS")
-col_dat_scale <- wa_dat_scale |> filter(site == "COL")
+hoh_dat_scale <- wa_dat_scale |> dplyr::filter(site == "HOH")
+mas_dat_scale <- wa_dat_scale |> dplyr::filter(site == "MAS")
+col_dat_scale <- wa_dat_scale |> dplyr::filter(site == "COL")
 
 hoh_datpred <- predict(mod7, newdata = hoh_dat_scale)
 mas_datpred <- predict(mod7, newdata = mas_dat_scale)
@@ -196,7 +209,7 @@ fit_vs_var_plot <- function(data, model, x_var, color_var, shape_var){
     } else {
       label <- paste0("\n", x_var)
     }
-  colorlevels <- setNames(c( "#5DC863FF", "#21908CFF" , "#FDE725FF", "#3B528BFF", "#440154FF"),
+  colorlevels <- setNames(viridis::viridis(n = length(unique(data[, color_var]))),
                           levels(data[,color_var]))
   if(is.factor(data[x_var][[1]]) == TRUE & is.factor(data[color_var][[1]]) == TRUE ) {
         x_var <- sym(x_var)
@@ -355,13 +368,13 @@ save(wetupl_graph_plots, file = "/Users/Anthony/OneDrive - UW/University of Wash
 
 #### Prediction vs. Actual Plots
 
-```{r predplot, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
+```{r predplot_fun, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
 library(RColorBrewer)
 predict_plot <- function(model, data, back_transform) {
-  lims <- c("limlow" = 0.001, "limhi" = 4, 
-            "R2x" = 0.5, "R2y" = 3.75, 
-              "fitx" = 1.5, "fity" = 3.75, 
-              "redx" = 1.3, "redy" = 3.2, "redend" = 1.75, 
+  lims <- c("limlow" = 0.001, "limhi" = 4.5, 
+            "R2x" = 0.1, "R2y" = 3.75, 
+              "fitx" = 0.7, "fity" = 3.25, 
+              "redx" = 1.3, "redy" = 3.75, "redend" = 1.75, 
               "t1x" = 2.5, "t1y" = 3.75, 
             "blkx" = 2.3, "blky" = 3.2, "blkend" = 2.75)
   #limits and labels depending on data and model
@@ -369,6 +382,9 @@ predict_plot <- function(model, data, back_transform) {
     fitted <- 10**(fitted(model))
     lims = lims
     sample_data <- data$SOC_stock_spline
+    rmse_ <- caret::postResample(fitted,
+                                 sample_data)[[1]]
+    coef_v <- rmse_/mean(sample_data)
     xlabel <- expression('Observed SOC Stock (g cm'^-2*')')
     ylabel <- expression('Predicted SOC Stock (g cm'^-2*')')
   } else if(back_transform == "no") {
@@ -377,6 +393,9 @@ predict_plot <- function(model, data, back_transform) {
     lims <- log10(lims)
     lims["R2x"] <- -2.5
     lims[5:10] <- c(-1.5, 0.5,-1.3, 0.3, 1, -0.5)
+    rmse_ <- caret::postResample(fitted,
+                                 sample_data)[[1]]
+    coef_v <- rmse_/mean(sample_data)
      xlabel <- expression('Log Sampled SOC Stock (g cm'^-2*')')
      ylabel <- expression('Log Predicted SOC Stock (g cm'^-2*')')
   } else if (back_transform == "rfm") {
@@ -388,6 +407,9 @@ predict_plot <- function(model, data, back_transform) {
       fitted <- predict(RFM, rf.test)
     }
     sample_data <- (data$SOC_stock_spline)
+    rmse_ <- caret::postResample(fitted,
+                                 sample_data)[[1]]
+    coef_v <- rmse_/mean(sample_data)
      lims = lims
       xlabel <- expression('Observed SOC Stock (g cm'^-2*')')
      ylabel <- expression('Predicted SOC Stock (g cm'^-2*')')
@@ -395,11 +417,14 @@ predict_plot <- function(model, data, back_transform) {
     fitted <- fitted(model)
     sample_data <- (data$SOC_stock_100)
     lims <- c("limlow" = 0, "limhi" = 700, 
-              "R2x" = 100, "R2y" = 675, 
-              "fitx" = 300, "fity" = 700, 
-              "redx" = 250, "redy" = 615, "redend" = 350, 
-              "t1x" = 500, "t1y" = 700, 
+              "R2x" = 20, "R2y" = 565, 
+              "fitx" = 110, "fity" = 505, 
+              "redx" = 250, "redy" = 565, "redend" = 350, 
+              "t1x" = 500, "t1y" = 565, 
               "blkx" = 460, "blky" = 615, "blkend" = 540)
+    rmse_ <- caret::postResample(fitted,
+                                 sample_data)[[1]]
+    coef_v <- rmse_/mean(sample_data)
     xlabel <- expression('Observed SOC Stock (Mg ha'^-1*')')
      ylabel <- expression('Predicted SOC Stock (Mg ha'^-1*')')
   }
@@ -421,16 +446,17 @@ predict_plot <- function(model, data, back_transform) {
   #ggplot creation
   predict_graph <- ggplot(data, 
                       aes(y = fitted, x = sample_data)) +
-    geom_jitter(color='black', 
+    geom_point(color='black', 
                 aes(fill = (data$WIP*sd_scale+mean_scale)*100, 
                     shape = as.factor(site)),
-               size = 2.3, stroke = 0.8, alpha = 0.8) +
+               size = 2.8, stroke = 0.3, alpha = 0.8) +
     scale_fill_gradientn(colours = brewer.pal(9, "YlGnBu"),
                          name = "Wetland \nProbability %", n.breaks = 5, limits = c(0, 100)) +
     scale_shape_manual(name = "Study Area", 
-                        values = c(21, 22, 23)) +
+                        values = c(21, 22, 23),
+                       labels = c("CVW", "MRW", "HRW")) +
     geom_smooth(aes(y = fitted, x = sample_data, colour = "Model Fit"), 
-                method = "lm", fill = "transparent", 
+                method = "lm", fill = "#fa3e3e", 
                 linewidth = 0.9, linetype = 5, alpha = 0.3, se = T) +
     geom_abline(aes(intercept = 0, slope = 1, colour = "1:1"), linewidth = 0.9, linetype = "dashed") +
     scale_colour_manual(breaks = c("Model Fit", "1:1"),
@@ -439,15 +465,19 @@ predict_plot <- function(model, data, back_transform) {
     ylab(ylabel) + 
     labs(colour = "") +
     #scale_color_manual(values = "black") +
-    annotate("text", 
+    annotate("label", fill = "white", label.size = 0,
              label = paste("R^{2} == ", 
                            signif(r.sq(sample_data,
                                       fitted), 2)), 
-             x = lims["R2x"][1], y = lims["R2y"][1], size = 2, parse = T) +
-    # annotate("text", 
-    #          label = paste("m == ", 
-    #                        signif(coef(lm(fitted ~ sample_data))[[2]], 2)), 
-    #          x = lims["R2x"][1], y = lims["R2y"][1] - lims["R2y"][1]*0.15, size = 2, parse = T) +
+             x = lims["R2x"][1], y = lims["R2y"][1], size = 2.5, parse = T, hjust = 0) +
+    annotate("label", fill = "white", label.size = 0,
+             label = paste("RMSE == ", 
+                           signif(rmse_, 2)), 
+             x = lims["R2x"][1], y = lims["R2y"][1]*0.90, size = 2.5, parse = T, hjust = 0) +
+    annotate("label", fill = "white", label.size = 0,
+             label = paste("RMSE:Mean ==",
+                           signif(coef_v, 2)),
+             x = lims["R2x"][1], y = lims["R2y"][1]*0.80, size = 2.5, parse = T, hjust = 0) +
     # annotate("text", label = "Model Fit", 
     #          x = lims["fitx"][1], y = lims["fity"][1], size = 2) +
     # annotate("segment", color = "#fa3e3e",
@@ -469,7 +499,10 @@ predict_plot <- function(model, data, back_transform) {
           text = element_text(size = 8)) +
     guides(guide_legend(byrow = TRUE))
 }
+```
 
+
+```{r predplot, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
 mod7graph <- predict_plot(model = mod7, data = wa_dat_scale, back_transform = "no")
 
 mod7graph_bt <- predict_plot(model = mod7, data = wa_dat_scale, back_transform = "yes")
@@ -498,26 +531,150 @@ for(i in 1:length(predact_graphs_list)){
     theme(legend.position="none") 
 }
 
-all_predact_graphs <- plot_spacer() + lgend_predact + plot_spacer() +
-  predact_graphs_list_form[[1]] + predact_graphs_list_form[[2]] + predact_graphs_list_form[[3]] +
-  predact_graphs_list_form[[4]] + predact_graphs_list_form[[5]] + predact_graphs_list_form[[6]] +
-  predact_graphs_list_form[[7]] + predact_graphs_list_form[[8]] + predact_graphs_list_form[[9]] +
-  plot_layout(nrow = 4, ncol = 3, axis_titles = "collect",
-              heights = c(0.4,1,1,1)) +
-  plot_annotation(tag_levels = list(c("", "A", "B", "C", "D", "E*", "F*", "G", "H", " I"))) &
-  theme(plot.tag.position = c(0.1, 1),
-        plot.tag = element_text(size = 12, vjust = -0.2))
+row_label_1 <- wrap_elements(panel = textGrob('Wetlands', rot=90,gp=gpar(fontsize=14)))
+row_label_2 <- wrap_elements(panel = textGrob('Uplands', rot=90, gp=gpar(fontsize=14)))
+
+all_predact_graphs <- plot_spacer() + plot_spacer() + lgend_predact + plot_spacer() +
+  row_label_1 +
+   (predact_graphs_list_form[[2]] + ggtitle(expression("LMM"["Depths"]))) +
+  (predact_graphs_list_form[[5]] + ggtitle(expression("RFM"["Depths"]))) +
+  (predact_graphs_list_form[[8]] + ggtitle(expression("GLM"["Pedons"]))) +
+  row_label_2 +
+  predact_graphs_list_form[[3]] +
+  predact_graphs_list_form[[6]] +
+  predact_graphs_list_form[[9]] +
+  plot_layout(nrow = 3, ncol = 4, axis_titles = "collect",
+              heights = c(0.3,1,1), widths = c(0.1,1,1,1)) &
+  theme(plot.title = element_text(hjust = 0.5, size = 12, face = "bold"))
 all_predact_graphs
+
+full_predact_graphs <- plot_spacer() + lgend_predact + plot_spacer() +
+  #plot_spacer() + plot_spacer() + plot_spacer() +
+  predact_graphs_list_form[[1]] + ggtitle(expression("LMM"["Depths"])) +
+  predact_graphs_list_form[[4]] + ggtitle(expression("RFM"["Depths"])) +
+  predact_graphs_list_form[[7]] + ggtitle(expression("GLM"["Pedons"])) +
+  plot_layout(nrow = 2, ncol = 3, axis_titles = "collect",
+              heights = c(0.2,1)) &
+  theme(plot.title = element_text(hjust = 0.5, size = 12, face = "bold"))
+full_predact_graphs
 ```
 
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 
-save(all_predact_graphs, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/all_predact_graphs.RData")
+save(full_predact_graphs, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/full_predact_graphs.RData")
 
-ggplot2::ggsave(plot = all_predact_graphs, filename = paste0("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/all_predact_graphs.png"),
-                width = 6.5, height = 5, units = "in", dpi = 500, bg = "white")
+ggplot2::ggsave(plot = full_predact_graphs, filename = paste0("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/full_predact_graphs.png"),
+                width = 7.5, height = 5, units = "in", dpi = 500, bg = "white")
 ```
+
+
+### Coefficent plots 
+
+```{r}
+coef_fig_func <- function(anova_ci, model) {
+  coef_fig <- anova_ci |> 
+    left_join(y = (summary(model)$coefficients |> 
+                       data.frame() |> 
+                       tibble::rownames_to_column("Predictor")), join_by(Predictor)) |> 
+    dplyr::select(Predictor, X2.5., Estimate, X97.5.) |>
+    dplyr::filter(Predictor != "Model" & Predictor != "LITH" & Predictor != "NULL") |> 
+    mutate(Predictor = case_when(str_detect(Predictor, "lower_depth") ~ 
+                                     str_replace(Predictor,"lower_depth", "Depth"),
+                                 str_detect(Predictor, "LITH") ~ 
+                                     str_replace(Predictor, "LITH", "Lithology "),
+                                 str_detect(Predictor, "grad_1000") ~ 
+                                     str_replace(Predictor, "grad_1000", "Gradient 1000m"),
+                                 str_detect(Predictor, "grad_300") ~ 
+                                     str_replace(Predictor, "grad_300", "Gradient 300m"),
+                                 str_detect(Predictor, "dev_1000") ~ 
+                                     str_replace(Predictor, "dev_1000", "Deviation 1000m"),
+                                 str_detect(Predictor, "dev_300") ~ 
+                                     str_replace(Predictor, "dev_300", "Deviation 300m"),
+                                                .default = (Predictor))) |> 
+    dplyr::mutate(Predictor = case_when(str_detect(Predictor, "Lithology glacial till") ~ 
+                                     str_replace(Predictor, "Lithology glacial till and drift",
+                                                 "Lithology Glacial"),
+                                     str_detect(Predictor, "Lithology") ~ 
+                                     tools::toTitleCase(as.character(Predictor)),
+                                     .default = (Predictor)),
+                  Predictor = as.factor(Predictor)) |> 
+    ggplot(aes(y = fct_reorder(Predictor, -desc(abs(Estimate))), x = Estimate)) +
+    geom_point() +
+    geom_errorbar(aes(xmin = X2.5., xmax = X97.5.)) + 
+    geom_vline(xintercept = 0, lty = 3, colour = "red") +
+    scale_x_continuous(name = "Coefficient Estimate", n.breaks = 5) +
+    scale_y_discrete(name = "Predictor", labels = scales::label_wrap(15)) 
+    #aes(y = stringr::str_wrap(Predictor, 15), x = Estimate) 
+    #coord_flip() #+
+    
+}
+```
+
+
+```{r}
+coef_fig7 <- coef_fig_func(anova_ci_7, mod7)
+
+coef_fig7_full <- coef_fig7 + 
+  annotate("text", x = -1, y = 10.7, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -1, y = 9.7, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -1, y = 8.7, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -1, y = 7.7, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -1, y = 5.7, label = "*", hjust = 0.5, size = 8, colour = "red") 
+
+coef_fig7w <- coef_fig_func(anova_ci_w, modw)
+
+coef_fig7u <- coef_fig_func(anova_ci_u, modu)
+
+
+coef_plots <- (coef_fig7_full + xlim(-1,1)) + (coef_fig7w + xlim(-1,1)) + (coef_fig7u+ xlim(-1,1)) + 
+    plot_layout(nrow = 1, ncol = 3, axis_titles = "collect",
+                widths = c(1,1,1)) +
+    plot_annotation(tag_levels = list(c("A", "B", "C"))) &
+    theme(legend.position = 'right', 
+          legend.key.size = unit(0.6, "cm"),
+          legend.spacing.x = unit(1.2, "cm"),
+          panel.background = element_blank(),
+          panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
+          axis.ticks = element_blank(),
+          text = element_text(size = 8))
+
+save(coef_plots, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/LMM_coef_plots_graphs.RData")
+
+```
+
+
+```{r}
+
+coef_fig_pedon <- coef_fig_func(anova_ci = ci_anova_stocks, model = GLM)
+coef_fig_pedon_w <- coef_fig_func(anova_ci = ci_anova_stocks_wet, model = GLMw)
+coef_fig_pedon_u <- coef_fig_func(anova_ci = ci_anova_stocks_upl, model = GLMu)
+
+coef_fig_pedon_full <- coef_fig_pedon + 
+  annotate("text", x = -2, y = 8.8, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -2, y = 7.8, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -2, y = 6.8, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -2, y = 4.8, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -2, y = 3.8, label = "*", hjust = 0.5, size = 8, colour = "red") +
+  annotate("text", x = -2, y = 1.8, label = "*", hjust = 0.5, size = 8, colour = "red") 
+
+coef_pedon_plots <- (coef_fig_pedon+ xlim(-2, 2)) + 
+  (coef_fig_pedon_w + xlim(-4, 2)) + 
+  (coef_fig_pedon_u +xlim(-2, 2)) + 
+    plot_layout(nrow = 1, ncol = 3, axis_titles = "collect",
+                widths = c(1,1,1)) +
+    plot_annotation(tag_levels = list(c("A", "B", "C"))) &
+    theme(legend.position = 'right', 
+          legend.key.size = unit(0.6, "cm"),
+          legend.spacing.x = unit(1.2, "cm"),
+          panel.background = element_blank(),
+          panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
+          axis.ticks = element_blank(),
+          text = element_text(size = 8))
+
+save(coef_pedon_plots, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Pedon_coef_plots_graphs.RData")
+```
+
 
 
 ### Random Forest plots 
@@ -569,34 +726,31 @@ save(rfm_pdp_plots, file = "/Users/Anthony/OneDrive - UW/University of Washingto
 #### Multivariate PDP plots
 
 ```{r}
-wip_mvpdp <- pdp::partial(RFM, pred.var = c("WIP", "lower_depth"), grid.resolution = 10, train = rf.train) |> 
-  mutate(pred_wip = "WIP") |> 
-  dplyr::rename(yhat_wip = yhat)
-map_mvpdp <- pdp::partial(RFM, pred.var = c("MAP", "lower_depth"), grid.resolution = 10, train = rf.train) |> 
-  mutate(pred_map = "MAP") |> 
-  dplyr::rename(yhat_map = yhat)
-grad_mvpdp <- pdp::partial(RFM, pred.var = c("grad_300", "WIP"), grid.resolution = 10, train = rf.train) |> 
-  mutate(pred_grad = "WIP") |> 
-  dplyr::rename(yhat_wip = yhat)
+wip_depth_mvpdp <- pdp::partial(RFM, pred.var = c("WIP", "MAP"), 
+                         grid.resolution = 18, train = rf.train) |> 
+  dplyr::rename(Pred_SOC = yhat)
 
-mvpdp <- cbind(wip_mvpdp, map_mvpdp, grad_mvpdp)
+map_depth_mvpdp <- pdp::partial(RFM, pred.var = c("MAP", "lower_depth"), 
+                          grid.resolution = 5, train = rf.train) |> 
+  dplyr::rename(Pred_SOC = yhat)
 
-wip_mvpdp_gg <- ggplot(wip_mvpdp) +
-  geom_tile(aes(x = WIP, y = lower_depth, fill = yhat_wip))
-map_mvpdp_gg <- ggplot(map_mvpdp) +
-  geom_tile(aes(x = MAP, y = lower_depth, fill = yhat_map))
-grad_mvpdp_gg <- ggplot(grad_mvpdp) +
-  geom_tile(aes(x = grad_300, y = WIP, fill = yhat_grad))
-  
-M <- list(wip_mvpdp_gg, map_mvpdp_gg, grad_mvpdp_gg)
-for(i in 1:length(M)){
-  M[[i]] <- M[[i]] +
-    scale_fill_continuous(type = "viridis") +
-    theme(panel.background = element_blank(),
-            panel.grid.major = element_line(colour = "grey80"),
-          axis.ticks = element_blank())
-}
-M
+grad_depth_mvpdp <- pdp::partial(RFM, pred.var = c("grad_300", "lower_depth"), 
+                           grid.resolution = 5, train = rf.train) |> 
+  dplyr::rename(Pred_SOC = yhat)
+
+
+
+# mvpdp <- cbind(wip_depth_mvpdp, map_depth_mvpdp, grad_depth_mvpdp)
+# 
+# wip_mvpdp_gg <- ggplot(wip_depth_mvpdp, aes(x = WIP, y = MAP, fill = Pred_SOC)) +
+#   geom_tile() + 
+#   scale_fill_viridis_c(option = "A", values = c(0,2))
+# map_mvpdp_gg <- ggplot(map_depth_mvpdp, aes(x = MAP, y = lower_depth, fill = Pred_SOC)) +
+#   geom_tile() + 
+#   scale_fill_viridis_c(option = "A", values = c(0,2))
+# grad_mvpdp_gg <- ggplot(grad_depth_mvpdp) +
+#   geom_tile(aes(x = grad_300, y = WIP, fill = Pred_SOC))
+#   
 ```
 
 #### Variable importance 
@@ -611,9 +765,9 @@ shap_plot <- sv_importance(shapviz(rf_ks)) +
 shap_dependence <- sv_dependence(shapviz(rf_ks), v = c("WIP", "MAP", "lower_depth", "grad_300"), 
               color_var = NULL) 
 shap_dependence[[3]] <- shap_dependence[[3]] + labs(x = "Depth")
-shap_dependence[[4]] <- shap_dependence[[4]] + labs(x = "Slope 300m")
+shap_dependence[[4]] <- shap_dependence[[4]] + labs(x = "Gradient 300m")
 
-shap_dependence <- shap_dependence +
+shap_dependence_plot <- shap_dependence +
   plot_layout(nrow = 2, ncol = 2, axis_titles = "collect") +
   plot_annotation(tag_levels = list(c( "A", "B", "C", "D"))) &
   theme(panel.background = element_blank(),
@@ -632,14 +786,91 @@ rf_incMSEplot <- rf_model$importance |> data.frame() |>
   ggplot(aes(y = Predictor, x = IncMSE)) + 
   geom_col() 
 
-rf_incMSE_shap_plot <- shap_plot &
+shap_names <- unique(shap_plot$data$feature) |> str_replace("grad_", "Gradient ") |>
+  str_replace("dev_", "Deviation ") |>
+  str_replace("lower_depth", "Depth") |>
+  str_replace("LITH", "Lithology") |>
+  str_replace("300", "300m") |>
+  str_replace("1000", "1000m") 
+
+rf_incMSE_shap_plot <- shap_plot + 
+  scale_y_discrete(labels= rev(shap_names)) +
   theme(panel.background = element_blank(),
            panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
         axis.ticks = element_blank(),
         text = element_text(size = 8))
 
-save(shap_dependence, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/RFM_shap_dependence.RData")
+RFM_shap_pdp_plot <- rf_incMSE_shap_plot + shap_dependence_plot +
+    patchwork::plot_layout(widths = c(1,2)) +
+  plot_annotation(tag_levels = list(c( "A", "B", "C", "D", "E"))) 
+
+save(shap_dependence_plot, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/RFM_shap_dependence.RData")
 save(rf_incMSE_shap_plot, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/RFM_incMSE_shap_plots.RData")
+save(RFM_shap_pdp_plot, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/RFM_shap_pdp_plot.RData")
+
+
+```
+
+#### Interaction plots from Random Forest 
+```{r}
+ia_depth_plot <- get(load("SOIL CARBON/All_WA/writing/Figures/RFM_Interact_Depth_plot.RData"))
+ia_map_plot <- get(load("SOIL CARBON/All_WA/writing/Figures/RFM_Interact_MAP_plot.RData"))
+ia_wip_plot <- get(load("SOIL CARBON/All_WA/writing/Figures/RFM_Interact_WIP_plot.RData"))
+ia_grad_plot <- get(load("SOIL CARBON/All_WA/writing/Figures/RFM_Interact_grad300_plot.RData"))
+
+graph_factor_str_replace <- function(features){
+  features <- features |> str_replace("grad_", "Gradient ") |>
+  str_replace("dev_", "Deviation ") |>
+  str_replace("lower_depth", "Depth") |>
+  str_replace("LITH", "Lithology") |>
+  str_replace_all("300", "300m") |>
+  str_replace("1000", "1000m") 
+  return(features)
+}
+ia_depth_plot$data$.feature <- graph_factor_str_replace(ia_depth_plot$data$.feature)
+ia_map_plot$data$.feature <- graph_factor_str_replace(ia_map_plot$data$.feature)
+ia_wip_plot$data$.feature <- graph_factor_str_replace(ia_wip_plot$data$.feature)
+ia_grad_plot$data$.feature <- graph_factor_str_replace(ia_grad_plot$data$.feature)
+
+
+
+ia_plots <- ia_depth_plot + ia_map_plot + ia_wip_plot + ia_grad_plot +
+  plot_layout(nrow = 2, ncol = 2, axis_titles = "collect") &
+  theme(panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.x = element_text(angle = 45),
+        plot.title = element_blank(),
+        plot.tag.position = c(0, 1),
+        plot.tag = element_text(size = 12, hjust = -1.7, vjust = 0.1),          
+          panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
+          text = element_text(size = 8))
+
+rf_shap_interact_plot <- rf_incMSE_shap_plot + ia_plots +
+    patchwork::plot_layout(widths = c(1,2)) +
+  plot_annotation(tag_levels = list(c( "A", "B", "C", "D", "E")))
+
+save(rf_shap_interact_plot, file = "SOIL CARBON/All_WA/writing/Figures/RFM_Shap_Interact_plot.RData")
+```
+
+
+### All variable importance (3 models) 
+
+```{r}
+all_model_var_imp_plot <- (coef_fig7_full + xlim(-1,1)) + ggtitle(expression("LMM"["Depths"])) +
+  rf_incMSE_shap_plot + ggtitle(expression("RFM"["Depths"])) +
+  (coef_fig_pedon_full+ xlim(-2, 2)) + ggtitle(expression("GLM"["Pedons"])) +
+    plot_layout(nrow = 1, ncol = 3, axis_titles = "collect",
+                widths = c(1,1,1)) &
+    theme(plot.title = element_text(hjust = 0.5, size = 12, face = "bold"),
+          legend.position = 'right', 
+          legend.key.size = unit(0.6, "cm"),
+          legend.spacing.x = unit(1.2, "cm"),
+          panel.background = element_blank(),
+          panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
+          axis.ticks = element_blank(),
+          text = element_text(size = 8))
+all_model_var_imp_plot
+save(all_model_var_imp_plot, file = "SOIL CARBON/All_WA/writing/Figures/all_model_var_imp_plot.RData")
 ```
 
 

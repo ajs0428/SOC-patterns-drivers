@@ -202,9 +202,13 @@ hoh_stack$GEO <- subst(hoh_stack$GEO, from = c(0,1,2,3), c("Eocene", "Miocene", 
 mas_stack$GEO <- subst(mas_stack$GEO, from = c(0,1,2,3), c("Eocene", "Miocene", "Pleistocene", "Quaternary"))
 col_stack$GEO <- subst(col_stack$GEO, from = c(0,1,2,3), c("Eocene", "Pleistocene", "PreTertiary", "Quaternary"))
 
-hoh_stack$LITH <- subst(hoh_stack$LITH, from = c(0,1,2), c("glacial", "sedimentary", "unconsolidated"))
-mas_stack$LITH <- subst(mas_stack$LITH, from = c(0,1,2,3), c("glacial", "igneous", "sedimentary", "unconsolidated"))
-col_stack$LITH <- subst(col_stack$LITH, from = c(0,1,2,3), c("glacial", "igneous", "metamorphic", "sedimentary", "unconsolidated"))
+hoh_stack$LITH <- subst(hoh_stack$LITH,from = c(0,1,2,3), c("glacial outwash", "glacial till and drift",
+                                                              "sedimentary", "unconsolidated"))
+mas_stack$LITH <- subst(mas_stack$LITH,from = c(0,1,2,3,4), c("glacial outwash", "glacial till and drift",
+                                                              "igneous", "sedimentary","unconsolidated"))
+col_stack$LITH <- subst(col_stack$LITH, from = c(0,1,2,3,4,5), c("glacial outwash", "glacial till and drift",
+                                                                 "igneous", "metamorphic",
+                                                                 "sedimentary", "unconsolidated"))
 
 
 hoh_stocks_ext <- terra::extract(hoh_stack, hoh_stocks_pts, method = "simple", bind = TRUE, 
@@ -291,58 +295,58 @@ corplot
 ```{r}
 
 gmod <- glm((SOC_stock_100) ~ 
-                  CHM + HLI + LITH + MAP*WIP + MAT  + EVI + #VPD +#EVT + 
+                  CHM + HLI + LITH + MAP*WIP   + EVI + #VPD +#EVT + 
                 dev_1000 + dev_300 + dev_50 + grad_1000 + grad_300 + grad_50, 
             family = Gamma(link = "log"),
               data = wa_stocks_scale, na.action = 'na.fail')
 
 gmodw <- glm((SOC_stock_100) ~ 
-                CHM + HLI + LITH + MAP*WIP +  MAT  + EVI + #VPD + #EVT + 
+                CHM + HLI + LITH + MAP*WIP   + EVI + #VPD + #EVT + 
                 dev_1000 + dev_300 + dev_50 + grad_1000 + grad_300 + grad_50, 
             family = Gamma(link = "log"),
             data = wa_stocks_wet, na.action = 'na.fail')
 
 gmodu <- glm((SOC_stock_100) ~ 
-                CHM + HLI + LITH + MAP*WIP + MAT + EVI + #VPD +#EVT + 
+                CHM + HLI + LITH + MAP*WIP  + EVI + #VPD +#EVT + 
                 dev_1000 + dev_300 + dev_50 + grad_1000 + grad_300 + grad_50,
             family = Gamma(link = "log"),
             data = wa_stocks_upl, na.action = 'na.fail')
 
-modd <- dredge(gmod, rank = "AIC", extra = "R^2", m.lim = c(3,8), fixed = c("MAP", "WIP"))
-moddw <- dredge(gmodw, rank = "AIC", extra = "R^2", m.lim = c(3,8), fixed = c("MAP", "LITH"))
-moddu <- dredge(gmodu, rank = "AIC", extra = "R^2", m.lim = c(3,8), fixed = c("MAP", "WIP"))
+GLM <- dredge(gmod, rank = "AIC", extra = "R^2", m.lim = c(3,8), fixed = c("MAP", "WIP"))
+GLMw <- dredge(gmodw, rank = "AIC", extra = "R^2", m.lim = c(3,8), fixed = c("MAP", "LITH"))
+GLMu <- dredge(gmodu, rank = "AIC", extra = "R^2", m.lim = c(3,8), fixed = c("MAP", "WIP"))
 
-head(modd, 5) 
-modd1 <- get.models(modd, 1)[[1]] # fewest terms and lowest AIC
-modd1w <- get.models(moddw, 1)[[1]] # fewest terms and lowest AIC
-modd1u <- get.models(moddu, 1)[[1]] # fewest terms and lowest AIC
+head(GLM, 5) 
+GLM1 <- get.models(GLM, 1)[[1]] # fewest terms and lowest AIC
+GLM1w <- get.models(GLMw, 1)[[1]] # fewest terms and lowest AIC
+GLM1u <- get.models(GLMu, 1)[[1]] # fewest terms and lowest AIC
 ```
 
 
 ```{r}
 print("full")
-formula(modd1)
-summary(modd1)
+formula(GLM1)
+summary(GLM1)
 print("wet")
-summary(modd1w)
+summary(GLM1w)
 print("upl")
-summary(modd1u)
+summary(GLM1u)
 ```
 
 
 The R2 statistic used is from Zhang et al 2017. there they show that the Likelihood Ratio R2 (LR) and the Nagelkerke R2 can overestimate contributions from unimportant variables. Also, using the R2adj would penalize for additional predictors, but appears to be useful mostly for comparing models. 
 ```{r}
-r2mod1 <- 1-(modd1$deviance/modd1$null.deviance)
-r2mod1w <- 1-(modd1w$deviance/modd1w$null.deviance)
-r2mod1u <- 1-(modd1u$deviance/modd1u$null.deviance)
+r2mod1 <- 1-(GLM1$deviance/GLM1$null.deviance)
+r2mod1w <- 1-(GLM1w$deviance/GLM1w$null.deviance)
+r2mod1u <- 1-(GLM1u$deviance/GLM1u$null.deviance)
 
-r2 <- rsq::rsq(modd1, type = "v")
-r2w <- rsq::rsq(modd1w, type = "v")
-r2u <- rsq::rsq(modd1u, type = "v")
+r2 <- rsq::rsq(GLM1, type = "v")
+r2w <- rsq::rsq(GLM1w, type = "v")
+r2u <- rsq::rsq(GLM1u, type = "v")
 
-PI_s <- ciTools::add_pi(wa_stocks_scale, fit = modd1, alpha = 0.05) |> select(pred, LPB0.025, UPB0.975)
-PIw_s <- ciTools::add_pi(wa_stocks_wet, fit = modd1w, alpha = 0.05) |> select(pred, LPB0.025, UPB0.975)
-PIu_s <- ciTools::add_pi(wa_stocks_upl, fit = modd1u, alpha = 0.05) |> select(pred, LPB0.025, UPB0.975)
+PI_s <- ciTools::add_pi(wa_stocks_scale, fit = GLM1, alpha = 0.05) |> select(pred, LPB0.025, UPB0.975)
+PIw_s <- ciTools::add_pi(wa_stocks_wet, fit = GLM1w, alpha = 0.05) |> select(pred, LPB0.025, UPB0.975)
+PIu_s <- ciTools::add_pi(wa_stocks_upl, fit = GLM1u, alpha = 0.05) |> select(pred, LPB0.025, UPB0.975)
 
 readr::write_csv(PI_s, file = "SOIL CARBON/All_WA/data/dataframes/PI_Full_Stocks_Transformed_Dataframe.csv")
 readr::write_csv(PIw_s, file = "SOIL CARBON/All_WA/data/dataframes/PIwet_Full_Stocks_Transformed_Dataframe.csv")
@@ -357,15 +361,15 @@ PI_s_rmse
 PIw_s_rmse
 PIu_s_rmse
 
-r2_po <- r.sq(wa_stocks_scale$SOC_stock_100, predict(modd1, newdata = wa_stocks_scale, type = "response"))
-r2w_po <- r.sq(wa_stocks_wet$SOC_stock_100, predict(modd1w, newdata = wa_stocks_wet, type = "response"))
-r2u_po <- r.sq(wa_stocks_upl$SOC_stock_100, predict(modd1u, newdata = wa_stocks_upl, type = "response"))
+r2_po <- r.sq(wa_stocks_scale$SOC_stock_100, predict(GLM1, newdata = wa_stocks_scale, type = "response"))
+r2w_po <- r.sq(wa_stocks_wet$SOC_stock_100, predict(GLM1w, newdata = wa_stocks_wet, type = "response"))
+r2u_po <- r.sq(wa_stocks_upl$SOC_stock_100, predict(GLM1u, newdata = wa_stocks_upl, type = "response"))
 
 
-rmse_caret <- caret::RMSE(pred = predict(modd1, type = "response"), obs = wa_stocks_dat$SOC_stock_100)
-#(sqrt(sum((predict(modd1, type = "response") - wa_stocks_dat$SOC_stock_100)**2)/nrow(wa_stocks_dat)))
-rmse_caretw <- caret::RMSE(pred = predict(modd1w, type = "response"), obs = wa_stocks_wet$SOC_stock_100)
-rmse_caretu <- caret::RMSE(pred = predict(modd1u, type = "response"), obs = wa_stocks_upl$SOC_stock_100)
+rmse_caret <- caret::RMSE(pred = predict(GLM1, type = "response"), obs = wa_stocks_dat$SOC_stock_100)
+#(sqrt(sum((predict(GLM1, type = "response") - wa_stocks_dat$SOC_stock_100)**2)/nrow(wa_stocks_dat)))
+rmse_caretw <- caret::RMSE(pred = predict(GLM1w, type = "response"), obs = wa_stocks_wet$SOC_stock_100)
+rmse_caretu <- caret::RMSE(pred = predict(GLM1u, type = "response"), obs = wa_stocks_upl$SOC_stock_100)
 
 stat_table_stocks <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
                                 "GLM.R2_deviance" = c(r2mod1, r2mod1w, r2mod1u), 
@@ -437,19 +441,19 @@ kf_rmse_stocks <- kFoldCV_stocks(K = 6,
         reps      = 10,
         randSeed  = 11,
         data = wa_stocks_scale,
-        model = modd1
+        model = GLM1
         )
 kf_rmse_stocks_w <- kFoldCV_stocks(K = 6,
         reps      = 10,
         randSeed  = 11,
         data = wa_stocks_wet,
-        model = modd1w
+        model = GLM1w
         )
 kf_rmse_stocks_u <- kFoldCV_stocks(K = 6,
         reps      = 10,
         randSeed  = 11,
         data = wa_stocks_upl,
-        model = modd1u
+        model = GLM1u
         )
 
 kf_stocks_df <- data.frame(LandscapeClass = c("Full", "Wetland", "Upland"), 
@@ -461,17 +465,17 @@ readr::write_csv(kf_stocks_df, file = "SOIL CARBON/All_WA/data/dataframes/KFold_
 
 
 ```{r}
-anova_stocks <- anova(modd1, test = "F") |> data.frame() |> tibble::rownames_to_column()
-anova_stocks_w <- anova(modd1w)
-anova_stocks_u <- anova(modd1u, test = "F")
+anova_stocks <- anova(GLM1, test = "F") |> data.frame() |> tibble::rownames_to_column()
+anova_stocks_w <- anova(GLM1w)
+anova_stocks_u <- anova(GLM1u, test = "F")
 
-ci_stocks <- confint.lm(modd1, level = 0.95)
-ci_stocks_w <- confint(modd1w)
-ci_stocks_u <- confint(modd1u)
+ci_stocks <- confint(GLM1, level = 0.95)
+ci_stocks_w <- confint(GLM1w)
+ci_stocks_u <- confint(GLM1u)
 
-p_r2b <- rsq::rsq.partial(modd1, type = "v") |> data.frame() |> mutate(across(where(is.numeric), ~base::round(.x, 2)))
-p_r2bw <- rsq::rsq.partial(modd1w, type = "v") |> data.frame() |> mutate(across(where(is.numeric), ~base::round(.x, 2)))
-p_r2bu <- rsq::rsq.partial(modd1u, type = "v") |> data.frame() |> mutate(across(where(is.numeric), ~base::round(.x, 2)))
+p_r2b <- rsq::rsq.partial(GLM1, type = "v") |> data.frame() |> mutate(across(where(is.numeric), ~base::round(.x, 2)))
+p_r2bw <- rsq::rsq.partial(GLM1w, type = "v") |> data.frame() |> mutate(across(where(is.numeric), ~base::round(.x, 2)))
+p_r2bu <- rsq::rsq.partial(GLM1u, type = "v") |> data.frame() |> mutate(across(where(is.numeric), ~base::round(.x, 2)))
 
 ci_anova_tab_stocks_func <- function(model, data) {
   set.seed(11)
@@ -479,7 +483,7 @@ ci_anova_tab_stocks_func <- function(model, data) {
     rename(Predictor = rowname,
            F.value = "F") |> 
     select(Predictor, F.value, Pr..F.) 
-  ci <- confint.lm(model, level = 0.95)
+  ci <- confint(model, level = 0.95)
   r2partial <- rsq::rsq.partial(model, type = "v") |> data.frame() |> 
     rename(Predictor = variable,
            PartRsq = partial.rsq,) |> 
@@ -498,9 +502,9 @@ ci_anova_tab_stocks_func <- function(model, data) {
   return(ci_anova_tab)
 }
 
-ci_anova_stocks <- ci_anova_tab_stocks_func(model = modd1, data = wa_stocks_scale)
-ci_anova_stocks_wet <- ci_anova_tab_stocks_func(model = modd1w, data = wa_stocks_wet)
-ci_anova_stocks_upl <- ci_anova_tab_stocks_func(model = modd1u, data = wa_stocks_upl)
+ci_anova_stocks <- ci_anova_tab_stocks_func(model = GLM1, data = wa_stocks_scale)
+ci_anova_stocks_wet <- ci_anova_tab_stocks_func(model = GLM1w, data = wa_stocks_wet)
+ci_anova_stocks_upl <- ci_anova_tab_stocks_func(model = GLM1u, data = wa_stocks_upl)
 
 readr::write_csv(ci_anova_stocks, "SOIL CARBON/All_WA/data/dataframes/anova_confint95_stocks.csv")
 readr::write_csv(ci_anova_stocks_wet, "SOIL CARBON/All_WA/data/dataframes/anova_wet_confint95_stocks.csv")
@@ -511,7 +515,7 @@ readr::write_csv(ci_anova_stocks_upl, "SOIL CARBON/All_WA/data/dataframes/anova_
 Adding quantiles to GLM models
 
 ```{r}
-ciTools::add_quantile(df = wa_stocks_scale, p = 0.025, fit = modd1, nSims = 1000)
+ciTools::add_quantile(df = wa_stocks_scale, p = 0.025, fit = GLM1, nSims = 1000)
 ```
 
 
@@ -520,17 +524,17 @@ wa_stocks_dat_plot <- wa_stocks_scale |>
     mutate(wetupl = case_when(WIP >= (0.5 - mean(wa_stocks_dat$WIP))/sd(wa_stocks_dat$WIP) ~ "WET",
                                                                  .default = "UPL"))
 ggplot() +
-    geom_point(aes(x = SOC_stock_100, y = fitted(modd1w)), 
+    geom_point(aes(x = SOC_stock_100, y = fitted(GLM1w)), 
                data = wa_stocks_wet, colour = "aquamarine3") +
-    geom_point(aes(x = SOC_stock_100, y = fitted(modd1u)), 
+    geom_point(aes(x = SOC_stock_100, y = fitted(GLM1u)), 
                data = wa_stocks_upl, colour = "tan") +
-    geom_smooth(aes(x = SOC_stock_100, y = fitted(modd1w)), 
+    geom_smooth(aes(x = SOC_stock_100, y = fitted(GLM1w)), 
                 data = wa_stocks_wet, method = "lm", method.args=list(family="Gamma"),
                 colour = "aquamarine3", se = T) +
-    geom_smooth(aes(x = SOC_stock_100, y = fitted(modd1u)), 
+    geom_smooth(aes(x = SOC_stock_100, y = fitted(GLM1u)), 
                 data = wa_stocks_upl, method = "lm", method.args=list(family="Gamma"),
                 colour = "tan", se = T) +
-    geom_smooth(aes(x = SOC_stock_100, y = fitted(modd1)), 
+    geom_smooth(aes(x = SOC_stock_100, y = fitted(GLM1)), 
                 data = wa_stocks_dat, method = "lm", method.args=list(family="Gamma"),
                 se = T) +
     geom_abline(slope = 1, intercept = 0) +
@@ -541,20 +545,20 @@ ggplot() +
 Saving models
 
 ```{r}
-save(modd1, file = "SOIL CARBON/All_WA/analysis/models/All_WA_Stocks_Model.RData")
-save(modd1w, file = "SOIL CARBON/All_WA/analysis/models/All_WA_Wet_Stocks_Model.RData")
-save(modd1u, file = "SOIL CARBON/All_WA/analysis/models/All_WA_Upl_Stocks_Model.RData")
+save(GLM1, file = "SOIL CARBON/All_WA/analysis/models/All_WA_Stocks_Model.RData")
+save(GLM1w, file = "SOIL CARBON/All_WA/analysis/models/All_WA_Wet_Stocks_Model.RData")
+save(GLM1u, file = "SOIL CARBON/All_WA/analysis/models/All_WA_Upl_Stocks_Model.RData")
 
 ```
 
 ```{r}
 all_1m_plot <- ggplot() +
-    geom_point(aes(x = SOC_stock_100, y = fitted(modd1w)), 
+    geom_point(aes(x = SOC_stock_100, y = fitted(GLM1w)), 
                data = wa_stocks_wet, colour = "aquamarine3", size = 2) +
-    geom_point(aes(x = SOC_stock_100, y = fitted(modd1u)), 
+    geom_point(aes(x = SOC_stock_100, y = fitted(GLM1u)), 
                data = wa_stocks_upl, colour = "tan", size = 2) +
     
-        geom_smooth(aes(x = SOC_stock_100, y = fitted(modd1w)), 
+        geom_smooth(aes(x = SOC_stock_100, y = fitted(GLM1w)), 
                     data = wa_stocks_wet, method = "lm", method.args=list(family="Gamma"), 
                     colour = "aquamarine3", fill = "aquamarine3", alpha = 0.2,
                     se = T) +
@@ -565,7 +569,7 @@ all_1m_plot <- ggplot() +
                 data = wa_stocks_wet, method = "lm", method.args=list(family="Gamma"), 
                 colour = "aquamarine3", se = F, lty = "35", lwd = 1) +
     
-        geom_smooth(aes(x = SOC_stock_100, y = fitted(modd1u)), 
+        geom_smooth(aes(x = SOC_stock_100, y = fitted(GLM1u)), 
                 data = wa_stocks_upl, method = "lm", method.args=list(family="Gamma"), 
                 colour = "tan2", fill = "tan2", alpha = 0.2,
                 se = T) +
@@ -576,7 +580,7 @@ all_1m_plot <- ggplot() +
                 data = wa_stocks_upl, method = "lm", method.args=list(family="Gamma"), 
                 colour = "tan2", se = F, lty = "35", lwd = 1) +
     
-        geom_smooth(aes(x = SOC_stock_100, y = fitted(modd1)), 
+        geom_smooth(aes(x = SOC_stock_100, y = fitted(GLM1)), 
                 data = wa_stocks_dat, method = "lm", method.args=list(family="Gamma"), 
                 colour = "coral3", fill = "coral3", alpha = 0.2,
                 se = T) +
