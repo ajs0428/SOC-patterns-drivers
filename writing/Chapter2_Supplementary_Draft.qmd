@@ -1,0 +1,556 @@
+---
+title: "Supporting information for Patterns and drivers of newly revealed wetland and wet soil carbon stocks"
+author: "Anthony J Stewart, Meghan Halabisky, David V. D'Amore, Diogo Spinola, Chad Babcock, L. Monika Moskal, David Butman"
+format: 
+    docx: 
+        reference-doc: custom-reference-doc.docx
+        toc: false
+        toc-depth: 4
+        output-file: Chapter2_Supplementary_Draft
+        output-ext: docx
+execute: 
+  echo: false
+  warning: false
+linestretch: 2
+fig-dpi: 150
+bibliography: references_supp.bib
+link-citations: true
+csl: american-geophysical-union.csl
+---
+
+```{r setup}
+#| include: false
+
+library(formatR)
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", warning = FALSE,
+                      message = FALSE, dpi = 100, tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE, root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+library(rgl)
+library(terra)
+library(lme4)
+library(MASS)
+library(mgcv)
+library(lmerTest)
+library(MuMIn)
+library(RLRsim)
+library(terra)
+library(spatialEco)
+library(sf)
+library(mapview)
+library(car)
+library(ggplot2)
+library(forcats)
+library(sjPlot)
+library(sjstats)
+library(DHARMa)
+library(ggeffects)
+library(merTools)
+library(glmnet)
+library(stats)
+library(ggcorrplot)
+library(RColorBrewer)
+library(cowplot)
+library(webshot)
+library(webshot2)
+library(kableExtra)
+library(pdp)
+library(vip)
+library(formatR)
+library(dplyr)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(flextable)
+library(gtsummary)
+library(stringr)
+library(effectsize)
+library(officer)
+library(patchwork)
+
+knitr::knit_hooks$set(webgl = hook_webgl)
+rgl::setupKnitr(autoprint = TRUE)
+
+std_border <- fp_border(color = "gray10", width = 0.1)
+thick_border <- fp_border(color = "black", width = 1.5)
+
+flextable_fun <- function(table){
+    table |> flextable() |>
+    #colformat_num(j = 7, options(digits=4) ) |>
+    font(fontname = "Aptos", part = "all") |> 
+    fontsize(size = 8, part = "body") |>
+    fontsize(size = 9, part = "header") |>
+    set_table_properties(layout = "autofit", align = "center", width = 1) |>
+    align(align = "center", part = "all") |>
+    align(align = "left", j = 1) |>
+    flextable::bg(bg = "gray90", part = "header") |> 
+    border_inner_v(part = "header", border = std_border) |> 
+    hline(part = "footer", border = thick_border) |> 
+    hline(part = "header", border = thick_border) |>
+    padding(padding.top = 1.2, padding.bottom = 1.2, part = "body") |>
+    padding(padding = 5, part = "header") |>
+    paginate(init = TRUE, hdr_ftr = TRUE) 
+}
+
+anovaR2_form <- function(df) {
+    df_form <- df |> mutate("Full. Coef 95% CI" = 
+               case_when(!is.na(X2.5._full) ~ paste0(X2.5._full, "-", X97.5._full),
+                        TRUE ~ " "),
+           "Full. R2 95% CI" = case_when(!is.na(Rsq.lower.CL_full) ~ 
+                                       paste0(Rsq.lower.CL_full, "-", Rsq.upper.CL_full),
+                                   TRUE ~ " "),
+           "Wet. Coef 95% CI" = 
+               case_when(!is.na(X2.5._wet) ~ paste0(X2.5._wet, "-", X97.5._wet),
+                        TRUE ~ " "),
+           "Wet. R2 95% CI" = case_when(!is.na(Rsq.lower.CL_wet) ~ 
+                                       paste0(Rsq.lower.CL_wet, "-", Rsq.upper.CL_wet),
+                                   TRUE ~ " "),
+            "Upl. Coef 95% CI" = case_when(!is.na(X2.5.) ~ paste0(X2.5., "-", X97.5.),
+                        TRUE ~ " "),
+           "Upl. R2 95% CI" = case_when(!is.na(Rsq.lower.CL) ~ 
+                                       paste0(Rsq.lower.CL, "-", Rsq.upper.CL),
+                                   TRUE ~ " ")
+           ) |> 
+    select(!starts_with("X")) |> 
+    select(!starts_with("Rsq.up")) |>
+    select(!starts_with("Rsq.lo")) |> 
+    relocate("Full. R2 95% CI", .after = Rsq_full) |> 
+    relocate("Wet. R2 95% CI", .after = Rsq_wet) |> 
+    relocate("Upl. R2 95% CI", .after = Rsq) |> 
+    relocate("Full. Coef 95% CI", .before = Rsq_full) |> 
+    relocate("Wet. Coef 95% CI", .before = Rsq_wet) |> 
+    relocate("Upl. Coef 95% CI", .before = Rsq) |> 
+    dplyr::rename_with(~ sub("", "Full. ", .x), ends_with("_full")) |> 
+    dplyr::rename_with(~ sub("", "Wet. ", .x), ends_with("_wet")) |>
+    dplyr::rename_with(~ sub("_full", "", .x), ends_with("_full")) |> 
+    dplyr::rename_with(~ sub("_wet", "", .x), ends_with("_wet")) |>
+    dplyr::rename("Upl. F Value" = F.value,
+                  "Upl. p Value. "= Pr..F.,
+                  "Upl. Rsq" = Rsq) |> 
+    rename_with(~ stringr::str_replace(.x, 
+                                     pattern = " F.value", 
+                                     replacement = "F Value"), 
+              matches(" F.Value")) |>
+    rename_with(~ stringr::str_replace(.x, 
+                                     pattern = " Pr..F.", 
+                                     replacement = "p Value"), 
+              matches(" Pr..F."))
+    return(df_form)
+}
+
+dir_loc <- "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/"
+source(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/All_WA_Functions.R"))
+
+```
+
+```{r}
+
+wa_dat <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds.csv"))
+
+wa_stocks_dat <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_preds.csv"))
+
+wa_stocks_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_wet_preds_scale.csv"))
+
+wa_stocks_upl <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_upl_preds_scale.csv"))
+
+wa_dat_scale <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled.csv"))
+
+wa_dat_scale_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Wet.csv"))
+
+wa_dat_scale_upl <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Upl.csv"))
+
+
+mod7 <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Model7d1_Spline.RData")))
+modw <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Model_Wet_Spline.RData")))
+modu <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Model_Upl_Spline.RData")))
+
+rf_model <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/ALl_WA_RandomForest.RData")))
+rf_err_df <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/RFM_ErrorDF.csv"))
+
+glm_mod <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Stocks_Model.RData")))
+
+anova_ci_7 <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova7d1_confint95.csv"))
+anova_ci_w <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_wet_confint95.csv"))
+anova_ci_u <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_upl_confint95.csv"))
+
+ci_anova_pedons <- read.csv(paste0(dir_loc,"SOIL CARBON/All_WA/data/dataframes/anova_confint95_stocks.csv"))
+ci_anova_pedons_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_wet_confint95_stocks.csv"))
+ci_anova_pedons_upl <- read.csv(paste0(dir_loc,"SOIL CARBON/All_WA/data/dataframes/anova_upl_confint95_stocks.csv"))
+
+PI_rmse_df <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/PI_RMSE_Dataframe.csv"))
+
+kf_rmse_depths <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_Depths_Dataframe.csv"))
+
+stat_table_stocks <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_model_fit.csv"))
+
+kf_rmse_stocks <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_Stocks_Dataframe.csv"))
+
+r2glmm_r2 <- r2glmm::r2beta(mod7, partial = F, method = "nsj")
+mumin_R2m <- MuMIn::r.squaredGLMM(mod7)[[1]]
+mumin_R2c <- MuMIn::r.squaredGLMM(mod7)[[2]]
+
+r2glmm_r2_w <- r2glmm::r2beta(modw, partial = F, method = "nsj")
+mumin_R2m_w <- MuMIn::r.squaredGLMM(modw)[[1]]
+mumin_R2c_w <- MuMIn::r.squaredGLMM(modw)[[2]]
+
+r2glmm_r2_u <- r2glmm::r2beta(modu, partial = F, method = "nsj")
+mumin_R2m_u <- MuMIn::r.squaredGLMM(modu)[[1]]
+mumin_R2c_u <- MuMIn::r.squaredGLMM(modu)[[2]]
+
+r2_log_predobs <-base::round(r.sq(log10(wa_dat_scale$SOC_stock_spline), fitted(mod7)), 2)
+r2_log_predobs_w <-base::round(r.sq(log10(wa_dat_scale_wet$SOC_stock_spline), fitted(modw)), 2)
+r2_log_predobs_u <-base::round(r.sq(log10(wa_dat_scale_upl$SOC_stock_spline), fitted(modu)), 2)
+
+r2_nlog_predobs <-base::round(r.sq((wa_dat_scale$SOC_stock_spline), 10**fitted(mod7)), 2)
+r2_nlog_predobs_w <-base::round(r.sq((wa_dat_scale_wet$SOC_stock_spline), 10**fitted(modw)), 2)
+r2_nlog_predobs_u <-base::round(r.sq((wa_dat_scale_upl$SOC_stock_spline), 10**fitted(modu)), 2)
+
+```
+
+```{r}
+mod7_sc <- get(load(paste0(dir_loc,"SOIL CARBON/All_WA/analysis/models/All_WA_Model7_SiltClay_pH.RData")))
+mod7_sc_w <- get(load(paste0(dir_loc,"SOIL CARBON/All_WA/analysis/models/All_WA_Model7wet_SiltClay_pH.RData")))
+mod7_sc_u <- get(load(paste0(dir_loc,"SOIL CARBON/All_WA/analysis/models/All_WA_Model7upl_SiltClay_pH.RData")))
+
+ci_anova_psa_tab <- read.csv(paste0(dir_loc,"SOIL CARBON/All_WA/data/dataframes/anova7d1_SCpH_confint95.csv"))
+ci_anova_psa_tab_w <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_wet_SCpH_confint95.csv"))
+ci_anova_psa_tab_u <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_upl_SCpH_confint95.csv"))
+
+PI_trans_SCpH <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/PI_SCpH_Full_Depths_Transformed_Dataframe.csv"))
+PI_trans_SCpHw <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/PI_SCpH_wet_Full_Depths_Transformed_Dataframe.csv"))
+PI_trans_SCpHu <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/PIupl_SCpH_Full_Depths_Transformed_Dataframe.csv"))
+
+stat_table_SCpH <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/All_WA_SCpH_model_fit.csv")
+
+kf_df_psa <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_PSA_Depths_Dataframe.csv")
+```
+
+{{< pagebreak >}}
+
+#### Geolithology Consolidation
+
+```{r}
+#| include: true
+#| label: tbl-geolithology-classification
+#| tbl-cap: Supporting Table 1. The reclassification of original detailed lithology categories into broader categories
+
+
+hoh_litho_source <- vect(paste0(dir_loc, "SOIL CARBON/All_WA/data/Vectors/Hoh_geology.shp"))
+mas_litho_source <- vect(paste0(dir_loc, "SOIL CARBON/All_WA/data/Vectors/Mashel_geology.shp"))
+col_litho_source <- vect(paste0(dir_loc, "SOIL CARBON/All_WA/data/Vectors/Colville_geology.shp"))
+
+hoh_litho <- vect(paste0(dir_loc, 
+                         "SOIL CARBON/All_WA/data/Vectors/Hoh_lithology_consolidate.shp")) |>
+   tidyterra::select(LITH)
+mas_litho <- vect(paste0(dir_loc, 
+                         "SOIL CARBON/All_WA/data/Vectors/Mas_lithology_consolidate.shp")) |>
+   tidyterra::select(LITH) 
+col_litho <- vect(paste0(dir_loc, 
+                         "SOIL CARBON/All_WA/data/Vectors/Col_lithology_consolidate.shp")) |>
+   tidyterra::select(LITH)
+
+hoh_og_lith <- data.frame(site = "HRW", LITHOLOGY = unique(hoh_litho_source$LITHOLOGY))
+mas_og_lith <- data.frame(site = "MRW", LITHOLOGY = unique(mas_litho_source$LITHOLOGY))
+col_og_lith <- data.frame(site = "CVW", LITHOLOGY =unique(col_litho_source$LITHOLOGY))
+
+
+lith_og_df <- rbind(hoh_og_lith, mas_og_lith, col_og_lith)
+
+lith_og_new_df <- lith_og_df |> dplyr::mutate(LITH = case_when(str_detect(LITHOLOGY, "till|drift|glacial deposits|glaciolacustrine") ~ "glacial till and drift",
+                                     str_detect(LITHOLOGY, "outwash") ~ "glacial outwash",
+                                     str_detect(LITHOLOGY, "tectonic|alluvium|water|mass-wasting|dune") ~ "unconsolidated",
+                                     str_detect(LITHOLOGY, "sedimentary|sandstone") ~ "sedimentary",
+                                     str_detect(LITHOLOGY, "tuff|volcanic|andesite|basalt") ~ "igneous",
+                                     str_detect(LITHOLOGY, "amphibolite|marble|gneiss|quartz|mafic|migmatite|schist|dacite|metacarbonate|monzo") ~ "metamorphic",
+                                    .default = LITHOLOGY)) |> 
+    mutate(site = fct_relevel(site, c("HRW", "MRW", "CVW"))) |> 
+    dplyr::group_by(site) |>
+    arrange(desc(LITH), .by_group = TRUE) |> 
+    rename("Site" = site,
+           "Original Lithology" = "LITHOLOGY",
+           "Reclassified Lithology" = "LITH")
+    
+
+#lith_df <- lith_og_df |> left_join(y = lith_new_df, by = join_by(site))
+
+lith_og_new_df |> 
+    flextable_fun() |> merge_v(j = c(1,3)) |> 
+    hline()
+```
+
+{{< pagebreak >}}
+
+### Spatial autocorrelation
+
+```{r}
+#| label: fig-semivariograms
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 3.5
+#| fig-dpi: 300
+#| fig-cap: Supporting Figure 1. Semivariograms showing the semivariance of location pairs across all study watersheds, the HRW, the MRW, and the CVW. We interpreted these semivariograms as showing little to no spatial structure within the dataset.
+#| warning: false
+#| message: false
+#| include: true
+
+semivariograms <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/Semivariograms.RData"))
+
+semivariograms & theme(
+          axis.text = element_text(size = 4),
+          axis.title = element_text(size = 6),
+          axis.ticks = element_blank(),
+          panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
+          panel.background = element_blank())
+```
+
+```{r}
+#| label: fig-randomeffect-dist
+#| fig-align: center
+#| fig-height: 7
+#| fig-width: 7
+#| fig-dpi: 300
+#| fig-cap: Supporting Figure 2. Distributions for each level of the sample ID random effect which represents the location of each pedon that groups observations of SOC stock made at different depths. Ideally, the model residuals are evenly distributed around 0.
+#| warning: false
+#| message: false
+#| include: true
+#| 
+
+get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/model_resid_fit_plot.Rdata"))
+```
+
+```{r}
+#| label: fig-qqplot
+#| fig-align: center
+#| fig-height: 7
+#| fig-width: 7
+#| fig-dpi: 300
+#| fig-cap: Supporting Figure 3. Normal Quantile-Quantile plot used to evaluate if the distribution of the residuals and sample observations are similar. We note there are some observations that deviate from the 1:1 line but deemed it overall sufficient to proceed with the model.
+#| warning: false
+#| message: false
+#| include: true
+
+
+
+```
+
+```         
+![Supporting Figure 3. Normal Quantile-Quantile plot used to evaluate if the distribution of the residuals and sample observations are similar. We note there are some observations that deviate from the 1:1 line but deemed it overall sufficient to proceed with the model.](Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/qq_lev_full.png)
+```
+
+### Soil texture and pH
+
+```{r}
+#| label: fig-texture-triangle
+#| fig-height: 4.5
+#| fig-width: 7.5
+#| fig-cap: Supporting Figure 4. Soil texture triangle showing the sand, silt, and clay composition of all soil samples and a histogram of pH values in the mineral soil subset dataset.
+#| fig-align: center
+#| warning: false
+#| message: false
+
+texture_triangle_plot <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/texture_triangle_plot.rda"))
+
+soil_pH <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/pH_histogram.RData"))
+
+(texture_triangle_plot) +
+    soil_pH + 
+    plot_layout(ncol = 2, widths = c(0.8, 1)) &
+    theme(legend.title = element_text(face = "bold"),
+          legend.position = "bottom",
+          legend.text = element_text(size = 8, angle = 45), 
+          panel.background = element_blank())
+
+```
+
+```{r}
+caption_fig_shap <- "(LMM~full depths~, RFM, GLM~full pedons~)"
+```
+
+### RFM Interaction Plots
+
+```{r}
+#| label: fig-shap-pdp
+#| fig-width: 6.5
+#| fig-height: 5
+#| fig-dpi: 300
+#| fig-cap: Partial dependence plots using predictor SHAP (SHapley Additive exPlanations) values plotted against the actual values of the predictor and colored by the next highest SHAP predictor. 
+#| include: true
+readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/shap_interact_pdp.rds")
+```
+
+```{r}
+#| label: tbl-LMM-ANOVA
+#| tbl-cap: Supporting Table 2. ANOVA and 95% Confidence intervals for predictors in the linear mixed models (LMMs) across the full, wetland, and upland datasets
+#| include: true
+
+
+
+anova_lmm_table <- anova_ci_7 |> 
+    mutate(across(where(is.numeric), ~base::round(.x, 4))) |> 
+    dplyr::arrange(desc(F.value)) |> 
+    full_join(y = anova_ci_w, join_by(Predictor), suffix = c("_full", "_wet")) |> 
+    full_join(y = anova_ci_u, join_by(Predictor )) |> 
+    #slice(12, 1:5, 7, 13, 6, 8:11) |> 
+    anovaR2_form()
+
+anova_lmm_table |> filter(Predictor != "Model") |>
+    arrange(desc(Predictor)) |>
+    mutate(Predictor = case_when(str_detect(Predictor, "lower_depth") ~ 
+                                     str_replace(Predictor,"lower_depth", "Depth"),
+                                 str_detect(Predictor, "LITH") ~ 
+                                     str_replace(Predictor, "LITH", "Lithology "),
+                                 str_detect(Predictor, "grad") ~ 
+                                     str_replace(Predictor, "grad_1000", "Gradient 1000m"),
+                                 str_detect(Predictor, "dev") ~ 
+                                     str_replace(Predictor, "dev_1000", "Deviation 1000m"),
+                                                .default = toupper(Predictor))) |> 
+    flextable_fun() |> separate_header(split = "[\\.]", fixed = F)  |>
+    compose(part = "header", i = 2, j = c(5,10,15),
+              value = c(as_paragraph("R", as_sup("2"))  )) |> 
+    compose(part = "header", i = 2, j = c(6,11,16),
+              value = c(as_paragraph("R", as_sup("2"), "\n95% CI")  )) |>
+    vline(part = "header",  j = 6)|>
+    vline(part = "header",  j = 11)
+    
+
+```
+
+```{r}
+#| label: tbl-GLM-ANOVA_pedons
+#| tbl-cap: Supporting Table 3. ANOVA and 95% Confidence intervals for predictors in the linear mixed models (LMMs) across the full, wetland, and upland datasets
+#| include: true
+
+
+anova_glm_table <- ci_anova_pedons |> 
+    mutate(across(where(is.numeric), ~base::round(.x, 4))) |> 
+    dplyr::arrange(desc(F.value)) |> 
+    full_join(y = ci_anova_pedons_wet, join_by(Predictor), suffix = c("_full", "_wet")) |> 
+    full_join(y = ci_anova_pedons_upl, join_by(Predictor )) |> 
+    #slice(12, 1:5, 7, 13, 6, 8:11) |> 
+    anovaR2_form()
+
+anova_glm_table |> filter(Predictor != "Model") |>
+    arrange(desc(Predictor)) |>
+    mutate(Predictor = case_when(str_detect(Predictor, "lower_depth") ~ 
+                                     str_replace(Predictor,"lower_depth", "Depth"),
+                                 str_detect(Predictor, "LITH") ~ 
+                                     str_replace(Predictor, "LITH", "Lithology "),
+                                 str_detect(Predictor, "grad") ~ 
+                                     str_replace_all(Predictor, 
+                                                     c("grad_300"="Gradient 300m", 
+                                                        "grad_1000" = "Gradient 1000m")),
+                                 str_detect(Predictor, "dev") ~ 
+                                     str_replace_all(Predictor, 
+                                                     c("dev_300"="Deviation 300m", 
+                                                        "dev_1000" = "Deviation 1000m")),
+                                                .default = toupper(Predictor))) |> 
+    flextable_fun() |> separate_header(split = "[\\.]", fixed = F) |> 
+        compose(part = "header", i = 2, j = c(5,10,15),
+              value = c(as_paragraph("R", as_sup("2"))  )) |> 
+    compose(part = "header", i = 2, j = c(6,11,16),
+              value = c(as_paragraph("R", as_sup("2"), "\n95% CI")  )) |>
+    vline(part = "header",  j = 6)|>
+    vline(part = "header",  j = 11)
+
+
+```
+
+```{r}
+#| label: fig-SCpH-predact
+#| fig-height: 7.5
+#| fig-width: 7.5
+#| fig-dpi: 300
+#| fig-align: center
+#| fig-cap: Supporting Figure 6. Predicted vs. Observed soil organic carbon (SOC) stocks from the linear mixed model using the mineral soil subset with measurements of silt+clay and pH (LMM~SCpH~).  
+#| warning: false
+#| message: false
+wa_psa_predact_graph <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/wa_psa_predact_graph.RData"))
+
+wa_psa_predact_graph
+```
+
+```{r}
+#| label: tbl-SCpH-modelfit
+#| tbl-cap: Supporting Table 6. Fit statistics for all models using the mineral soil data subset containing measurements of Silt+Clay and pH.
+#| include: true
+
+
+stat_table_SCpH |> 
+    dplyr::mutate(across(where(is.numeric), ~base::round(.x, 2))) |>
+    flextable_fun() |> 
+    separate_header(split = "[\\.]", fixed = F) |>
+    compose(part = "header", i = 1, j = 1,
+              value = c(as_paragraph("Landscape \nClass")  )) |>
+    compose(part = "header", i = 2, j = 2,
+              value = c(as_paragraph("Marginal \nR", as_sup("2"))  )) |> 
+    compose(part = "header", i = 2,j = 3,
+              value = c(as_paragraph("Conditional \nR", as_sup("2"))  )) |> 
+    compose(part = "header", i = 2,j = 4,
+              value = c(as_paragraph("Pred. vs. Obs. \nR", as_sup("2"))  )) |> 
+    compose(part = "header", i = 2,j = 5,
+              value = c(as_paragraph("KFold CV RMSE \n(g cm", as_sup("-2"), ")")  )) |> 
+    compose(part = "header", i = 2,j = 6,
+              value = c(as_paragraph("RMSE:Mean"))) |>
+    align(align = "center", part =  "header")
+```
+
+```{r}
+#| label: tbl-SCpH-ANOVA_pedons
+#| tbl-cap: Supporting Table 5. ANOVA and 95% Confidence intervals for predictors in the linear mixed models (LMMs) built using the mineral soil subset dataset which measured Silt+Clay and pH across the full, wetland, and upland landscapes.
+#| include: true
+
+anova_SCpH_table <- ci_anova_psa_tab |> 
+    mutate(across(where(is.numeric), ~base::round(.x, 4))) |> 
+    dplyr::arrange(desc(F.value)) |> 
+    full_join(y = ci_anova_psa_tab_w, join_by(Predictor), suffix = c("_full", "_wet")) |> 
+    full_join(y = ci_anova_psa_tab_u, join_by(Predictor )) |> 
+    #slice(12, 1:5, 7, 13, 6, 8:11) |> 
+    anovaR2_form()
+
+anova_SCpH_table |> filter(Predictor != "Model") |>
+    arrange(desc(Predictor)) |>
+    mutate(Predictor = case_when(str_detect(Predictor, "lower_depth") ~ 
+                                     str_replace(Predictor,"lower_depth", "Depth"),
+                                 str_detect(Predictor, "LITH") ~ 
+                                     str_replace(Predictor, "LITH", "Lithology "),
+                                 str_detect(Predictor, "SiltClay") ~ 
+                                     str_replace(Predictor, "SiltClay", "Silt + Clay"),
+                                 str_detect(Predictor, "grad") ~ 
+                                     str_replace_all(Predictor, 
+                                                     c("grad_300"="Gradient 300m", 
+                                                        "grad_1000" = "Gradient 1000m")),
+                                 str_detect(Predictor, "dev") ~ 
+                                     str_replace_all(Predictor, 
+                                                     c("dev_300"="Deviation 300m", 
+                                                        "dev_1000" = "Deviation 1000m")),
+                                                .default = (Predictor))) |> 
+    flextable_fun() |> separate_header(split = "[\\.]", fixed = F) |> 
+        compose(part = "header", i = 2, j = c(5,10,15),
+              value = c(as_paragraph("R", as_sup("2"))  )) |> 
+    compose(part = "header", i = 2, j = c(6,11,16),
+              value = c(as_paragraph("R", as_sup("2"), "\n95% CI")  )) |>
+    vline(part = "header",  j = 6)|>
+    vline(part = "header",  j = 11)
+
+
+```
+
+```{r}
+#| label: fig-shap-dep-scatter
+#| fig-align: center
+#| fig-cap: Supporting Figure 6. Partial dependence plots from the RFM model showing the relationship between model predictors and the SHAP value importance indicator. Notably, Gradient 300m and MAP appear to have non-linear relationships with model importance.
+#| warning: false
+#| message: false
+
+shap_dependence_plot <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/RFM_shap_dependence.RData"))
+
+
+shap_dependence_plot
+```
+
+In additional separate models for wetlands (LMM~wet depths~) and uplands (LMM~upl depths~) , MAP was a significant positive predictor for SOC stocks in LMM~upl depths~ but not significant in LMM~wet depths~, which did not support our second hypothesis. MAP was significant in GLM~full pedons~ and in the upland pedon model (GLM~upl pedons~) but not in the wetland pedon model (GLM~wet pedons~)
+
+@stewartRevealingHiddenCarbon2024
+
+### References
+
+::: {#refs}
+:::

@@ -1,0 +1,484 @@
+---
+title: "Patterns and drivers of newly revealed wetland and wet soil carbon stocks"
+subtitle: ""
+author: "Anthony J Stewart, Meghan Halabisky, David V. D'Amore, Diogo Spinola, Chad Babcock, L. Monika Moskal, David Butman"
+format: 
+    docx: 
+        reference-doc: custom-reference-doc.docx
+        toc: false
+        output-file: Chapter2_Manuscript_Draft
+        output-ext: docx
+execute: 
+  echo: false
+  warning: false
+linestretch: 2
+bibliography: references.bib
+link-citations: true
+csl: american-geophysical-union.csl
+project:
+  output-dir: "/Users/Anthony/Library/CloudStorage/OneDrive-UW/University of Washington/Writing and Drafting/All Study Area SOC/"
+---
+
+```{r setup}
+#| include: false
+
+library(formatR)
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", warning = FALSE,
+                      message = FALSE, dpi = 100, tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE, root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+library(rgl)
+library(terra)
+library(lme4)
+library(MASS)
+library(mgcv)
+library(lmerTest)
+library(MuMIn)
+library(RLRsim)
+library(terra)
+library(spatialEco)
+library(sf)
+library(mapview)
+library(car)
+library(ggplot2)
+library(forcats)
+library(sjPlot)
+library(sjstats)
+library(DHARMa)
+library(ggeffects)
+library(merTools)
+library(glmnet)
+library(stats)
+library(ggcorrplot)
+library(RColorBrewer)
+library(cowplot)
+library(webshot)
+library(webshot2)
+library(kableExtra)
+library(pdp)
+library(vip)
+library(formatR)
+library(dplyr)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(flextable)
+library(gtsummary)
+library(stringr)
+library(effectsize)
+library(officer)
+library(patchwork)
+
+knitr::knit_hooks$set(webgl = hook_webgl)
+rgl::setupKnitr(autoprint = TRUE)
+```
+
+```{r}
+#| include: false
+#| message: false
+#| warning: false
+#| echo: false
+
+
+dir_loc <- "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/"
+
+source(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/All_WA_Functions.R"))
+
+wa_dat <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds.csv"))
+
+wa_stocks_dat <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_preds.csv"))
+
+wa_stocks_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_wet_preds_scale.csv"))
+
+wa_stocks_upl <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_upl_preds_scale.csv"))
+
+wa_dat_scale <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled.csv"))
+
+wa_dat_scale_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Wet.csv"))
+
+wa_dat_scale_upl <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Upl.csv"))
+
+```
+
+```{r}
+#| include: false
+#| label: functions_tab_data
+
+std_border <- fp_border(color = "gray10", width = 0.1)
+thick_border <- fp_border(color = "black", width = 1.5)
+
+flextable_fun <- function(table){
+    table |> flextable() |>
+    #colformat_num(j = 7, options(digits=4) ) |>
+    font(fontname = "Aptos", part = "all") |> 
+    fontsize(size = 8, part = "body") |>
+    fontsize(size = 9, part = "header") |>
+    set_table_properties(layout = "autofit", align = "center", width = 1) |>
+    align(align = "center", part = "all") |>
+    align(align = "left", j = 1) |>
+    flextable::bg(bg = "gray90", part = "header") |> 
+    border_inner_v(part = "header", border = std_border) |> 
+    hline(part = "footer", border = thick_border) |> 
+    hline(part = "header", border = thick_border) |>
+    padding(padding.top = 2, padding.bottom = 2, part = "body") |>
+    padding(padding = 5, part = "header") |>
+    paginate(init = TRUE, hdr_ftr = TRUE) 
+}
+
+mutate_tab <- function(table){
+    table |> mutate(Predictor = replace(Predictor, 
+                               Predictor == "sd_(Intercept)|sample_ID", 
+                               "St.Dev. Random Intercept"),
+           Predictor = replace(Predictor, 
+                               Predictor == "sd_lower_depth|sample_ID", 
+                               "St.Dev. Random Slope and Intercept"),
+           Predictor = replace(Predictor, 
+                               Predictor == "cor_lower_depth.(Intercept)|sample_ID", 
+                               "Random Slope and Intercept Correlation"),
+           Predictor = replace(Predictor, 
+                               Predictor == "sigma", 
+                               "Model Residuals"),
+           Predictor = replace(Predictor, 
+                               Predictor == "(Intercept)", 
+                               "Model Intercept"),
+           Predictor = replace(Predictor, 
+                               Predictor == "CHM", 
+                               "Canopy Height"),
+           Predictor = replace(Predictor, 
+                               Predictor == "WIP", 
+                               "Wetland Intrinsic Potential"),
+           Predictor = replace(Predictor, 
+                               Predictor == "HLI", 
+                               "Heat Load Index"),
+           Predictor = replace(Predictor, 
+                               Predictor == "MAP", 
+                               "Mean Annual Precipitation"),
+           Predictor = replace(Predictor, 
+                               Predictor == "lower_depth", 
+                               "Depth"),
+           Predictor = str_replace(Predictor, 
+                                "GEO", 
+                               "Geologic Age: "))
+}
+
+
+```
+
+## Abstract
+
+## Introduction
+
+Changes to the global carbon cycle by anthropogenic climate change driven by fossil fuel-derived $CO_{2}$ emissions has spurred efforts to account for carbon stored across different ecosystems to constrain estimates of potential change [@griscom2017; @ellisPrinciplesNaturalClimate2024]. Soil organic carbon (SOC) is an immense pool of carbon and a key foundation for ecosystem carbon cycling with the potential for long-term sequestration [@bossio2020; @scharlemann2014]. Ecosystem SOC stocks can vary substantially between different ecosystem types due to differences in climate, primary productivity, and other SOC accumulation drivers. Moreover, a diversity of ecosystems can exist across both landscape and regional scales, creating heterogeneous spatial patterns of SOC stocks. This heterogeneity has been a persistent challenge for accurately modeling the spatial distribution of SOC. In particular, current models and maps of SOC have often omitted large SOC stocks stored by inland freshwater wetlands which accumulate SOC due to their water saturated soils which limit decomposition of deceased plant material.
+
+Inland freshwater wetland and peatland ecosystems disproportionately contribute to the SOC pool on a per-area basis, storing approximately 30% of the global SOC pool in 6-8% of the land surface area [@nahlikCarbonStorageUS2016; @uhranImprovedWetlandSoil2021; @jacksonEcologySoilCarbon2017; @poulterReviewGlobalWetland2021]. Despite this disproportionate SOC storage, inland freshwater wetlands are often difficult to adequately represent in maps and spatial models of SOC. The detrimental effect of under-representing wetlands is evident in global models of SOC distribution leading to misleading estimates of total SOC stored across different regions [@tifafiLargeDifferencesGlobal2018]. At smaller scales, wetlands can be especially elusive with small areal extents under forest canopy and a lack of identifying hydrologic features, leading to underestimates of the proportion of the total landscape SOC stored in wetland soils [@stewartRevealingHiddenCarbon2024]. Incorporating wetland soils into maps of SOC distribution is a pathway towards more comprehensive representation of soil types which can greatly assist in reducing the uncertainty in estimates of total SOC stocks [@kochyGlobalDistributionSoil2015a]. However, this incorporation is hindered by the lack of incorporating wetland formation with other SOC accumulation drivers.
+
+Recently, it has been proposed that applying the soil formation theory, which aims to describe the short and long-term soil formation drivers at the landscape scale, is necessary in order address gaps in understanding soil carbon cycling and its spatial variability [@doetterlLandscapescaleViewSoil2025]. Within the scope of this perspective, we suggest a more comprehensive and accurate representation of landscape SOC stock needs to include inland freshwater wetlands. In order to achieve this improved representation, the factors and drivers of wetland presence and formation should be captured by potential model predictors along with other predictors representing primary soil forming factors. Soil formation and development for inland freshwater wetlands has similarities to conventional non-wetland soils but with emphasis on hillslope hydrology and differences with peatland development [@vepraskasWetlandSoilsGenesis2016]. Yet, drivers of wetland SOC stocks and accumulation are more unclear, especially with variability across different wetland types notwithstanding the differences amongst climatic zones [@davidsonUnrecognizedImportanceCarbon2022]. Much of the recent understanding of SOC drivers where climate and geochemistry have been shown to interact, is derived from research on non-wetland soils with wetlands or histosols excluded from analysis [@doetterlSoilCarbonStorage2015; @cotrufoSoilCarbonStorage2019; @vonfrommControlsRelationshipsSoil2024]. But recent research has also shown that the addition of wetland presence enhances the representation of landscape SOC stocks [@vitharanaFactorsControllingSpatial2024]. This leaves potential gaps in understanding the true spatial distribution of SOC stocks and their drivers. A particular uncertainty to address is if the incorporation of wetland soils will indicate that large amounts of wetland SOC would need to be added to the current total SOC pool or, if the current total SOC pool is more distributed into wetlands and wet areas that have yet to be identified. To address this uncertainty, more robust wetland mapping is needed that accurately represents wetlands.
+
+Wetland mapping and identification has a long research history but has benefited from a recent paradigm shift towards data driven approaches utilizing remote sensing data and machine learning [@fluet-chouinardExtensiveGlobalWetland2023; @poggioDigitalSoilMapping2020; @laneMappingGlobalNonfloodplain2023; @hribljanMultidateMultisensorRemote2017; @dronovaRemoteSensingPhenology2022]. There are a growing number of wetland datasets ranging from regional and continental scales such as the U.S. Fish and Wildlife National Wetland Inventory (NWI) [@langStatusTrendsWetlands2024] to global scales such as WAD2M [@zhangDevelopmentGlobalDataset2021] and the Global Non-Floodplain Wetland dataset \[@laneMappingGlobalNonfloodplain2023\]. These rich data sources have been used to produce estimate of wetland SOC stock such as the case with the NWI in @nahlikCarbonStorageUS2016 and @uhranImprovedWetlandSoil2021. However, separately estimating inland wetland SOC stocks through their location limits the potential inference made for drivers of SOC stock. A growing approach that has improved wetland mapping across landscape and global scales is modeling the continuous spatial probability gradients that correspond with wetland presence [@delanceyLargescaleProbabilisticIdentification2019; @halabisky2023; @zhangDevelopmentGlobalDataset2021]. This probabilistic wetland mapping approach, leveraging topography metrics in machine learning helps reveal soil hydrology patterns beyond what is captured through simpler metrics such as slope or topographic wetness index [@beven1979]. Moreover, probabilistic gradients of wetland presence across terrestrial landscapes correspond to xeric, mesic, and hydric soil moisture regimes [@agrenUseMultipleLIDARderived2021; @lidbergUsingMachineLearning2020]. Modeling these soil moisture regimes and soil hydrology patterns through probabilistic wetland mapping also captures the hillslope hydrology formation process which is a key driver of SOC accumulation and fits within the soil formation theory framework [@lawrenceTrajectorySoilDevelopment2021; @doetterlLandscapescaleViewSoil2025].
+
+Estimating the wetland SOC stocks and its spatial distribution in one landscape is a continuing challenge but complicated when attempted across larger scales and different heterogeneous landscapes [@jacksonEcologySoilCarbon2017; @jungkunstGlobalSoilOrganic2022a]. For non-wetland soils, there has been substantial research on the patterns and drivers of SOC stock and concentration across plots, landscapes, and regional scales showing drivers such as climate, topography and geochemistry [@jennyFactorsSoilFormation1994; @vonfrommControlsRelationshipsSoil2024; @minasnyDigitalSoilMapping2016; @doetterlSoilCarbonStorage2015]. For wetland soils, currently mapped estimates of wetland SOC across the U.S. show SOC stocks vary predictably across climatic regions [@nahlikCarbonStorageUS2016; @uhranImprovedWetlandSoil2021]. More specifically, Mean Annual Precipitation (MAP) can be significant driver of SOC stock and accumulation at regional scales compared to Mean Annual Temperature (MAT) [@mcnicolLargeClimatesensitiveSoil2019]. At landscape scales, topography factors can promote areas of water saturation and SOC accumulation [@vitharanaFactorsControllingSpatial2024; @tangenSoilOrganicCarbon2020]. Metrics that delineate soil moisture patterns and gradients can be especially large drivers of SOC stocks across landscapes by capturing wetland and peatland forming areas [@larsonSoilMoistureControls2023]. Then, soil edaphic and geochemical factors can influence SOC concentration within the local scale of these wet environments [@nieStorageControllingFactors2023]. Indeed, capturing the soil forming factors at the landscape-scale such as gradients of soil water saturation and understanding the influence of edaphic factors at the local scale can be useful for more comprehensive representation of the overall SOC stock spatial distribution [@doetterlLandscapescaleViewSoil2025].
+
+In this research, we aim to use probabilistic wetland mapping as a spatial representation of soil moisture regime to advance the representation of wetlands and wetland SOC stock in landscapes across different climatic regions. Previous SOC mapping research has instead relied on wetland map inventories or soil type maps to delineate of wetland areas and help predict high SOC stocks [@sotheLargeScaleMapping2022]. Further, although efforts such as the National Wetland Condition Assessment [@nahlikCarbonStorageUS2016; @uhranImprovedWetlandSoil2021] have provided access to geolocated SOC stock data for wetlands, they are not as abundant as data for upland SOC stocks. Small wetlands, especially in forests, can also be missed by SOC sampling and mapping efforts leading to under representation of these wetland types [@davidsonUnrecognizedImportanceCarbon2022; @sotheLargeSoilCarbon2022]. Therefore, this research addresses two questions: 1) how do models of SOC stock spatial distribution and concentration perform when wetland and upland observations are combined?; and 2) what are the drivers of overall SOC stock and concentration?; finally, 3) how do landscapes with wetland SOC stock representation compare to currently available maps of landscape SOC? We then address three hypotheses: 1) Models will be able to predict SOC stocks and concentration across both wetlands and uplands when a continuous wetland probability predictor is included with additional climate, terrain, and biological predictors; and 2) We expect MAP and the probabilistic wetland predictor to be more significant predictors of overall SOC stocks with high SOC concentrations in wetlands; and 3) We expect similar total SOC stock between our modeling with wetlands and other models without, however more of the SOC in our modeled landscape will be contained in wetland area. <!--# We collected 481 soil samples by horizon in 96 pedons across a landscape gradient between wetlands and uplands with three study watersheds spanning an East-West precipitation climatic gradient. We implemented statistical and machine learning models using a depth-resolved dataset and an aggregated pedon dataset across wetlands and uplands to assess the model performance for predicting SOC stocks.  This research approach addresses the following questions:  -->
+
+## Methods
+
+### Study Areas
+
+![Map of study watersheds in the Pacific Northwest of North America. The Heen Latinee Experimental Forest (HLEF) is located in Southeast Alaska. The Hoh River Watershed (HRW), Mashel River Watershed (MRW), and Colville Valley Watershed (CVW) are located in Washington State. Basemap imagery provided by OpenStreetMap.](Figures/PNW_Study_Areas.png){#fig-studymap fig-align="center"}
+
+We conducted field surveys, sample collection, and geospatial modeling across four study watersheds in the Pacific Northwest that stratify a climatic gradient [@fig-studymap]. The Heen Latinee Experiemental Forest (HLEF) is located in Southeast Alaska near Juneau, AK with a mean annual precipitation (MAP) of approximately 2284 mm and a mean annual temperature (MAT) of 4.3 ^o^C. The Hoh River Watershed (HRW) is located on the west coast of the Olympic Peninsula where MAP is approximately 3061 mm and MAT is 10.0 ^o^C. The Mashel River Watershed (MRW) is located on the western side of the Cascade Mountain Range near Tahoma (Mt. Rainier) and has a MAT of 8.4 ^o^C and a MAP of approximately 1716 mm. The Colville Watershed (CVW) is located on the northeastern portion of the state and has a MAT of 6.5 ^o^C and a MAP of 652 mm. The landscapes of the four study areas contain a range of landforms including mountains, hillslopes, alluvial floodplains, and glacial deposits. Geologic ages range from prominent recent Quaternary material from retreating glaciers in the HLEF and HRW, Oligocene-Eocene volcanic and sedimentary deposits in the MRW to Pre-Teriary metamorphic rocks in the CRW. Vegetation is predominantly forested with the HLEF containing a mix of Western Hemlock (*Tsuga heterophylla*), and Sitka Spruce (*Picea sitchensis*) with small amounts of Yellow Cedar (*Cupressus nootkatensis*). The HRW forests contain Sitka Spruce (*Picea sitchensis*), Western Hemlock (*Tsuga heterophylla*), Western Red Cedar (*Thuja plicata*), and Bigleaf Maple (Acer macrophyllum). The MRW forests contain predominantly Douglas fir (*Pseudotsuga menziesii*), Western Hemlock (*Tsuga heterophylla*), and Red Alder (*Alnus rubra*). The CVW forests contain a mix of Ponderosa Pine (*Pinus ponderosa*), Douglas fir (*Pseudotsuga menziesii*), Lodgepole pine (*Pinus contorta*), Western Larch (*Larix occidentalis*), Western Hemlock (*Tsuga heterophylla*), and Western Red Cedar (*Thuja plicata*).
+
+### Wetland Identification with the Wetland Intrinsic Potential (WIP) Tool
+
+We implemented the Wetland Intrinsic Potential (WIP) tool for each study watershed to identify wetlands and gradients of uplands-to-wetlands. The WIP tool is thoroughly described in @halabisky2023 and was implemented for wetland identification in the HRW. We utilized both the data and framework of the HRW WIP implementation to derive similar WIP models for the HLEF, MRW, and CRW study areas. Data for the WIP tool included Lidar digitial terrain models (DTMs), digital surface models (DSMs), and imagery from the National Agricultural Imagery Program (NAIP). Lidar DTMs and DSMs were downloaded from the WA Department of Natural Resources Lidar Portal and spanned a range of dates from 2008-2016 in the CVW and 2007-2011 in the MRW in order to create a continuous surface area of the study areas. We also used the earliest available NAIP imagery from 2017. No NAIP data were available for the HLEF and we therefore utilized Sentinel 2 for vegetation indices. A Lidar DTM and DSM were also downloaded from the Alaska State Division of Geological and Geophysical Surveys Elevation portal and were collected in 2012.
+
+The WIP tool relies on multi-scale terrain metrics derived from DTMs as predictors of wetland presence on the landscape which has been shown to improve wetland classification [@maxwell2016; @maxwell2019]. We calculated these terrain indices using the Surface Metrics Toolbox developed by @halabisky2023 and implemented in ArcGIS Pro 3.1. The multi-scale terrain indices included gradient (slope), planform curvature, profile curvature, and deviation from the mean elevation calculated at 50 m, 300 m, and 1000 m length scales. Additional terrain metrics included Topographic Wetness Index (TWI) @beven1979, Topographic Depth to Water, and Elevation. We also included the normalized difference vegetation index (NDVI) and the Normalized Difference Water Index (NDWI), and Canopy Height in addition to terrain metrics for the WIP model. NDVI and NDWI were derived from aerial imagery collected by NAIP. We then took these 18 geospatial metrics and re-sampled them to a 4 m resolution to match the former WIP model in the HRW. The default resolution for the HLEF was 5m and all HLEF data were resampled to this resolution. However, we did not include soil hydraulic conductivity and depth to any restricted layers from the United States Department of Agriculture SSURGO soil database and used in the HRW WIP because of their poor performance as predictors in the HRW WIP.
+
+We derived training data for wetlands and uplands (non-wetlands) using the geospatial dataset from the National Wetland Inventory (NWI) and the Wetland Mapper Tool ( <!--# Citation Needed -->). We extracted 3000 total training points from NWI wetlands in the HLEF, MRW, and CVW study areas (6000 total points) with approximately 2/3 of the training points classified as "upland" and 1/3 classified as "wetland". The training points were then used to extract data from the geospatial metrics in each study area. A random forest model was then constructed using a 70:30 training and testing dataset partition and then used to generate a preliminary WIP model. From this preliminary model, we utilized a similar approach to @halabisky2023 and generated another training dataset and a validation dataset by conducting a stratified sampling of 600 points and 300 points, respectively across the gradient of the preliminary model. The points from this stratification were then verified as either wetland or upland by two analysts who conducted site visits and referenced points using aerial imagery, pre-existing NWI data, and lidar-derived hillshades. The new training and validation points were then used in another separate random forest model which generated the final mapped prediction of the WIP model. Accuracy metrics for the MRW and CVW were comparable to the HRW with Kappa = 0.80 for the MRW and Kappa = 0.81 for the CVW. The HLEF is a smaller watershed than the other three study watersheds and used 500 training points and 100 validation points for the WIP model. The HLEF model had a Kappa = 0.73 and an overall accuracy of 88%. More metrics are provided in Supporting Material Table X <!--# Supporting table needed -->.
+
+### Field sampling and laboratory analysis
+
+```{r}
+#| include: false
+#| eval: false
+
+hlef_dat <- pnw_dat |> filter(site == "HLEF") |> select(sample_ID, WIP)
+hlef_field <- readxl::read_xlsx("/Users/Anthony/OneDrive - UW/University of Washington/Lab Work/HLEF2022/HLEF2022LAB.xlsx", sheet = "LOCATION", col_names = TRUE) |> 
+    filter(sample_name != "PRE-2022",
+           sample_name %in% hlef_dat$sample_ID) |> 
+    select(sample_name, field_class) |>
+    left_join( y = hlef_dat, by = join_by(sample_name == sample_ID)) |> 
+    mutate(wip_wetupl = as.factor(case_when(WIP >= 0.5 ~ "WET", 
+                                  .default = "UPL")),
+           field_class = as.factor(field_class)) |>
+    group_by(sample_name) |> 
+    filter(row_number() == 1)
+
+
+```
+
+Soil samples were collected over the course of two field summer field seasons in 2020-2022. Sample locations were pre-selected using a stratified random selection of points across the WIP probability for each study watershed in order to evaluate the full spread of the wetland-upland gradient. The WIP probability from 0-100% was stratified into 30 equal size bins and sample points were generated for those bins at random locations within each study watershed. Sample locations were then visited in the field as close to the sample point coordinates as possible and then updated with new GPS/GNSS location data. Overall we collected samples from 114 pedon locations with 30 pedons each in the MRW and CVW, 36 pedons in the HRW, and 18 pedons in the HLEF. The HLEF also contained 3 legacy soil pedons sampled in 2019. Soil pedons were dug to at least 1m depth unless there was a restrictive layer. Soil pedons were characterized according to NRCS field sampling guides and soil samples for bulk density and bulk chemistry were extracted by horizon and at the horizon center. Field site characterization included assessing for wetland presence and classifying according to Cowardin and Hydrogeomorphic classifications and ultimately 33 sites were classified as wetlands with some sites containing various wetland features making these quick field assessments difficult. According to the WIP probability 46 sites were classified as wetlands and 68 were classified as uplands with our field site classification composing 84% of the WIP wetlands. We emphasize that field assessments are not meant to be considered true wetland delineations which require more time to evaluate specific wetland indicators and criteria. Laboratory analysis started with drying samples to a constant weight at 70^o^C and sieving to 2mm to remove coarse fragments. The mass of the \< 2mm fraction was then used to calculate bulk density and analyze carbon content, particle size distribution, and pH. Carbon content was measured using a Shimadzu Elemental Analyzer. Particle size distribution was measured using the hydrometer method. pH was measured using 1:1 soil to water ratio.
+
+### Geospatial data
+
+Geospatial datasets were gathered to determine predictors for SOC stocks across the three study areas. We chose geospatial factors related to vegetation, climate, lithology and geology, and topography. For vegetation spectral indices, we used Google Earth Engine @gorelickGoogleEarthEngine2017 to obtain satellite imagery for index calculation from the 5 year median of Sentinel-2 reflectance. In particular for each study area we calculated the enhanced vegetation index (EVI) [@hueteOverviewRadiometricBiophysical2002]\] and normalized difference vegetation index (NDVI). Other metrics such as the soil adjusted vegetation index (SAVI) were also investigated but deemed too comparable to either NDVI or EVI to be included in the model. We also used a lidar derived canopy height model from the Washington Department of Natural Resources (WA DNR) which was measured as the elevation difference between the lidar DTM and the lidar DSM.
+
+For climate predictors, we downloaded 800m^2^ gridded 30 year climate normals for mean annual precipitation (MAP) and mean annual temperature (MAT) from the Northwest Alliance for Computation Science and Engineering PRISM Climate Group @prismclimategroup30YearNormals for the three Washington study watersheds. We used \~1km gridded historical climate data from WorldClim 2.1 to extract MAP and MAT for the HLEF. In addition, we also downloaded Potential Evapotranspiration (PET) from the Version 3 of the Global Aridity Index and Potential Evapotranspiration Database for all four study areas [@zomerVersion3Global2022]. PET was divided by MAP to create an Aridity Index estimate of water availability. To capture finer scale effects of solar radiation and heat, we calculated a heat load index (HLI) from the lidar DTM [@mccuneEquationsPotentialAnnual2002].
+
+Geolithology maps were downloaded from the Washington Department of Natural Resources at a 1:100,000 scale and from the USGS [@wilsonGeologicMapAlaska2015]. We chose to consolidate the wide range of mapped lithological categories into six broad categories which would represent potential soil parent material and time since soil inception: Glacial Till and Drift, Glacial Outwash, Igneous, Metamorphic, Sedimentary, and Unconsolidated. Both Alaska and Washington State are glacially influenced and we therefore modified glacial lithological categories into two categories corresponding to stratified (Glacial Outwash) and unstratified (Glacial Till and Drift). Glacial drift is a broad term referring to all types of glacial deposits and is difficult to assess stratification without more detailed examination of geomorphologic processes beyond the use of the available maps. Therefore we chose to group Glacial Drift with Glacial Till as a broad "unstratified" category. More details regarding the reclassification of lithological categories are provided in Supporting Table 1 <!--# Supporting Table -->.
+
+### Modeling approach
+
+#### Data structure
+
+Our approach consisted of separating our data into two datasets: one for SOC stocks by equal depth intervals and another for SOC concentration (%) using the original depth measurements. For the SOC stock dataset we utilized a Digital Soil Mapping approach to transform our SOC stock data into equal intervals of 25cm using a mass preserving spline depth function [@chenDigitalMappingGlobalSoilMap2022; @obrienMpspline2MasspreservingSpline2022]. This approach is common in DSM and has been referred to as 3-Dimensional because it facilitates the prediction of soil properties at any location within the study area at the designated depth intervals [@helfensteinThreedimensionalSpaceTime2024; @maloneMappingContinuousDepth2009; @bishopModellingSoilAttribute1999]. The decision to use 25cm intervals instead of the standardized intervals was to control the variability of SOC stock with depth interval thickness. We also chose this interval length to maintain a similar number of observations without exceeding the original dataset (Original: 573, Spline 499). We used the mass preserving spline function to calculate values of SOC %, Bulk Density, and Rock % down profile using a lambda = 0.7. These numbers were then used to calculate SOC stocks for each 25cm depth interval by [@eq-SOC-stock-spline]:
+
+$$Spline\,SOC_{g\,cm^{-2}} = SOC_{\%} * BD_{g\,cm^{-3}}*25cm*(1-Rock_{\%})$$ {#eq-SOC-stock-spline}
+
+For the SOC % dataset we removed observations that were organic soils (\< 10% SOC) and did not contain measurements of Sand, Silt, Clay, or pH. We did not use this dataset for digital soil mapping and therefore kept the original depth intervals. This dataset contained 426 observations compared to the 499 in the spline dataset and 573 in the original dataset. Both datasets for SOC stock and SOC % were split into training and testing datasets using a 85:15 ratio. The same training and testing datasets would be used for all models to compare performance and accuracy.
+
+#### Model Building and Selection
+
+##### Linear Mixed Modeling
+
+We chose to use two model types in our research to model SOC stock and SOC %: a linear mixed effects model (LMM) and a quantile random forest (RFM), creating four models in total. We chose to use a linear mixed effect modelling approach to test specific hypotheses about important predictors and examine predictor coefficients. In the LMMs, the sample location was chosen as a random effect and sample depth was specified as a random slope within the sample location. We chose to build several models that represented our a priori hypotheses with varying interactions between the predictors as well as eliminating predictors that were not significant down to a null model with no predictors. The final model was chosen using Akaike's information criterion (AIC) and parsimony then evaluated for violations of homogeneity of variance and linearity. Although some observations deviated slightly from the homoscedasticity assumption (Supporting Figure 3)<!--# Supporting Figure -->, we deemed the model assumptions sufficiently met and therefore used to evaluate drivers and predict SOC stock and SOC %.
+
+All data used to build models of SOC stock and SOC % were centered and scaled if they were continuous predictors. Correlated variables were removed if they had an r \> 0.6. However, at this scale MAP and PET:MAP are highly correlated and thus we used separate models to assess the strength between the two predictors in our mixed model selection. The initial model selection process using maximum likelihood showed that models using PET:MAP instead of MAP were better fits to the data according to AIC.
+
+For SOC stock, LMM selection using AIC comparisons removed models containing interactions among fixed effects, resulting in SOC stock modeled as a function of PET:MAP, WIP, Canopy Height (CHM), Heat Load Index (HLI), Geolithology, and Depth as fixed effects @eq-model1 :
+
+$$
+SOC\,stock\,_{ij} = \beta_{0} + \beta_{_{ij}}MAT + \beta_{_{ij}}PET:MAP + \beta_{_{ij}}WIP + \beta_{_{ij}}CHM +  \beta_{_{ij}}Geolithology + \beta_{_{ij}}Depth + b_{0_{j}} + b_{{ij}}Depth + \epsilon_{ij}
+$$ {#eq-model1}
+
+For SOC %, the LMM selection process was similar to SOC stock where fixed effects in separate models were removed depending on the AIC values. The best LMM at this stage contained depth, pH, Clay, and PET:MAP with interactions between the variables the latter three predictors. After this LMM was found, we also used the `dredge` function from the `MuMIn` R package to further identify if incorporated interactions between Clay % or Silt+Clay% and MAT outperformed the current LMM structure determined from earlier [@bartonMuMInMultimodelInference2023]. The final LMM was chosen with the lowest AIC and/or fewest LMM parameters for parsimony with PET:MAP, pH, Clay% and Depth as fixed effects @eq-model2 :
+
+$$
+SOC\,\%\,_{ij} = \beta_{0} + \beta_{_{ij}}PET:MAP + \beta_{_{ij}}Clay\% + \beta_{_{ij}}pH +  \beta_{_{ij}}pH:(PET:MAP) + \beta_{_{ij}}Depth + b_{0_{j}} + b_{{ij}}Depth + \epsilon_{ij}
+$$ {#eq-model2}
+
+All random effects in the LMMs followed:
+
+$$
+b_{0j} \sim N(0, \sigma^{2}_{b_{0}}) 
+$$ {#eq-model3}
+
+$$
+b_{_{ij}}Depth\sim N(0, \sigma^{2}_{b_{Depth}}) 
+$$ {#eq-model4}
+
+$$
+\epsilon_{ij} \sim N(0, \sigma^{2}) 
+$$ {#eq-model5}
+
+Where $b_{0j}$ is the random intercept for the $j$-th group of each sample location and $b_{_{ij}}Depth$ is the random slope of depth within the sample location. Summaries of the distributions of random effects are located in the Supporting Figure 2<!--# SUPPORTING FIGURE -->. The final model was evaluated on the test dataset by measuring the R^2^ and root mean square error (RMSE). Predictor variable importance was estimated using the 95% confidence intervals on the scaled coefficient estimates with important predictors having a confidence interval that did not cross 0.
+
+We also examined SOC stock data and model residuals for spatial autocorrelation by examining semivariograms and the spatial autocorrelation within each study watershed expecting there to be minimal autocorrelation. Indeed, only there was minimal spatial autocorrelation shown by the semivariograms within and across all study watersheds (Supporting Figure 1)<!--# Supporting Figure -->. We concluded that our proposed model structure did not need to include a spatial autocorrelation random effect.
+
+##### Random Forest Modeling
+
+The Quantile Random Forest (RFM) was used to accommodate for potential non-linear relationships in our data as well as incorporate a more flexible approach to predictor selection. We used the `mlr3` package in `R` to implement the RFM from the `ranger` package [@wrightRangerFastImplementation2017; @mlr3]. We used recursive feature elimination to narrow the number of predictors used in the model. Then, we tuned `num.trees`, `mtry`, and `max.depth` using repeated 10-fold cross validation on the training dataset. Out of bag (OOB) R^2^ and RMSE were calculated from the model implemented on the training dataset. We R^2^ and RMSE for the RFM on the test dataset similar to the LMM. Predictor variable importance was determined using SHAP (SHapley Additive exPlanations) values using a 200 observation subset of the training dataset as the rows to be explained and the full training dataset as the background [@lundbergUnifiedApproachInterpreting2017]. SHAP values were visualized using the `kernelshap` package [@mayerKernelshapKernelSHAP2024] We also investigated interactions between predictors in the RFM using the interpretable machine learning `iml` package @molnar2018iml and the `Interaction` function [@molnar2018iml].
+
+#### SOC stock prediction and uncertainty
+
+We chose to generate mapped predictions of SOC stock across all four study watersheds using the model with the best fit to the test dataset (R^2^ and RMSE). The RFM was selected with this criteria and was used to generate SOC predictions for each depth interval (25cm) and then combined to calculate a 1m SOC stock. The RFM was built as a quantile random forest allowing the prediction of the 97.5% and 2.5% quantiles of SOC stock. We used these quantiles as the 95% prediction interval and to show uncertainty ranges for our prediction.
+
+We also used additional geospatial masks to remove surface water areas and urban zones. The Modified Normalized Difference Water Index (MNDWI) was used to remove surface water with a threshold of 0.3 [@xuModificationNormalisedDifference2006]. The National Land Cover Database (NLCD) was used to mask urban areas such as roads [@dewitzNationalLandCover2021]. Geospatial masks using the WIP threshold of 0.50 or 50% were used to estimate wetland and upland 1m SOC stocks and were compared with 1m SOC stock data from the National Wetland Condition Assessment (NWCA) which was upscaled using the National Land Cover Database (NLCD) in @uhranImprovedWetlandSoil2021. We show these estimates using the the term NWCA~NLCD~.
+
+We also extracted estimates of SOC stock from open data sources that have been used to model the spatial distribution of SOC at regional to global scales. For all study areas, we used the Global Soil Organic Carbon (GSOC) map provided by United Nations Food and Agriculture Organization (FAO) [@faoGlobalSoilOrganic2018]. For the HLEF, a published map of SOC stocks was created by McNicol et a., 2019.
+
+## Results
+
+### Variation across climatic gradient
+
+SOC stocks were variable across the three study watershed across the WA climatic gradient but the lowest SOC stocks within depth intervals were observed in the CVW [@tbl-mean_stdev_stocks_table]. The largest SOC stocks were mostly in the HLEF. Deep wetland pedons (\> 1 m) were sampled in the HLEF leading to the high SOC stocks measured in the 125-150cm depth interval. When SOC stocks were aggregated to a 1m depth, the mean 1m SOC stocks were highest in the HLEF followed by the HRW, MRW, and CVW with high variability in each study watershed. Mean 1m SOC stocks in wetlands were also higher in the HRW compared to the MRW and CVW. However, there were large (\> 400 MgC ha^-1^) for three pedons in the MRW.
+
+{{< pagebreak >}}
+
+```{r}
+#| include: true
+#| label: tbl-mean_stdev_stocks_table
+#| tbl-cap: "SOC stock mean and variation across depth intervals within each watershed study area"
+
+mean_stdev_stocks_table <- readRDS(file = paste0(dir_loc, "SOIL CARBON/All_WA/writing/Tables/mean_stdev_stocks_table.rds"))
+mean_stdev_stocks_table
+```
+
+{{< pagebreak >}}
+
+```{r}
+#| label: tbl-1mSOC
+#| include: false
+#| tbl-cap: "1m SOC stock mean and standard deviation within each watershed study area and within wetlands, uplands, or across the full landscape (wetlands and uplands)"
+
+readRDS(file = paste0(dir_loc, "SOIL CARBON/All_WA/writing/Tables/Stocks_wetup_table.rds"))
+```
+
+```{r}
+#| include: false
+#| eval: false
+
+# Previewing figures in Word docx
+
+# The code below is basically a copy & paste from print.flextable where I replaced body_add_flextable by body_add_gg:
+
+gg2docx <- function(x, ...) {
+  doc <- officer::read_docx()
+  doc <- officer::body_add_gg(doc, value = x, ...)
+  file_out <- print(doc, target = tempfile(fileext = ".docx"))
+  browseURL(file_out)  
+} 
+
+
+```
+
+### Performance of models for SOC stock
+
+The linear mixed model (LMM) for predicting SOC stocks at different depths across the wetland-upland gradient accounted for 48% of the variability in the training dataset with marginal R^2^ of 0.48 representing the fixed effects and a conditional R^2^ of 0.91 including the random effects of sample location with depth [@tbl-model-stats]. However, in the test dataset, the LMM accounted for a much lower proportion of the variation with an R^2^ = 0.28 and had higher variability with an RMSE = 0.41g cm^-2^[@fig-predact-graph]. Separating the uplands and wetlands in the test dataset revealed the LMM had better prediction for the upland SOC stocks (R^2^ = 0.39, RMSE = 0.30g cm^-2^) compared to the wetlands (R^2^ = 0.21, RMSE = 0.51g cm^-2^). In contrast to the LMM, the quantile random forest model (RFM) had a lower R^2^ = 0.43 and comparable RMSE = 0.41g cm^-2^ when using the out of bag (OOB) data from the training dataset. The RFM outperformed the LMM on the test dataset with an R^2^ = 0.50 and RMSE = 0.35g cm^-2^. The RFM also predicted the the uplands test data (R^2^ = 0.54, RMSE = 0.26g cm^-2^) better compared to the wetland test data (R^2^ = 0.45, RMSE = 0.45g cm^-2^), with both predictions better fits than the LMM. Both models can be characterized as underestimating high SOC stocks. @fig-predact-graph A. & B. show the higher SOC stocks were largely in more wet and wetland soils which is consistent with the model performance in the wetland portion of the test dataset.
+
+```{r}
+#| label: tbl-model-stats
+#| tbl-cap: Measurements of Linear Mixed Model (LMM) and Quantile Random Forest Model (RFM) fit on both the training and test datasets for SOC stock (g cm^-2^) and SOC concentration (SOC %). the LMM fit to the training dataset is shown by the Marginal and Conditional R^2^. The RFM fit to training dataset is shown by the out-of-bag R^2^ and RMSE. The same test dataset was used for both models and compared R^2^ and RMSE. 
+#| include: true
+
+tbl_model_stats <- readRDS(file = paste0(dir_loc, "SOIL CARBON/All_WA/writing/Tables/Model_stats_table.rds"))
+
+tbl_model_stats
+```
+
+### Performance of models for SOC Concentration (SOC %)
+
+The LMM for predicting SOC concentration (SOC %) showed a more robust fit to the training data than the LMM for SOC stocks with a marginal R^2^ = 0.59 and conditional R^2^ = 0.83 [@tbl-model-stats]. The LMM fit to the test dataset showed better performance than the LMM for SOC stocks with a R^2^ = 0.56 and RMSE = 1.36% ([@fig-predact-graph]). However the fit to the wetland data in the test dataset was significantly poor with a negative R^2^ = 0.03 and RMSE = 2.05%. The LMM was able to account for more variability in the uplands data with an R^2^ = 0.65 and RMSE = 1.21%. The RFM for predicting SOC % performed slightly lower compared to the LMM on the training dataset with a OOB R^2^ = 0.51 and RMSE = 1.87%. However, the RFM accounted for more variability across the entire test dataset compared to the LMM with an R^2^ = 0.64 and RMSE = 1.24% . Further, the RFM appeared to capture the variability in the wetland subset of the test dataset in stark contrast to the LMM, with a R^2^ = 0.61 and RMSE = 1.30%. The RFM also consistently accounted for variability in the upland subset of the test dataset (R^2^ = 0.64, RMSE = 1.23%). Both models appeared able to constrain high SOC % values in the test dataset which appeared to be more dispersed across wet and wetland soils [@fig-predact-graph].
+
+{{< pagebreak >}}
+
+```{r}
+#| fig-width: 6.5
+#| fig-height: 5
+#| fig-dpi: 300
+#| label: fig-predact-graph
+#| fig-cap: Predictions from the LMM and RFM models compared to observations in the test dataset colored by the wetland intrinsic potential probability shown as a 0-100% gradient from the four study watersheds. A.) Linear Mixed Model (LMM) SOC stock g cm^-2^ prediction vs. observations; B.) Quantile Random Forest Model (RFM) SOC stock g cm^-2^ prediction vs. observations; C.) LMM SOC concentration (SOC %) prediction vs. observations; and D.) RFM SOC % prediction vs. observations. Data in the LMM plots were back transformed from a log~10~ transformation. 
+#| fig-align: center
+#| warning: false
+#| message: false
+
+#This should be a figure that shows the full model fit with data then the wetland model and upland model lines. The RFM model is only one model so the fits would be interpreted differently
+
+#consider using only the non-log graphs
+
+predact_graphs<- readRDS(paste0(dir_loc, "SOIL CARBON/All_WA/writing/Figures/Model_Test_Fit_Scatter.rds"))
+
+predact_graphs
+```
+
+### Drivers of SOC stock and Concentration
+
+Important predictors in the LMM and RFM predicting both SOC stock consistently included Depth (@fig-varimp). Depth was the strongest predictor in the LMM with the largest absolute coefficient value and was negatively associated with SOC stock (scaled coefficient estimate = -0.44; 95% CI: -0.49 - -0.38). Additionally the LMM identified the PET:MAP climatic variable (-0.15; 95% CI: -0.21 - -0.10) and Geolithological categories as the next most important predictors. The Geolithological categories of Sedimentary (-0.33; 95% CI: -0.55 - -0.11) and Unconsolidated (-0.21; 95% CI: -0.39 - -0.03) both had significant negative associations with SOC stock. The Wetland Intrinsic Potential (WIP), representing the upland-to-wetland gradient was a significant positive predictor in the model (0.07; 95% CI: 0.01 - 0.12).
+
+In the RFM for SOC stocks, SHAP (SHapley Additive exPlanations) values for several variables were within close proximity to each other, indicating comparable variable importance after Depth ([@fig-varimp A. & B.]). These included WIP with the second highest SHAP value, PET:MAP as the third highest SHAP value, and Mean Annual Temperature (MAT) as the fourth highest. Predictors after MAT in terms of SHAP value included MAP, Elevation, Geolithology, and Canopy Height.
+
+{{< pagebreak >}}
+
+```{r}
+#| label: fig-varimp
+#| fig-width: 6.5
+#| fig-height: 6
+#| fig-dpi: 300
+#| fig-cap: Variable importance for the Linear Mixed Model (LMM) and Quantile Random Forest Model (RFM). A. & C.) The scaled 95% confidence intervals for scaled LMM coefficients for SOC stocks and SOC concentration (SOC %), respectively. Note, individual Geolithology categories are shown but are considered a group under an overall Geolithology categorical variable; B. & D.) Bar plots are the average absolute SHAP (SHapley Additive exPlanations) values for each feature in the RFM for SOC stock and SOC %, respectively. Colored points are the min-max scaled SHAP feature values for each observation. 
+#| include: true
+
+# LMM_coef_plot <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/writing/Figures/LMM_coef_plots_graphs.RData")))
+# 
+# LMM_coef_plot
+
+all_model_var_imp_plot<- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/LMM_RFM_coef_plots_graphs.rds")
+
+all_model_var_imp_plot 
+
+```
+
+For SOC %, the highest coefficient and SHAP value for the LMM and RFM, respectively was Depth, consistent with the SOC stock models ([@fig-varimp C. & D.]). Both models also indicated similar important predictors following Depth. pH showed a significant effect on SOC %, which decreased as mineral soil became more neutral indicated by the negative coefficient estimate in the LMM (-0.16; 95% CI: -0.23 - -0.09) and high SHAP value in the RFM. Both models identified Clay as a significant predictor with a positive coefficient in the LMM (0.9; 95% CI: 0.04 - 0.13). However, the LMM identified the specific interaction between pH and the climate variable PET:MAP (-0.08; 95% CI: -0.23 - -0.02, ). @fig-lmm-interact shows the decline in SOC % as a function of pH but high PET:MAP increases the decline whereas low PET:MAP reduces the decline magnitude.
+
+```{r}
+#| label: fig-lmm-interact
+#| fig-width: 6
+#| fig-height: 5
+#| fig-dpi: 300
+#| fig-cap: The interaction between pH and PET:MAP in the Linear Mixed Model (LMM) for SOC %. The figure uses data points from the training dataset and contains the scaled predictors for both pH and PET:MAP. SOC % is also log~10~ transformed as was in the original LMM.
+
+lmm_lab_ph_petmap_plot <- readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/lmm_lab_ph_petmap_plot.rds")
+lmm_lab_ph_petmap_plot
+```
+
+The RFM can also capture interactions between predictors which can be measured with the Friedman’s H-statistic. In the SOC stock RFM, Depth, was the largest individual predictor but showed little interaction strength (H~statistic~ ≤ 0.1) with other variables compared to other predictors. WIP was the next largest in terms of SHAP values in the RFM and showed high interaction values (H~statistic~ ≥ 0.2) with PET:MAP and Geolithology. PET:MAP in turn had a high interaction with WIP but also with Elevation. In the RFM for SOC % Depth again had lower interaction values with other predictors except for pH. Consistent with the LMM for SOC %, pH did have a large interaction PET:MAP. Clay, the third largest SHAP predictor had stronger interactions overall compared to Depth and pH but with correlated variables such as Silt+Clay and Sand. The interaction between Clay and MAP and PET:MAP was also strong.
+
+```{r}
+#| label: fig-interact-plot
+#| message: false
+#| fig-dpi: 300
+#| fig-cap: Interaction values for the largest three predictors by SHAP value in the RFM for SOC stock and SOC %. Interaction values are derived by the H-Statistic.
+ia_both_plots <- readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_BothStocksPerc_plot.rds")
+ia_both_plots
+```
+
+We investigated the large interaction terms further using partial dependence plots from the RFM investigate non-linear relationships by the partial dependence plots (Supporting Figure X) between the SHAP values for each predictor and the raw values of the predictor, colored by the next highest SHAP value predictor. We observed varying interactions between the top four RFM predictors and the rest of the predictors included in the model adding to the non-linear complexity (Supporting Figure 6<!--# SUPPORTING FIGURE -->). Particularly: Depth had strong interactions with WIP and Gradient 300m; MAP had strong interactions with Enhanced Vegetation Index (EVI); WIP had strong interactions with Deviation from mean elevation at 300m (Deviation 300m); and Gradient 300m had strong interactions with Deviation 1000m and MAP.
+
+### Upscaling SOC stock estimates across watershed study areas
+
+We chose to use the RFM for SOC stocks based on its fit to the test dataset to upscale the observations of SOC stocks to estimate 1m SOC stocks across the full extent of the four study watersheds (HLEF, HRW, MRW, and CVW) ([@fig-maps-SOC]). We calculated that the HRW had the largest SOC stock of 8.53Tg due to its large areal extent compared to other watersheds ([@tbl-socmap2]). The highest mean SOC stocks predicted by the RFM model were in the HLEF with a mean of 178 Mg ha^-1^. We estimated the lowest total SOC stocks were in the HLEF, which coincides with a small relative area compared to other watersheds. The lowest mean SOC stock was estimated in the CVW. Wetlands delineated by using the WIP probability threshold of greater than 50% showed consistently higher upscaled SOC stocks compared to the overall mean and non-wetland upland SOC stocks.
+
+{{< pagebreak >}}
+
+![Maps of 1m SOC stocks derived from the Quantile Random Forest Model (RFM) for the four study areas in the Pacific Northwest of North America. Insets show closer visuals for patterns of SOC stock paired with satellite imagery from Google Maps Satellite. We removed areas of glaciers, urban roads, and surface water for each of the study areas.](Figures/PNW_SOC_Maps.png){#fig-maps-SOC fig-align="center"}
+
+Other estimates of 1m SOC stock from previously published research showed variability in the estimates for each study watershed ([@tbl-socmap2]). The Global Soil Organic Carbon (GSOC) map had comparable estimates for total 1m SOC stocks in the HLEF and MRW, albeit with lower mean SOC stocks and larger areas. However, we estimated substantially more SOC in both the HRW and CVW. Estimates of 1m SOC stock for the North Pacific Coastal Temperate Rainforest from McNicol et al., 2019 were limited to the HLEF but we saw similar estimates to our study for total SOC stock and mean SOC stock. For wetland SOC stocks, we saw that our estimates were consistently higher than other estimates after using a resampled WIP probability map as a map for wetland area for other published SOC maps. Particularly, we have much larger estimates of wetland SOC stock compared to GSOC. Mean SOC stock for wetlands measured from upscaled estimates of wetland extent and SOC stocks from the National Wetland Condition Assessment and the National Land Cover Database (NWCA) published by @uhranImprovedWetlandSoil2021 were more comparable to our delineated wetland SOC stocks. However, we estimated a wider areal extent of wetlands.
+
+{{< pagebreak >}}
+
+```{r}
+#| fig-show: hold
+#| label: tbl-socmap2
+#| tbl-cap: Table of soil organic carbon (SOC) stocks derived from the mapping the RFM across the four study watersheds (HLEF, HRW, MRW, and CVW). Additional published estimates are added here for comparison. The mapped 1m SOC stock from the Global Soil Organic Carbon (GSOC) map are extracted for each study watershed. Wetland areas for GSOC were derived by aggregating the WIP probability maps to the coarser resolution of the GSOC map (~1km) and considering the coverage of pixels with greater than 50% probability as wetlands. McNicol et al., 2019 also provided mapped estimates for the North Pacific Coastal Temperate Rainforest which overlaps with the HLEF and therefore is used for comparison. Wetlands areas in McNicol et al., 2021 are derived similarly to GSOC. Finally, currently available mapped estimates of wetland 1m SOC stock are for CONUS are provided by Uhran et al., (2021) using the data from the National Wetland Condition Assessment (NWCA) and the National Land Cover Database (NLCD).
+#| tbl-colwidths: auto
+#| warning: false
+#| message: false
+
+readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/PNW_Mapped_SOC.rds")
+```
+
+{{< pagebreak >}}
+
+## Discussion
+
+### Model Choice
+
+Overall, the LMM~Depths~ accounted for the highest proportion of variability according to the R^2^~Pred. vs. Obs.~. LMMs can be useful for testing explicit hypotheses and accounting for random effects such as repeated measures at different depths within a sample location [@slaetsLinearMixedModels2021]. The LMM random effect likely boosted the R^2^~Pred. vs. Obs.~ = 0.64 but the fixed effects accounted for less variability indicated by the R^2^~marginal~ = 0.45<!--# Is this true? Ask Don? -->. The LMM~Depths~ also appears to underestimate larger SOC stocks. In order to capture more variability and the higher magnitude SOC stocks, we used the RFM~Depths~ which is more flexible by relaxing assumptions about the underlying data and response variable <!--# Citation Needed -->. The RFM~Depths~ did capture more variability in the training data and appeared to account for larger SOC stocks. However, we saw evidence of potentially overfitting to the training data with the much higher R^2^ in the training data compared to the test data. Thus, our approach to counter underestimation in the LMM~Depths~, overfitting potential in the RFM~Depths~, and the high overall SOC stock variability across wetlands and uplands depths was to aggregate stocks to 0-1m in the GLM~pedons~. However, the GLM~Pedons~ model performed moderately worse and still underestimated high SOC stocks compared to the LMM~full depths~ and RFM according. Comparing between all types of models, the RMSE:Mean ratio for the GLM~Pedons~ was much lower compared to the LMM~Depths~ and RFM~Depths~. This may indicate that while the GLMs were less directly fitting to the datasets, they may be more transferable and flexible when applied to upscaling SOC stocks across areas.
+
+The importance of model choice has been emphasized before in Yu et al., (2021) where generalized additive models and random forest outperformed a LMM in estimating SOC concentration in relation to climatic and geochemical predictors. Acknowledging model limitations is key for producing robust estimates of continuous SOC stocks across heterogeneous landscapes with a mosaic of wetlands and uplands. Our research shows conservative estimates of SOC stocks are produced when LMMs are used to capture the geographic distribution of depth-dependent SOC stocks. Conversely, the complex relationships between SOC, Depth, and other factors can be captured by models such as the RFM, but with the risk of overfitting to observations and over-predicting SOC stocks in mapped predictions. Ignoring depth as a factor can change and simplify the interpretation of SOC drivers as in the case of our GLM~Pedons~. This may be more advantageous to produce baseline SOC stock estimates before more in-depth scrutiny of SOC stock drivers.
+
+### Controls on SOC stocks
+
+Despite the variability in model performance we found patterns of controlling factors on SOC stocks. Overall, our study's SOC stocks were driven by Depth, MAP, and WIP across both the regional climate and landscape hydrologic gradient. We consider Depth as the most significant factor controlling the variability in SOC stock due to the large coefficient in the LMM~full depths~ and third highest predictor in the RFM. Depth was also a large significant predictor in the LMM~wet depths~ and LMM~upl depths~ split dataset models. SOC stock and content typically decline with depth [@jobbagyVerticalDistributionSoil2000]. But the SOC-depth relationship can be modulated by other factors such as climate and geochemistry [@yuClimaticGeochemicalControls2021]. Mean annual precipitation (MAP) was the primary climate driver across our models after we tested and found limited support for Mean Annual Temperature (MAT) as a potential driver. MAP has been well documented as a driver of SOC stock through influences on primary productivity and soil respiration across global and regional scales [@carvalhaisGlobalCovariationCarbon2014, @xuPrecipitationChangeAffects2024; @wiesmeierSoilOrganicCarbon2019] . The presence of carbon-rich wetlands can occur in more humid climates such as with peatlands. However, LMM~wet depths~ and GLM~wet pedons~ in our study show that MAP was not a significant predictor for wetlands and instead appears to raise the overall SOC stock across the full landscape and uplands rather than favoring wetlands more significantly. Climate variables such as MAP and MAT can have strong interactions with Depth, and other soil or geochemical factors towards controlling SOC stocks [@doetterlSoilCarbonStorage2015]. These complex interactions can be non-linear and challenging to represent in linear models but can be captured by machine learning models [@vonfrommControlsRelationshipsSoil2024; @yuClimaticGeochemicalControls2021]. Indeed, the RFM showed that for predicting SOC stock, the top four predictors (Gradient 300m, Depth, MAP, and WIP) had non-linear relationships and a variety of interactions between other predictors. The inclusion of Gradient 300m shows the flexibility of RFM which can handle a multitude of predictor variables compared to the LMM or GLM.
+
+WIP was also a significant predictor of SOC stock after both Depth and MAP in the LMM~full depths~, RFM, and GLM~full pedons~ indicating that the probability of wetland presence, corresponding to soil moisture content and water saturation derived from a combination of terrain and remote sensing variables can be used in across climate gradients to predict SOC stocks. Interestingly, WIP was not a significant predictor in the wetland models and was even excluded as a predictor in the GLM~wet pedons~. This could indicate that once a wetland develops on the landscape, other factors controlling wetland type (peatland, emergent, riverine, etc.) drive SOC. However, a much more detailed analysis on SOC accumulation by wetland type is needed to substantiate this potential process whereas our analysis is limited to broader drivers of SOC including MAP and Geolithology. Geolithological categories such as unconsolidated, indicate river floodplains with recent scouring, a geomorphological process that is present in the HRW [@riedelGeomorphologyCoastalOlympic2021].
+
+Our results agree with larger scale SOC stock model research in the Pacific Coastal Temperate Forest showing that higher MAP corresponds to larger SOC stocks [@mcnicolLargeClimatesensitiveSoil2019] results evaluating SOC stocks in persistence, and turnover which show mean annual temperature (MAT) is a more significant driver than MAP [@yuClimaticGeochemicalControls2021; @doetterlSoilCarbonStorage2015; @luoGlobalSubsoilOrganic2019]. However, most recent research shows that interactions between climate and soil factors, particularly clay content and geochemical factors, are driving SOC accumulation [@yuClimaticGeochemicalControls2021; @vonfrommControlsRelationshipsSoil2024; @nieStorageControllingFactors2023]. Further, much of the recent research on SOC has focused not just on accumulation but also on the drivers of SOC persistence, which as promoted breakthrough concepts and models that provide insight into SOC changes with climate. [@heckmanBulkDensityFractions2021; @rocciBridging20Years2024; @cotrufoSoilCarbonStorage2019]. Much less research has gone towards applying these novel insights towards the representation of SOC and its controls across spatial scales in digital soil mapping (DSM). Recent work by @romandobarcoMappingSoilOrganic2023 has shown that persistent SOC fractions can be mapped with remote sensing and machine learning.
+
+Wetlands are known to store significant amounts of SOC on the global scale and throughout different climates [@davidsonUnrecognizedImportanceCarbon2022; @tangenSoilOrganicCarbon2020; @mcnicolLargeClimatesensitiveSoil2019]. Wetland soils can often be multiple meters deep and contain high organic matter content @hugeliusLargeStocksPeatland2020; @sotheLargeSoilCarbon2022. The lack of a depth control on SOC stock in wetlands may suggest a stronger climatic influence compared to uplands and mesic soils. Deeper soils have a more complex relationship with climate due to the interaction of multiple factors including mineral associations and plant rooting depths but consistent soil saturation such as with wetland soils can inhibit decomposition with the rise of temperature @hickspriesDeepSoilOrganic2023. While our study did not find MAT as a significant factor in the model selection process, it appears consistent with other research that shows wetland SOC susceptibility to drying conditions [@nieStorageControllingFactors2023]. A concomitant rise in MAT with reduced MAP may greatly affect wetland SOC stocks if there are limited additional controls from consistent hydrology or mineralogy [@sunTopographicClimaticControls2023; @lawrenceTrajectorySoilDevelopment2021]
+
+While SOC stock observations were highly variable, we note that SOC stocks are difficult to estimate across scales, especially when using geospatial data. Our limited investigation incorporating soil pH and Silt+Clay did not cumulatively add to model performance, but we suggest that this indicates potential interactions that need to be explored further. Investigations have shown that the incorporation of interactions between soil factors, geochemical variables, and climate can reveal insights into how SOC stocks are controlled [@doetterlSoilCarbonStorage2015; @yuClimaticGeochemicalControls2021; @vonfrommControlsRelationshipsSoil2024]. Moreover, our study is limited to bulk SOC stocks and did not investigate fractions of SOC held in different fractions of soil organic matter (SOM) which may have diverging or more tightly coupled relationships with our predictors [@heckmanBulkDensityFractions2021; @hansenDistinctDirectClimatemediated2024].
+
+#### Upscaled maps of SOC stocks
+
+Using the full dataset models (LMM~full depths~, RFM, and GLM~full pedons~) to upscale and map SOC stocks across the three study areas showed the range of potential SOC stocks in both wetlands and uplands. Across all study watersheds and all wetlands and uplands, the mean and total SOC stocks were similar between the LMM and GLM upscaled estimates but there was a much higher mean and total SOC stock for the RFM upscaled estimates. The high RFM estimates were particularly higher in the MRW and CVW where total SOC stocks were nearly double for the other model CVW estimates. However, the higher overall SOC and larger extent of the HRW contributed more to the overall estimate for the RFM estimates. As discussed previously this high estimate may be due to the RFM fitting strongly to the training data and establishing MAP as a larger driver of SOC stock. A similar pattern may also apply to the WIP predictor where total and mean wetland SOC stocks were approximately twice as high in the RFM compared to the other models in the MRW and CVW. We continued to show large wetland SOC stocks in the HRW that were previously assessed in Stewart et al., (2024) and this pattern continued in both the MRW and CVW where wetlands were disproportionate pools of SOC compared to their surface area. Across all study areas, wetlands stored disproportionately high SOC compared to their surface area and compared to uplands, except for the LMM in the HRW. Between models, the LMM shows the smallest wetland-upland difference in HRW with mean wetland SOC stock of 30.4 Mg ha^-1^ or only 17.6% higher compared wetland-upland differences between 116-120 Mg ha^-1^ or 65-80% higher in the GLM and RFM.
+
+The mean SOC stocks across all study areas and landscape classes ranging from 123.4-156.5 Mg ha^-1^ is higher than the mean SOC stock across global temperate conifer forests of 107 Mg ha^-1^ [@jacksonEcologySoilCarbon2017]. At a closer regional scale, the Pacific Coastal Temperate Rainforest encompasses the HRW and MRW but not the CVW and contains an overall mean SOC stock of 228 ± 111 Mg ha^-1^ which is higher than our model estimates within and across all study areas [@mcnicolLargeClimatesensitiveSoil2019]. For wetlands specifically, the range of the mean SOC stock of 79.8-302.9 Mg ha^-1^ encompasses the range of the mean SOC stock of 98.7-184.2 Mg ha^-1^ in the NWCA~NLCD~ for all study areas [@uhranImprovedWetlandSoil2021]. With the additionally identified wetland extent, total SOC stocks for wetlands were much higher than the estimates from NWCA~NLCD~ showing large amounts of unmapped wetlands in these study areas. Our results suggest expanded wetland mapping continuously across broader regional extents should continue to reveal more unmapped wetland area and increase estimated wetland SOC stock. Forested wetlands are frequently cited for needed mapping improvements [@langStatusTrendsWetlands2024; @dahlStatusTrendsWetlands2011; @poulterReviewGlobalWetland2021] and our research shows further support for using remote sensing and data-driven approaches to address this need.
+
+## Conclusions
+
+This study demonstrated the challenges and importance of accurately modeling soil organic carbon (SOC) stocks across heterogeneous landscapes containing both wetlands and uplands. Different modeling approaches in our study: Linear Mixed Models (LMMs), Random Forest (RFM), and Generalized Linear Models (GLMs), showed variable model performance, with the LMM~full depths~ performing the best fit while the GLM~full pedons~ appeared to be more reduce variability in wider predictions. Across models, we found that soil depth emerged as the most significant factor controlling SOC stock variability, followed by mean annual precipitation (MAP) and wetland intrinsic potential (WIP). Notably, while MAP significantly influenced SOC stocks in uplands, it showed less importance in wetlands, suggesting that different mechanisms control wetland SOC accumulation. The research revealed that wetlands consistently stored disproportionately high amounts of SOC compared to their surface area, with estimates ranging from 79.8-302.9 Mg ha⁻¹, exceeding previous estimates from national assessments. Our findings highlight the importance of improved wetland mapping, particularly in forested areas, and continue to suggest that current SOC stock estimates may be significantly underestimated due to unmapped wetland areas. This work advances our understanding of SOC distribution patterns and emphasizes the need for sophisticated modeling approaches that can account for the complex interactions between environmental factors controlling carbon storage in diverse landscapes.
+
+{{< pagebreak >}}
+
+## References
+
+::: {#refs}
+:::
