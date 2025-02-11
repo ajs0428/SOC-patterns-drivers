@@ -1,0 +1,672 @@
+---
+title: "All WA SOC Relationship with Particle Size and pH"
+format: html
+---
+
+
+```{r setup, include=FALSE}
+library(formatR)
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100,
+                      message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
+knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+library(rgl)
+library(openxlsx)
+library(terra)
+library(lme4)
+library(MASS)
+library(mgcv)
+library(lmerTest)
+library(quantreg)
+library(MuMIn)
+library(RLRsim)
+library(terra)
+library(sf)
+library(mapview)
+library(car)
+library(tidyverse)
+library(tidyterra)
+library(forcats)
+library(ggeffects)
+library(merTools)
+library(glmnet)
+library(stats)
+library(ggcorrplot)
+library(RColorBrewer)
+library(cowplot)
+library(webshot)
+library(kableExtra)
+library(pdp)
+library(vip)
+library(formatR)
+library(ggpubr)
+library(ggsoiltexture)
+library(grid)
+library(gridExtra)
+library(aqp)
+library(ithir)
+library(mpspline2)
+library(mlr3verse)
+library(mlr3spatial)
+library(iml)
+library(kernelshap)
+library(shapviz)
+
+knitr::knit_hooks$set(webgl = hook_webgl)
+rgl::setupKnitr(autoprint = TRUE)
+
+
+# Quick R^2 function
+r.sq <- function(y,y.fitted){
+    res <- y-y.fitted
+    1-sum(res^2)/sum((y-mean(y))^2)
+}
+```
+
+
+### Data
+
+- This comes from after the training and testing split in the `PNW_SOC_Edaphic_RF_Modeling.qmd` notebook
+
+NEED SAMPLE IDs
+
+```{r}
+pnw_dat_lab <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv") 
+trainlab_scale<- read.csv(
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Scale.csv")
+trainlab_wet_scale<- read.csv(
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Wet_Scale.csv")
+trainlab_upl_scale<- read.csv(
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Upl_Scale.csv")
+testlab_scale<- read.csv(
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Scale.csv")
+testlab_wet_scale<- read.csv(
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Wet_Scale.csv")
+testlab_upl_scale<- read.csv(
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Upl_Scale.csv")
+
+```
+
+
+```{r}
+ggplot(trainlab_scale, aes(x = MAT, y = SiltClay)) +
+  geom_point(aes(color = as.factor(LITH))) +
+  scale_color_viridis_d()
+ggplot(trainlab_scale, aes(x = WIP, y = SiltClay)) +
+  geom_point(aes(color = as.factor(LITH))) +
+  scale_color_viridis_d()
+trainlab_scale |> group_by(LITH) |> 
+ggplot(aes(x = SiltClay, y = carbon_perc)) +
+  geom_point(aes(color = as.factor(LITH))) +
+  geom_smooth(aes(colour = as.factor(LITH), by = LITH), method = "lm", se = F) + 
+  scale_color_viridis_d()
+
+trainlab_scale |> group_by(LITH) |> 
+  ggplot(aes(x = lower_depth, y = pH)) +
+      geom_smooth(aes(colour = LITH, by = LITH, fill = LITH), 
+                  method = "lm", se = T, alpha = 0.5) + 
+      scale_fill_discrete(name = "Lithology") +
+      geom_point(aes(color = as.factor(LITH))) +
+      #geom_smooth(method = "lm", se = F, lty = 3, linewidth = 3) + 
+      scale_color_viridis_d() + 
+      scale_fill_viridis_d() + 
+      xlab("Depth") + 
+      labs(colour = "Lithology",
+           fill = "Lithology") +
+      #guides(colour=guide_legend(title="Lithology")) +
+      theme(panel.background = element_blank(),
+            panel.grid.major = element_line("gray80"),
+            axis.ticks = element_blank())
+
+pH_hist <- ggplot(trainlab_scale, aes(x = pH)) + 
+  geom_histogram() +
+  scale_fill_viridis_d(name = "Study Area", labels = c("CRW", "HRW", "MRW")) +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_line("gray80"),
+        axis.ticks = element_blank())
+pH_hist
+save(pH_hist, file = "SOIL CARBON/All_WA/writing/Figures/Supplemental/pH_histogram.RData")
+```
+
+```{r}
+
+wa_tex_plotdat <- pnw_dat_lab |> 
+  select(site,
+         Sand, Silt, Clay) |>
+  na.omit() |> 
+  mutate(sum = sum(Sand, Silt, Clay)) |> 
+  dplyr::rename_with(tolower) 
+
+
+texture_triangle_plot <- ggsoiltexture(wa_tex_plotdat) +
+    geom_point(aes(fill = site), shape = 21, size = 3, stroke = 0.1) + 
+    scale_fill_discrete(name = "Study Area") +
+    theme(legend.title = element_text(hjust = .5, face = "bold"),
+          legend.position = "bottom",
+          legend.text = element_text(size = 10, angle = 45),
+          panel.background = element_blank())
+
+texture_triangle_plot
+save(texture_triangle_plot, file = "SOIL CARBON/All_WA/writing/Figures/Supplemental/texture_triangle_plot.rda")
+```
+
+
+```{r}
+
+#Full modlabTel with all parameters in hypothetical structure 
+modlabT1 <- lmer(log10(carbon_perc) ~ 
+                  EVI*CHM + WIP*PET_MAP*pH*Clay +LITH + 
+                lower_depth + (lower_depth|sample_ID),
+               #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+# No vegetation interaction
+modlabT2 <-lmer(log10(carbon_perc) ~ 
+                EVI+CHM + WIP*PET_MAP*pH*Clay +LITH +
+               lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+# Only one interaction with PET_MAP*pH*Clay
+modlabT3 <- lmer(log10(carbon_perc) ~ 
+                 EVI*CHM + WIP+PET_MAP*pH*Clay +LITH +
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#No interaction all parameters
+modlabT4 <- lmer(log10(carbon_perc) ~ 
+                 EVI+CHM + WIP+PET_MAP+pH+Clay +LITH +
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#No  EVI, CHM
+modlabT5 <- lmer(log10(carbon_perc) ~ 
+                 WIP+PET_MAP+pH+Clay +LITH + 
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#No CHM, EVI, WIP
+modlabT6 <- lmer(log10(carbon_perc) ~ 
+                PET_MAP+pH+Clay +LITH +
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#No CHM, EVI, WIP, LITH, full interact
+modlabT7 <- lmer(log10(carbon_perc) ~ 
+                pH*Clay*PET_MAP+
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+
+#Just Clay pH interact
+modlabT8 <- lmer(log10(carbon_perc) ~ 
+                pH*Clay+
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#Just Clay
+modlabT9 <- lmer(log10(carbon_perc) ~ 
+                 Clay+
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#Just pH
+modlabT10 <- lmer(log10(carbon_perc) ~ 
+                pH +
+               lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+
+```
+
+```{r}
+#Full modlabel with all parameters in hypothetical structure 
+modlab1 <- lmer(log10(carbon_perc) ~ 
+                  EVI*CHM + WIP*MAP*pH*Clay +LITH + 
+                lower_depth + (lower_depth|sample_ID),
+               #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+# No vegetation interaction
+modlab2 <-lmer(log10(carbon_perc) ~ 
+                EVI+CHM + WIP*MAP*pH*Clay +LITH +
+               lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+# Only one interaction with MAP*pH*Clay
+modlab3 <- lmer(log10(carbon_perc) ~ 
+                 EVI*CHM + WIP+MAP*pH*Clay +LITH +
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#No interaction all parameters
+modlab4 <- lmer(log10(carbon_perc) ~ 
+                 EVI+CHM + WIP+MAP+pH+Clay +LITH +
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#No  EVI, CHM
+modlab5 <- lmer(log10(carbon_perc) ~ 
+                 WIP+MAP+pH+Clay +LITH + 
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#No CHM, EVI, WIP
+modlab6 <- lmer(log10(carbon_perc) ~ 
+                MAP+pH+Clay +LITH +
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#No CHM, EVI, WIP, LITH, full interact
+modlab7 <- lmer(log10(carbon_perc) ~ 
+                pH*Clay*MAP+
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+
+#Just Clay pH interact
+modlab8 <- lmer(log10(carbon_perc) ~ 
+                pH*Clay+
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#Just Clay
+modlab9 <- lmer(log10(carbon_perc) ~ 
+                 Clay+
+                lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+#Just pH
+modlab10 <- lmer(log10(carbon_perc) ~ 
+                pH +
+               lower_depth + (lower_depth|sample_ID),
+                #family = Gamma(link = "log"),
+                data = trainlab_scale, REML = F
+              )
+```
+Pairwise comparisons between the top, largest modlabel and the rest show if modlabels with fewer parameters are significantly different. Considering AIC will help determine the most parsimonious modlabel with the best fit to the data. 
+
+```{r tidy=FALSE, echo=FALSE}
+anova_table_modlab1 <- rbind(anova(modlab1, modlabT1), 
+                            anova(modlab2, modlabT2), 
+                            anova(modlab3, modlabT3),
+                            anova(modlab4, modlabT4), 
+                            anova(modlab5, modlabT5), 
+                            anova(modlab6, modlabT6), 
+                            anova(modlab7, modlabT7), 
+                            anova(modlab8, modlabT8),
+                            anova(modlab9, modlabT9),
+                            anova(modlab10, modlabT10)) 
+
+anova_table_modlab1 |>
+    tibble::rownames_to_column(var = "modlabels") |> 
+    dplyr::mutate(Significant = case_when(`Pr(>Chisq)` < 0.05 & `Pr(>Chisq)`>  0.01~ "*",
+                                `Pr(>Chisq)` < 0.01 & `Pr(>Chisq)` > 0.001~ "**",
+                                `Pr(>Chisq)` < 0.001 ~ "***",
+                                .default = ""),
+           Models = case_when(modlabels == "modlab11" ~ "modlab1",
+                              modlabels == "modlab12" ~ "modlab1",
+                              modlabels == "modlab13" ~ "modlab1",
+                              modlabels == "modlab14" ~ "modlab1",
+                              modlabels == "modlab15" ~ "modlab1",
+                              modlabels == "modlab16" ~ "modlab1",
+                              modlabels == "modlab17" ~ "modlab1",
+                              modlabels == "modlab18" ~ "modlab1",
+                              .default = modlabels)) |> 
+    dplyr::select(-modlabels) |> 
+    dplyr::select(Models, everything()) |> 
+    #dplyr::arrange((AIC)) |> 
+    kbl() |>
+    #row_spec(, background = "lightblue") |> 
+    kable_classic_2("hover", full_width = F) 
+```
+
+Choose based on lowest AIC or BIC, BIC penalizes more parameters
+
+With a difference <2 use `anova`, go with parsimony
+
+```{r}
+modlab_list <- list(modlab1, modlab2, modlab3, modlab4, modlab5, modlab6, modlab7,
+                    modlab8, modlab9, modlab10,
+                 modlabT1, modlabT2, modlabT3, modlabT4, modlabT5, modlabT6, modlabT7, modlabT8, modlabT9, modlabT10)
+
+aic_list_lab <- sapply(modlab_list, AIC)
+par_list_lab <- sapply(modlab_list, function(x) attributes(logLik(x))$df)
+get_var_names <- function(...) {
+  sapply(substitute(list(...))[-1], deparse)
+}
+
+# Get names
+mod_lab_names <- get_var_names(modlab1, modlab2, modlab3, modlab4, modlab5, modlab6,
+                               modlab7, modlab8, modlab9, modlab10,
+                               modlabT1, modlabT2, modlabT3, modlabT4, modlabT5,
+                               modlabT6, modlabT7, modlabT8, modlabT9, modlabT10)
+
+mod_lab_df <- data.frame(mod_names = mod_lab_names,
+                     aic = aic_list_lab, 
+                     par = par_list_lab)
+df_sorted <- mod_lab_df %>%
+  arrange(aic, par)
+lowest <- df_sorted[1, ]       # Row with lowest col2 value
+second_lowest <- df_sorted[2, ] # Row with second-lowest col2 value
+
+# Check if the second-lowest is within 2 of the lowest
+if (abs(lowest$aic - second_lowest$aic) < 2 & lowest$par > second_lowest$par) {
+  result <- second_lowest$mod_names  # Pick based on lower col3 value
+} else {
+  result <- lowest$mod_names  # Otherwise, pick the lowest col2 value
+}
+
+result
+
+best_model_lab_name <- match(result, mod_lab_names)
+
+# Extract the best model from the list
+best_model_lab <- modlab_list[[best_model_lab_name]]
+```
+
+
+```{r}
+r2_table_modlabs <- rbind(MuMIn::r.squaredGLMM(modlab1), 
+                            MuMIn::r.squaredGLMM(modlab2), 
+                            MuMIn::r.squaredGLMM(modlab3),
+                            MuMIn::r.squaredGLMM(modlab4), 
+                            MuMIn::r.squaredGLMM(modlab5), 
+                            MuMIn::r.squaredGLMM(modlab6), 
+                            MuMIn::r.squaredGLMM(modlab7), 
+                            MuMIn::r.squaredGLMM(modlab8),
+                            MuMIn::r.squaredGLMM(modlab9),
+                            MuMIn::r.squaredGLMM(modlab10)) 
+
+r2_table_modlabTs <- rbind(MuMIn::r.squaredGLMM(modlabT1), 
+                            MuMIn::r.squaredGLMM(modlabT2), 
+                            MuMIn::r.squaredGLMM(modlabT3),
+                            MuMIn::r.squaredGLMM(modlabT4), 
+                            MuMIn::r.squaredGLMM(modlabT5), 
+                            MuMIn::r.squaredGLMM(modlabT6), 
+                            MuMIn::r.squaredGLMM(modlabT7), 
+                            MuMIn::r.squaredGLMM(modlabT8),
+                            MuMIn::r.squaredGLMM(modlabT9),
+                            MuMIn::r.squaredGLMM(modlabT10)) 
+
+r2_table_modlabs
+
+```
+
+
+
+
+```{r}
+gmod_lab <- update(best_model_lab, . ~ . + 
+                    MAP + MAT*Clay*SiltClay, 
+                   na.action = "na.fail", data = trainlab_scale)
+
+modlab_dredge <- dredge(gmod_lab, rank = "AIC", extra = "R^2", m.lim = c(1,10),
+                   fixed = c("lower_depth", "pH", "Clay"),
+                   subset =  (xor(SiltClay, Clay) && !(SiltClay&&Clay) && xor(MAP, PET_MAP) && !(MAP&&PET_MAP)))
+
+head((modlab_dredge))
+modlab_dredge_1 <- get.models(modlab_dredge, 1)[[1]] 
+modlab_dredge_2 <- get.models(modlab_dredge, 2)[[1]] 
+modlab_dredge_3 <- get.models(modlab_dredge, 3)[[1]]
+```
+
+
+```{r}
+anova(modlab_dredge_1, modlab_dredge_2)
+anova(modlab_dredge_1, modlab_dredge_3)
+anova(modlab_dredge_2, modlab_dredge_3)
+anova(best_model_lab, modlab_dredge_1)
+
+
+summary(modlab_dredge_1)
+
+saveRDS(modlab_dredge_1, file = "SOIL CARBON/All_WA/analysis/models/PNW_Model_Lab_dredge_best.rds")
+```
+
+
+
+
+```{r}
+
+check_assump_func <- function(model) {
+  plot(model)
+  plot(model, resid(.) ~ fitted(.)|sample_ID, abline = 0)
+  
+  qqnorm(resid(model))
+  qqline(resid(model))
+  
+  lev <- hat(model.matrix(model))
+  plot(resid(model) ~ lev, xlab = "leverage")
+  
+  cd <- cooks.distance(model)
+  plot(lev)
+  points(cd, col = "blue")
+  
+  hist(as.vector(unlist(ranef(model)$sample_ID)))
+}
+
+
+
+check_assump_func(modlab_dredge_2)
+#check_assump_func(mod_lab_w)
+#check_assump_func(mod_lab_u)
+
+
+```
+
+
+
+```{r}
+library(effectsize)
+library(r2glmm)
+
+ci_anova_tab_lab_func <- function(model, data) {
+  set.seed(11)
+  coef_est <- broom::tidy(model, conf.int = TRUE, conf.method = "boot",
+                          conf.level = 0.95, effects = "fixed")
+  r2partial <- r2glmm::r2beta(model, data = data, method = "nsj") |> data.frame() |> 
+    rename(Predictor = Effect,
+           Rsq.upper.CL = upper.CL,
+           Rsq.lower.CL = lower.CL) |> 
+    select(Predictor, Rsq, Rsq.upper.CL, Rsq.lower.CL)
+  
+  
+  ci_anova_tab <- coef_est |> 
+    dplyr::select(term, conf.low, estimate, conf.high, p.value) |> 
+    dplyr::rename(Predictor = term,
+                  Coefficient = estimate,
+                  conf2.5 = conf.low,
+                  conf.975 = conf.high) |> 
+    dplyr::filter(!stringr::str_detect(Predictor, "sd"), 
+                  # !stringr::str_detect(Predictor, "Intercept"), 
+                  !stringr::str_detect(Predictor, "sigma")) |> 
+    full_join(y = r2partial, join_by(Predictor)) |> 
+    mutate(across(where(is.numeric), ~base::round(.x, 2))) |>
+    dplyr::arrange(desc(Predictor)) |> 
+    dplyr::select(Predictor,conf2.5, Coefficient, conf.975, everything())
+  return(ci_anova_tab)
+}
+
+ci_anova_psa_tab <- ci_anova_tab_lab_func(model = modlab_dredge_3, data = trainlab_scale)
+
+
+ci_anova_psa_tab
+
+
+readr::write_csv(ci_anova_psa_tab, "SOIL CARBON/All_WA/data/dataframes/LMM_Lab_confint95.csv")
+
+```
+
+
+
+```{r}
+
+PI_func <- function(model, data) {
+    PI <- predictInterval(
+      model,
+      newdata = data,
+      which = c("full"),
+      level = 0.95,
+      n.sims = 1000,
+      stat = c("median"),
+      type = c("linear.prediction"),
+      include.resid.var = TRUE,
+      returnSims = TRUE,
+      seed = 11
+    )
+    
+    PI_trans <- PI |> mutate(fit_t = 10**(fit),
+                     upr_t = 10**(upr),
+                     lwr_t = 10**(lwr),
+                     act = data$carbon_perc,
+                     fit_t_act = 10**(fit_t - act))
+    
+    PI_rmse <- sqrt(abs(sum(PI_trans$fit_t - PI_trans$act)**2)/nrow(data))
+    return(list(PI, PI_trans, PI_rmse)) 
+}
+
+PI_trans_lab <- PI_func(model = modlab_dredge_2, data = testlab_scale)
+PI_trans_wet_lab <- PI_func(model = modlab_dredge_2, data = testlab_wet_scale)
+PI_trans_upl_lab <- PI_func(model = modlab_dredge_2, data = testlab_upl_scale)
+
+PI_trans_lab
+
+saveRDS(PI_trans_lab, file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_RMSE_Lab.rds")
+saveRDS(PI_trans_wet_lab, 
+        file = "SOIL CARBON/All_WA/data/dataframes/LMM_Wet_PredictInterval_RMSE_Lab.rds")
+saveRDS(PI_trans_upl_lab, 
+        file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_Upl_RMSE_Lab.rds")
+
+```
+
+Kfold Cross Validation
+```{r}
+kFoldCV_lab <- function(K = 6, reps = 10, randSeed = 11, data, model){
+    set.seed(randSeed)
+    kFoldMSE <- 0
+    #kFoldRMSE <- 0
+    #Randomly shuffle the data
+    yourData<- data[sample(nrow(data)),]
+    
+    #Create 10 equally size folds
+    folds <- cut(seq(1,nrow(yourData)),breaks=K,labels=FALSE)
+
+    for(i in 1:reps){
+        kFoldMSE_temp <- 0 # A zero placeholder for MSE
+        kFoldRMSE_temp <- 0
+        for(j in 1:K){
+            testIndexes <- which(folds==j,arr.ind=TRUE)
+            dataTest <- yourData[testIndexes, ]
+            dataTrain <- yourData[-testIndexes, ]
+            # Run model on K-1 folds (training data)
+            mod_kFold <- update(model, 
+                                data   = dataTrain)
+            # Get predicted values on test dataset, as well as true values
+            pred_kFold <- 10**(predict(object  = mod_kFold,
+                                  newdata = dataTest, 
+                                  allow.new.levels = TRUE))
+            actual_kFold    <- (dataTest$carbon_perc)
+            # Calculate MSE for this fold
+            kFoldMSE_temp <- kFoldMSE_temp + sum((pred_kFold - actual_kFold)^2)
+            #kFoldRMSE_temp <- kFoldRMSE_temp + sqrt(sum((pred_kFold - actual_kFold)^2)/nrow(dataTest))
+        }
+        # Add MSE for the given rep
+        kFoldMSE <- kFoldMSE + kFoldMSE_temp
+        #kFoldRMSE <- kFoldRMSE + kFoldRMSE_temp
+    }
+    # Return average MSE across the reps
+    estMSE <- kFoldMSE / reps
+    estRMSE <- sqrt((estMSE/nrow(data)))
+    names(estMSE) <- "Estimated MSE"
+    names(estRMSE) <- "Estimate RMSE"
+    return(list(estMSE, estRMSE))
+}
+```
+
+
+```{r}
+# Test with K = 6
+kf_rmse_lab <- kFoldCV_lab(K = 6,
+        reps      = 10,
+        randSeed  = 11,
+        data = trainlab_scale,
+        model = modlab_dredge_1
+        )
+kf_rmse_lab_w <- kFoldCV_lab(K = 6,
+        reps      = 10,
+        randSeed  = 11,
+        data = trainlab_wet_scale,
+        model = modlab_dredge_1
+        )
+kf_rmse_lab_u <- kFoldCV_lab(K = 6,
+        reps      = 10,
+        randSeed  = 11,
+        data = trainlab_upl_scale,
+        model = modlab_dredge_1
+        )
+
+kf_df_lab <- data.frame(LandscapeClass = c("Full", "Wetland", "Upland"), 
+                    LMM.k2_rmse = c(kf_rmse_lab[[2]], kf_rmse_lab_w[[2]], kf_rmse_lab_u[[2]]))
+kf_df_lab
+readr::write_csv(kf_df_lab, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_Lab_Depths_Dataframe.csv")
+```
+
+
+```{r}
+r2_po_lab <- round(r.sq(y = (testlab_scale$carbon_perc), 
+                         y.fitted =  10**predict(modlab_dredge_1, 
+                                                 testlab_scale, allow.new.levels = TRUE)), 3)
+r2_po_lab_w <- round(r.sq(y = (testlab_wet_scale$carbon_perc), 
+                         y.fitted =  10**predict(modlab_dredge_1, 
+                                                 testlab_wet_scale, allow.new.levels = TRUE)), 3)
+r2_po_lab_u <- round(r.sq(y = (testlab_upl_scale$carbon_perc), 
+                         y.fitted =  10**predict(modlab_dredge_1, 
+                                                 testlab_upl_scale, allow.new.levels = TRUE)), 3)
+
+rmse_po_lab <- caret::RMSE(pred = 10**predict(modlab_dredge_1, 
+                                          testlab_scale, allow.new.levels = TRUE), 
+                       obs = testlab_scale$carbon_perc)
+rmse_po_lab_w <- caret::RMSE(pred = 10**predict(modlab_dredge_1, 
+                                                testlab_wet_scale, allow.new.levels = TRUE), 
+                         obs = testlab_wet_scale$carbon_perc)
+rmse_po_lab_u <- caret::RMSE(pred = 10**predict(modlab_dredge_1, 
+                                            testlab_upl_scale, allow.new.levels = TRUE), 
+                         obs = testlab_upl_scale$carbon_perc)
+
+mumin_R2m_lab <- MuMIn::r.squaredGLMM(modlab_dredge_1)[[1]]
+mumin_R2c_lab <- MuMIn::r.squaredGLMM(modlab_dredge_1)[[2]]
+
+
+mod_errdf_lab <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
+                            "LMM.LogMargR2" = c(mumin_R2m_lab, -999, -999),
+                            "LMM.LogCondR2" = c(mumin_R2c_lab, -999, -999),
+                            "LMM.nLogPredObsR2" = c(r2_po_lab, r2_po_lab_w, r2_po_lab_u),
+                            "LMM.nlogPredObsRMSE" = c(rmse_po_lab, rmse_po_lab_w, rmse_po_lab_u)
+                            ) 
+mod_errdf_lab
+
+readr::write_csv(mod_errdf_lab, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/PNW_Lab_model_fit.csv")
+
+```
+
+```{r}
+
+```
+

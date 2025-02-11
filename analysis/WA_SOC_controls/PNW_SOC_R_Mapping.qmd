@@ -1,0 +1,40 @@
+---
+title: "PNW_SOC_R_Mapping"
+format: html
+---
+
+
+```{r setup, include=FALSE}
+library(formatR)
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
+knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+library(rgl)
+library(terra)
+library(sf)
+library(ggplot2)
+library(ggeffects)
+library(ggtext)
+library(ggcorrplot)
+library(RColorBrewer)
+library(webshot)
+library(kableExtra)
+library(formatR)
+library(dplyr)
+library(stringr)
+library(flextable)
+library(ggnewscale)
+library(tidyterra)
+library(ggpubr)
+library(ggspatial)
+library(patchwork)
+
+knitr::knit_hooks$set(webgl = hook_webgl)
+rgl::setupKnitr(autoprint = TRUE)
+
+setGDALconfig("GDAL_PAM_ENABLED", "FALSE")
+
+#tmap_options(raster.max.cells = c(plot = 1e7, view = 1e6))
+```
+
+

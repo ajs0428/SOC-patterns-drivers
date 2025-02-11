@@ -32,7 +32,7 @@ terraOptions(
 #### Data
 
 Rasters 
-```{r eval=FALSE}
+```{r}
 filepath <- "Mashel/Mashel_WIP_2024/DataExport"
 mas_dtw <- "Mashel/Mashel_WIP_2024/DataExport/Mashel_DTW.tif"
 ```
@@ -103,6 +103,7 @@ mas_pts <- vect("Mashel/Mashel_WIP_2024/DataExport/Mashel_NWI_filter_train_pts.s
     project("EPSG:2856")
 mas_pts
 ```
+
 Not run 
 ```{r}
 #| eval: false
@@ -235,6 +236,7 @@ writeVector(mas_pts_validate, "Mashel/Mashel_WIP_2024/DataExport/mas_pred_wip_NW
 ```
 
 Rerun random forest algorithm 
+
 ```{r}
 mas_pts_train_2_df <- vect("Mashel/Mashel_WIP_2024/DataExport/mas_strat_pts_class_extmetrics.shp") |> as.data.frame() |> dplyr::rename("class" = "validate")
 mas_pts_validate_df <- vect("Mashel/Mashel_WIP_2024/DataExport/mas_pred_wip_NWI_stratified_points_validate_extract.shp") |> as.data.frame() |> dplyr::rename("class" = "validate")
@@ -242,8 +244,6 @@ mas_pts_validate_df <- vect("Mashel/Mashel_WIP_2024/DataExport/mas_pred_wip_NWI_
 
 
 ```{r}
-#| eval: false
-filepath2 <- "Mashel/Mashel_WIP_2024/Model_Export"
 
 rf_mod_func2 <- function(points, val_points, path){
     stopifnot(file.exists(paste0(path, "/", 
@@ -270,13 +270,18 @@ rf_mod_func2 <- function(points, val_points, path){
         
         return(list(test_predict, rf_model, cm))
 }
+```
 
 
+```{r}
+#| eval: false
+
+filepath2 <- "Mashel/Mashel_WIP_2024/Model_Export"
 
 mas_model_2 <- rf_mod_func2(mas_pts_train_2_df, mas_pts_validate_df, filepath2)
 ```
 
-
+Final Random Forest for WIP 
 ```{r}
 #| eval: false
 mas_rf_2 <- mas_model_2[[2]]
@@ -294,7 +299,9 @@ varImpPlot(mas_rf_2)
 
 mas_test_2 <- predict(mas_rf_2, newdata = mas_pts_validate_df, type = "response") 
 mas_cm_2 <- caret::confusionMatrix(mas_test_2, as.factor(mas_pts_validate_df$class))
-mas_cm_2
+mas_cm_2 
+
+save(mas_cm_2, file = "Mashel/Mashel_WIP_2024/Model_Export/MAS_RF_Model_Final_ConfMat_stats.rda")
 ```
 
 
@@ -317,7 +324,7 @@ pal <- colorNumeric("YlGnBu", values(mas_wip_final),
 leaflet::leaflet() |> 
     addProviderTiles(providers$Esri.WorldImagery) |> 
     addRasterImage(mas_wip_final, group = "Mashel WIP", colors = pal,
-                   maxBytes = 20630008) |> 
+                   maxBytes = 2063000) |> 
     addLayersControl(overlayGroups = c("Mashel WIP")) |>
     addLegend(pal = pal, values = values(mas_wip_final))
 ```
@@ -482,7 +489,7 @@ plot(col_strat_pts_valid, "validate", main = "Colville User Classified Points")
 
 Extract raster metrics again 
 
-```{r}
+```{r eval=FALSE}
 
 col_pts_train_2 <- col_strat_pts_valid |> dplyr::select(validate) |> terra::extract(x = col_rasts, bind = TRUE)
 writeVector(col_pts_train_2, "Colville/Colville_WIP_2024/DataExport/col_strat_pts_class_extmetrics.shp",
@@ -533,6 +540,8 @@ varImpPlot(col_rf_2)
 col_test_2 <- predict(col_rf_2, newdata = col_pts_test_df, type = "response") 
 col_cm_2 <- caret::confusionMatrix(col_test_2, as.factor(col_pts_test_df$class))
 col_cm_2
+
+save(col_cm_2, file = "Colville/Colville_WIP_2024/Model_Export/COL_RF_Model_Final_ConfMat_stats.rda")
 ```
 
 Final WIP Prediction
@@ -555,7 +564,145 @@ pal <- colorNumeric("YlGnBu", values(col_wip_final),
 leaflet::leaflet() |> 
     addProviderTiles(providers$Esri.WorldImagery) |> 
     addRasterImage(col_wip_final, group = "Colville WIP", colors = pal,
-                   maxBytes = 27529326) |> 
+                   maxBytes = 2752932) |> 
     addLayersControl(overlayGroups = c("Colville WIP")) |>
     addLegend(pal = pal, values = values(col_wip_final))
+```
+
+## HLEF WIP Revision 2024
+
+- previous run in 2022
+- updating with imagery? 
+- Peatlands underrepresented
+
+
+
+Bring in raster files
+```{r}
+hlef_files <- list.files("HLEF/HLEF WIP", pattern = ".tif$", full.names = TRUE) |> 
+    str_subset(pattern = "^(?!.*flow)") |> 
+    str_subset(pattern = "^(?!.*filled)") |> 
+    str_subset(pattern = "^(?!.*huc.tif)") |> 
+    str_subset(pattern = "^(?!.*RIE)") |> 
+    str_subset(pattern = "^(?!.*heenorthomosaic)")|> 
+    str_subset(pattern = "^(?!.*Ortho)") |> 
+    str_subset(pattern = "^(?!.*LC08)") |> 
+    str_subset(pattern = "^(?!.*veghlef210921.tif)") |> 
+    str_subset(pattern = "^(?!.*HLEF_sentinel_spectral_indices_EPSG_6394.tif)") |>
+    str_subset(pattern = "^(?!.*int_HLEF_120921.tif)") |>
+    str_subset(pattern = "^(?!.*veghlef210921_6394)")
+
+hlef_files
+setcrs_fun <- function(x){
+  y = rast(x) 
+  set.crs(y, "EPSG:6394")
+  return(y)
+  }
+hlef_stack <- rast(sapply(hlef_files, FUN = setcrs_fun))
+hlef_stack <- tidyterra::rename_with(hlef_stack, ~gsub("HLEF/HLEF WIP/", "", .x, fixed = TRUE))
+hlef_stack <- tidyterra::rename_with(hlef_stack, ~gsub(".tif", "", .x, fixed = TRUE))
+hlef_stack <- tidyterra::rename_with(hlef_stack, ~gsub("HLEF_sentinel_spectral_indices_EPSG_6394_", "Spectral", .x, fixed = TRUE))
+
+hlef_stack <- tidyterra::rename(hlef_stack,
+  NDVI = Spectral5m_1,
+  MNDWI = Spectral5m_2,
+  EVI = Spectral5m_3, 
+  NDYI = Spectral5m_4
+)
+
+writeRaster(hlef_stack, "HLEF/HLEF WIP/HLEF_WIP_Predictor_Stack.tif", overwrite = TRUE)
+```
+
+HLEF Ortho Imagery
+```{r}
+#| eval: false
+hlef_orth <- rast("HLEF/HLEF WIP/heenorthomosaic.tif")
+p <- buffer(spatSample(hlef_orth, 1, na.rm = TRUE, as.points = TRUE, values = F), 2000)
+hlef_orth_crp <- crop(hlef_orth, p)
+hlef_orth_ndvi <- (hlef_orth_crp$heenorthomosaic_4 - hlef_orth_crp$heenorthomosaic_1)/(hlef_orth_crp$heenorthomosaic_4 + hlef_orth_crp$heenorthomosaic_1)
+
+hlef_orth_scl <- resample(hlef_orth, hlef_ex, method = "cubicspline")
+writeRaster(hlef_orth_scl, "HLEF/HLEF WIP/HLEF_Orthomosaic_5m_scaled.tif")
+```
+
+
+Points
+
+```{r}
+hlef_wip_trainpts <- vect("HLEF/HLEF WIP Points/HLEF_WIP_2022-2024_revision/HELF_2022-2024_revision_validation_pts.shp")
+
+hlef_wip_testpts <- vect("HLEF/HLEF WIP Points/HLEF_WIP_2022-2024_revision/HELF_2022-2024_revision_validation_100pts.shp")
+
+hlef_wip_trainpts_ext <- hlef_wip_trainpts |> 
+  select(CLASSAGAIN) |> rename(class = CLASSAGAIN) |>
+  mutate(class = as.factor(toupper(class))) |> 
+  set.crs("EPSG:6394") |>
+  terra::extract(x = hlef_stack, bind = TRUE)
+
+hlef_wip_testpts_ext <- hlef_wip_testpts |> 
+  select(CLASS) |> rename(class = CLASS) |>
+  mutate(class = as.factor(class)) |> 
+  set.crs("EPSG:6394") |>
+  terra::extract(x = hlef_stack, bind = TRUE)
+```
+
+
+Don't need to do a preliminary random forest because the validation was already completed by Dave D'Amore, Anthony Stewart, and Frances Biles
+
+```{r}
+#| eval: false
+filepath_hlef <- "HLEF/HLEF WIP/WIP_Export"
+hlef_rf_mod <- rf_mod_func2(points = hlef_wip_trainpts_ext, val_points = hlef_wip_testpts_ext, path = filepath_hlef)
+```
+
+```{r}
+#| eval: false
+rf_2 <- hlef_rf_mod[[2]]
+test_2 <- hlef_rf_mod[[1]]
+cm_2 <- hlef_rf_mod[[3]]
+rf_2
+cm_2
+varImpPlot(rf_2)
+```
+
+```{r}
+rf_2 <- get(load("HLEF/HLEF WIP/WIP_Export/HLE_RF_Model_Final.RData"))
+rf_2
+varImpPlot(rf_2)
+
+test_2 <- predict(rf_2, newdata = hlef_wip_testpts_ext, type = "response") 
+cm_2 <- caret::confusionMatrix(test_2, as.factor(hlef_wip_testpts_ext$class))
+cm_2
+
+saveRDS(cm_2, file = "HLEF/HLEF WIP/WIP_Export/HLEF_RF_Model_Final_ConfMat_stats.rds")
+```
+
+
+HLEF WIP Prediction
+```{r}
+hlef_wip_map <- terra::predict(hlef_stack, rf_2, type = "prob", 
+                               filename = "HLEF/HLEF WIP/WIP_Export/HLEF_WIP_2024.tif",
+                               overwrite = TRUE,
+                               cores=4, cpkgs="randomForest")
+```
+
+```{r}
+#| cache: true
+
+
+hlef_wip_final <- rast("HLEF/HLEF WIP/WIP_Export/HLEF_WIP_2024.tif")[[2]] |> 
+  rename(WIP = WET)
+
+writeRaster(hlef_wip_final, "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/Rasters/HLEF_WIP_6394.tif", overwrite =TRUE)
+
+pal <- colorNumeric("YlGnBu", values(hlef_wip_final),
+  na.color = "transparent")
+
+leaflet::leaflet() |> 
+    addProviderTiles(providers$Esri.WorldImagery, group = "Esri Base") |> 
+    addRasterImage(hlef_wip_final, group = "HLEF WIP", colors = pal,
+                   maxBytes = 8579316) |> 
+    addLegend(pal = pal, values = values(hlef_wip_final)) |> 
+    leaflet::addLayersControl(baseGroups = "Esri Base",
+                              overlayGroups = "HLEF WIP")
 ```
