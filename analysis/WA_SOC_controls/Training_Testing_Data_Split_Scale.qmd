@@ -40,7 +40,7 @@ pnw_dat <- rbind(hoh_dat, mas_dat, col_dat) |>
     dplyr::rename_with(~gsub("_median", "", .x, fixed = TRUE)) |> 
     dplyr::select(SOC_stock_spline, sample_ID, site, lower_depth,
                           WIP, MAP, LITH, nlcd_reclass, PET_MAP,
-                         MAT, CHM, HLI, EVI, NDVI, DTM,
+                         MAT, CHM, HLI, EVI, NDVI, DTM, geomorphons,
                          dev_1000, dev_300, dev_50, 
                          grad_1000, grad_300, grad_50)
 pnw_dat
@@ -69,7 +69,7 @@ pnw_dat_lab <- rbind(hoh_lab_pts, mas_lab_pts, col_lab_pts) |>
     dplyr::rename_with(~gsub("_median", "", .x, fixed = TRUE)) |> 
     dplyr::select(carbon_perc, sample_ID, site, lower_depth,
                          WIP, MAP, LITH, nlcd_reclass, PET_MAP,
-                         MAT, CHM, HLI, EVI, NDVI, DTM,
+                         MAT, CHM, HLI, EVI, NDVI, DTM, geomorphons,
                         pH, Sand, Silt, Clay, SiltClay,
                          dev_1000, dev_300, dev_50, 
                          grad_1000, grad_300, grad_50)
@@ -245,6 +245,11 @@ write_csv(testlab_upl_scale,
 ```{r}
 hist(test$SOC_stock_spline)
 hist(train$SOC_stock_spline)
+
+train |> group_by(geomorphons) |> 
+  #filter(WIP > 0.5) |> 
+  summarise(mean=mean(SOC_stock_spline)) |> 
+  ggplot(aes(x = geomorphons, y = mean)) + geom_col()
 
 ```
 

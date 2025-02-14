@@ -47,23 +47,39 @@ In particular,
 -   landform classification from `geomorphons` is derived using **Whitebox Tools** which implements the algorithm from *Jasiewicz, J., and Stepinski, T. F. (2013). Geomorphons — a pattern recognition approach to classification and mapping of landforms. Geomorphology, 182, 147-156.*
 -   
 
+
 ```{r}
+
 terrain_metrics <- function(DEM, path, studyarea){
-  stopifnot(file.exists(paste0(path, studyarea, "_HLI", ".tif")) ==FALSE)
+  #stopifnot(file.exists(paste0(path, studyarea, "_HLI", ".tif")) ==FALSE)
   # stopifnot(file.exists(paste0(getwd(), "/", path, studyarea, 
   #                              "_geomorphons", ".tif")) == FALSE)
   
-  hli <- spatialEco::hli(DEM, force.hemisphere = "northern")
-  writeRaster(hli, names = "HLI",
-              paste0(path, studyarea, "_HLI", ".tif"),
-              overwrite = TRUE)
-  #geomorphons
-  # whitebox::wbt_geomorphons(
-  #   dem = sources(DEM),
-  #   output = paste0(getwd(), "/", path, studyarea, "_geomorphons", ".tif"),
-  #   search = 100
-  # )
-    
+  # hli <- spatialEco::hli(DEM, force.hemisphere = "northern")
+  # writeRaster(hli, names = "HLI",
+  #             paste0(path, studyarea, "_HLI", ".tif"),
+  #             overwrite = TRUE)
+  
+  # geomorphons
+  if(str_detect(deparse(substitute(DEM)), "hlef")){
+    wbt_geomorphons(
+      dem = sources(DEM),
+      output = paste0(getwd(), "/", path, studyarea, "_geomorphons", ".tif"),
+      search =  100, 
+      threshold = 3, 
+      fdist = 100, 
+      skip = 10
+    )
+  } else {
+  whitebox::wbt_geomorphons(
+    dem = sources(DEM),
+    output = paste0(getwd(), "/", path, studyarea, "_geomorphons", ".tif"),
+    search = 125,
+    threshold = 3,
+    fdist = 125,
+    skip = 12
+  )
+  }
 }
 
 
@@ -84,6 +100,22 @@ terrain_metrics(col_dem, path, "Colville")
 terrain_metrics(mas_dem, path, "Mashel")
 terrain_metrics(hoh_dem, path, "Hoh")
 ```
+Geomorphons specific classification
+```{r}
+geomorph_names <- data.frame(
+  value = seq(1,10,1),
+  landform = c("Flat", "Peak", "Ridge", "Shoulder", "Spur", 
+               "Slope", "Hollow", "Footslope", "Valley", "Depression")
+)
+geomorph_names_sub <- data.frame(
+  value = c(1,2,2,2,3,4,5,6,7,8),
+  landform = c("Flat", "Ridge", "Ridge", "Ridge", "Spur", 
+               "Slope", "Hollow", "Footslope", "Valley", "Depression")
+)
+
+
+```
+
 
 #### Other Geospatial Predictors
 
@@ -677,6 +709,10 @@ hlef_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/HLEF_Predict
                     #WIP = "SEAK_WIP_9-10-2021_output",
                     geomorphons = HLEF_geomorphons,
                     CHM = veghlef210921) 
+hlef_stack$geomorphons <- terra::subst(hlef_stack$geomorphons, 
+                                       from = geomorph_names$value,
+                                       to = geomorph_names_sub$value)
+levels(hlef_stack$geomorphons) <- geomorph_names_sub |> distinct()
 writeRaster(hlef_stack, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/HLEF_PredictorStack_Class.tif", overwrite = TRUE)
 
 hoh_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Hoh_PredictorStack.tif") |>
@@ -684,6 +720,10 @@ hoh_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Hoh_Predictor
                     geomorphons = Hoh_geomorphons,
                     WIP = WET,
                     CHM = Hoh_CanopyHeight) 
+hoh_stack$geomorphons <- terra::subst(hoh_stack$geomorphons, 
+                                       from = geomorph_names$value,
+                                       to = geomorph_names_sub$value)
+levels(hoh_stack$geomorphons) <- geomorph_names_sub |> distinct()
 writeRaster(hoh_stack, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Hoh_PredictorStack_Class.tif", overwrite = TRUE)
   
 mas_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Mashel_PredictorStack.tif") |> tidyterra::select(-UPL) |>
@@ -691,7 +731,10 @@ mas_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Mashel_Predic
                     geomorphons = Mashel_geomorphons,
                     WIP = WET,
                     CHM = lewis_2009_dsm_46)
-
+mas_stack$geomorphons <- terra::subst(mas_stack$geomorphons, 
+                                       from = geomorph_names$value,
+                                       to = geomorph_names_sub$value)
+levels(mas_stack$geomorphons) <- geomorph_names_sub |> distinct()
 writeRaster(mas_stack, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Mas_PredictorStack_Class.tif", overwrite = TRUE)
 
 col_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Colville_PredictorStack.tif") |> tidyterra::select(-UPL) |>
@@ -699,7 +742,10 @@ col_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Colville_Pred
                     geomorphons = Colville_geomorphons,
                     WIP = WET,
                     CHM = colville_2008_dsm_0)
-
+col_stack$geomorphons <- terra::subst(col_stack$geomorphons, 
+                                       from = geomorph_names$value,
+                                       to = geomorph_names_sub$value)
+levels(col_stack$geomorphons) <- geomorph_names_sub |> distinct()
 writeRaster(col_stack, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Col_PredictorStack_Class.tif", overwrite = TRUE)
 ```
 

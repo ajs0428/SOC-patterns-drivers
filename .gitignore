@@ -8,11 +8,11 @@
 *.RData
 *.csv
 *.xlsx
-/writing/FiguresTables_files
-/writing/FiguresTables_cache
 *.png
 *.rds
 *.rda
 *.rdx
 *.rdb
 *All_WA_SOC_Linear_Modeling_Analysis_cache/
+/writing
+*Chapter2_Manuscript_Draft.qmd

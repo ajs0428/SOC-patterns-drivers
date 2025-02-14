@@ -121,7 +121,7 @@ testlab_scale <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Tes
 testlab_wet_scale <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Wet_Scale.csv")
 testlab_upl_scale <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Upl_Scale.csv")
 
-anova_ci_stocks <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/anova_mod_dredge_1_confint95.csv"))
+anova_ci_stocks <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/anova_best_dredge_model_confint95.csv"))
 anova_ci_lab <- read.csv(paste0("SOIL CARBON/All_WA/data/dataframes/LMM_Lab_confint95.csv"))
 
 
@@ -323,6 +323,8 @@ mean_stdev_stocks_table <- pnw_dat |> group_by(site, lower_depth) |>
     fontsize(size = 10, part = "body", j = 1)
 mean_stdev_stocks_table
 saveRDS(mean_stdev_stocks_table, file = "SOIL CARBON/All_WA/writing/Tables/mean_stdev_stocks_table.rds")
+
+
 ```
 
 1m Stocks from samples
@@ -599,11 +601,11 @@ predict_plot <- function(model, data) {
     if(str_detect(dep_var, pattern = "carbon_perc")){
         xlabel <- "Observed SOC (%)"
         ylabel <- "Predicted SOC (%)"
-        axis_max <- ceiling(max(fit_vals, data[,1])*1.1)
+        axis_max <- floor(max(fit_vals, data[,1])*1.2)
     } else if(str_detect(dep_var, pattern = "SOC_stock_spline")){
         xlabel <- expression(Observed~SOC~g~cm^{"-2"})
         ylabel <- expression(Predicted~SOC~g~cm^{"-2"})
-        axis_max <- ceiling(max(fit_vals, data[,1])*1.1)
+        axis_max <- floor(max(fit_vals, data[,1])*1.2)
     }
     
     #Graphing 
@@ -656,11 +658,11 @@ lmm_lab_plot <- predict_plot(model = lmm_lab,
     theme(legend.position = "none") 
 
 lmm_stocks_plot <- predict_plot(model = lmm_stocks, data = test_dat_scale) +
-    annotate(geom = "text", x = 0.9, y = 1.75,
+    annotate(geom = "text", x = 1.3, y = 1.8,
              label = as.expression(bquote(R^2 == .(lmm_stocks_r2)))) 
 
 qrf_stocks_plot <- predict_plot(model = QRFM_stocks, data = test) +
-    annotate(geom = "text", x = 0.9, y = 1.75,
+    annotate(geom = "text", x = 1.3, y = 1.8,
              label = as.expression(bquote(R^2 == .(qrf_stocks_r2)))) 
 
 qrf_lab_plot <- predict_plot(model = QRFM_lab, data = testlab) + 
@@ -708,13 +710,17 @@ coef_fig_func <- function(anova_ci, model) {
   }
   coef_fig <- anova_df |> 
     dplyr::filter(Predictor != "Model" & Predictor != "LITH" & Predictor != "NULL",
-                  Predictor != "Intercept") |> 
+                  Predictor != "Intercept", Predictor != "geomorphons",
+                  p.value <= 0.05) |> 
     mutate(Predictor = case_when(str_detect(Predictor, "lower_depth") ~ 
                                      str_replace(Predictor,"lower_depth", 
                                                  "Depth"),
                                  str_detect(Predictor, "LITH") ~ 
                                      str_replace(Predictor, "LITH", 
                                                  "Geolithology "),
+                                 str_detect(Predictor, "geomorphons") ~
+                                     str_replace(Predictor, "geomorphons",
+                                                 "Landform "),
                                  str_detect(Predictor, "PET_MAP") ~ 
                                      str_replace(Predictor, "PET_MAP", 
                                                  "PET:MAP "),
@@ -791,7 +797,8 @@ qrf_stocks_shap <- sv_importance(shapviz(ks), kind = "both",
                          PET_MAP = "PET:MAP",
                          CHM = "Canopy Height",
                          LITH = "Geolithology",
-                         DTM = "Elevation",
+                         DTM = "Elevation", 
+                         geomorphons = "Landform",
                          grad_1000 = "Gradient 1000m",
                          grad_300 = "Gradient 300m",
                          grad_50 = "Gradient 50m",
@@ -811,7 +818,8 @@ qrf_lab_shap <- sv_importance(shapviz(ks_lab), kind = "both",
                              PET_MAP = "PET:MAP",
                              CHM = "Canopy Height",
                              LITH = "Geolithology",
-                             DTM = "Elevation",
+                             DTM = "Elevation", 
+                             geomorphons = "Landform",
                              grad_1000 = "Gradient 1000m",
                              grad_300 = "Gradient 300m",
                              grad_50 = "Gradient 50m",
@@ -926,6 +934,7 @@ shap_lab_func <- function(shap_plots){
                      CHM = "Canopy Height",
                      LITH = "Geolithology",
                      DTM = "Elevation",
+                     geomorphons = "Landform",
                      grad_1000 = "Gradient 1000m",
                      grad_300 = "Gradient 300m",
                      grad_50 = "Gradient 50m",
@@ -937,7 +946,8 @@ shap_lab_func <- function(shap_plots){
                      PET_MAP = "PET:MAP",
                      CHM = "Canopy Height",
                      LITH = "Geolithology",
-                     DTM = "Elevation",
+                     DTM = "Elevation", 
+                     geomorphons = "Landform",
                      grad_1000 = "Gradient 1000m",
                      grad_300 = "Gradient 300m",
                      grad_50 = "Gradient 50m",
@@ -1089,7 +1099,8 @@ lab_func <-  function(x) {
                              PET_MAP = "PET::MAP",
                              CHM = "Canopy Height",
                              LITH = "Geolithology",
-                             DTM = "Elevation",
+                             DTM = "Elevation", 
+                             geomorphons = "Landform",
                              grad_1000 = "Gradient 1000m",
                              grad_300 = "Gradient 300m",
                              grad_50 = "Gradient 50m",
@@ -1180,8 +1191,21 @@ pdp::plotPartial(lmm_lab_int)
 
 effects::effect("PET_MAP:pH", lmm_lab)
 ```
+
+
 ```{r}
 library(interactions)
+
+lmm_stocks_wip_depth_plot <- interact_plot(lmm_stocks,
+              pred = lower_depth,
+              modx = WIP,
+              data = train_dat_scale, jitter = 0,
+              plot.points = TRUE,
+              colors = "Blues", 
+              y.label = expression(log[10] ~ "SOC Stock g cm"^{"-2"}),
+              x.label = "Scaled Depth",
+              legend.main = "Scaled\nWIP",
+              point.alpha = 1)
 
 lmm_lab_ph_petmap_plot <- interact_plot(lmm_lab,
               pred = pH,
@@ -1194,6 +1218,11 @@ lmm_lab_ph_petmap_plot <- interact_plot(lmm_lab,
               legend.main = "Scaled\nPET:MAP",
               point.alpha = 1)
 
-saveRDS(lmm_lab_ph_petmap_plot, "SOIL CARBON/All_WA/writing/Figures/lmm_lab_ph_petmap_plot.rds")
+lmm_interact_plots <- lmm_stocks_wip_depth_plot + lmm_lab_ph_petmap_plot + 
+  plot_annotation(tag_levels = "A", tag_suffix = ".") +
+  plot_layout() &
+  theme(legend.position='top', plot.tag.position = c(0, 1))
+lmm_interact_plots
+saveRDS(lmm_interact_plots, "SOIL CARBON/All_WA/writing/Figures/lmm_interact_plots.rds")
 ```
 

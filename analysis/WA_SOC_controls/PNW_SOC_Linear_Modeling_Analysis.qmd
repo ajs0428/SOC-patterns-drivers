@@ -116,57 +116,57 @@ We could use a Generalized Linear Model or a Generalized Linear Mixed Model here
 ```{r}
 #Full modTel with all parameters in hypothetical structure 
 modT1 <- lmer(log10(SOC_stock_spline) ~ 
-                  EVI*CHM + HLI*WIP*PET_MAP + (LITH) + 
+                  EVI*CHM + WIP*PET_MAP+geomorphons + (LITH) + 
                 lower_depth + (lower_depth|sample_ID),
                #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
 # No vegetation interaction
 modT2 <-lmer(log10(SOC_stock_spline) ~ 
-                EVI+CHM+HLI*WIP*PET_MAP + (LITH) + 
+                EVI+CHM+WIP*PET_MAP + geomorphons  +(LITH) + 
                lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
 # Only one interaction with WIP and PET_MAP
 modT3 <- lmer(log10(SOC_stock_spline) ~ 
-                 EVI+CHM+HLI+WIP*PET_MAP + (LITH) + 
+                 EVI+CHM+WIP*PET_MAP + geomorphons +(LITH) + 
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
 #No interaction all parameters
 modT4 <- lmer(log10(SOC_stock_spline) ~ 
-                 EVI+CHM+HLI+WIP+PET_MAP + (LITH) + 
+                 EVI+CHM+WIP*geomorphons + PET_MAP +(LITH) + 
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
-#No  EVI, HLI
+#No  EVI, 
 modT5 <- lmer(log10(SOC_stock_spline) ~ 
-                CHM + WIP+PET_MAP + (LITH) + 
+                CHM + WIP+PET_MAP + geomorphons +(LITH) + 
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F, 
-             control=lmerControl(optimizer="bobyqa")
+             #control=lmerControl(optimizer="bobyqa")
               )
-#No HLI, CHM, EVI
+#No , CHM, EVI
 modT6 <- lmer(log10(SOC_stock_spline) ~ 
-                WIP+PET_MAP + (LITH) +
+                WIP+PET_MAP + geomorphons +(LITH) +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
-#CHM but no EVI, HLI
+#CHM but no EVI, 
 modT7 <- lmer(log10(SOC_stock_spline) ~ 
-                CHM + HLI + WIP + PET_MAP + (LITH) +
+                CHM +  WIP + PET_MAP + geomorphons +(LITH) +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
-#Interaction with HLI and PET_MAP
+#Interaction with  and PET_MAP
 modT7h <- lmer(log10(SOC_stock_spline) ~ 
-                   WIP+HLI*PET_MAP + (LITH)  + 
+                   WIP+PET_MAP + geomorphons +(LITH)  + 
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
@@ -198,57 +198,57 @@ modT10 <- lmer(log10(SOC_stock_spline) ~
 ```{r}
 #Full model with all parameters in hypothetical structure 
 mod1 <- lmer(log10(SOC_stock_spline) ~ 
-                  EVI*CHM + HLI*WIP*MAP + (LITH) + 
+                  EVI*CHM + WIP*MAP + geomorphons + (LITH) + 
                 lower_depth + (lower_depth|sample_ID),
                #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
 # No vegetation interaction
 mod2 <-lmer(log10(SOC_stock_spline) ~ 
-                EVI+CHM+HLI*WIP*MAP + (LITH) + 
+                EVI+CHM+WIP*MAP + geomorphons + (LITH) + 
                lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
 # Only one interaction with WIP and MAP
 mod3 <- lmer(log10(SOC_stock_spline) ~ 
-                 EVI+CHM+HLI+WIP*MAP + (LITH) + 
+                 EVI+CHM+WIP*MAP + geomorphons + (LITH) + 
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
 #No interaction all parameters
 mod4 <- lmer(log10(SOC_stock_spline) ~ 
-                 EVI+CHM+HLI+WIP+MAP + (LITH) + 
+                 EVI+CHM+WIP*geomorphons + MAP+ (LITH) + 
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
-#No  EVI, HLI
+#No  EVI, 
 mod5 <- lmer(log10(SOC_stock_spline) ~ 
-                CHM + WIP+MAP + (LITH) + 
+                CHM + WIP+MAP + geomorphons + (LITH) + 
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F, 
              control=lmerControl(optimizer="bobyqa")
               )
-#No HLI, CHM, EVI
+#No , CHM, EVI
 mod6 <- lmer(log10(SOC_stock_spline) ~ 
-                WIP+MAP + (LITH) +
+                WIP+MAP + geomorphons + (LITH) +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
-#CHM but no EVI, HLI
+#CHM but no EVI, 
 mod7 <- lmer(log10(SOC_stock_spline) ~ 
-                CHM + HLI + WIP + MAP + (LITH) +
+                CHM +  WIP + MAP + geomorphons + (LITH) +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
               )
-#Interaction with HLI and MAP
+#Interaction with  and MAP
 mod7h <- lmer(log10(SOC_stock_spline) ~ 
-                   WIP+HLI*MAP + (LITH)  + 
+                   WIP+MAP + geomorphons + (LITH)  + 
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = train_scale, REML = F
@@ -387,12 +387,13 @@ Next test if there is an addition of topographic variables
 ```{r}
 #| cache: true
 
-gmod <- update(best_model, . ~ . + MAP + MAT,
+gmod <- update(best_model, . ~ . + MAP + MAT -WIP -lower_depth - PET_MAP +
+                 PET_MAP*WIP*lower_depth,
                              na.action = "na.fail")
 
 mod_dredge <- dredge(gmod, rank = "AIC", extra = "R^2", m.lim = c(1,10), 
                      subset =  (xor(MAP, PET_MAP) && !(MAP&&PET_MAP)),
-                    fixed = c("lower_depth", "WIP" , "LITH", "CHM", "HLI"))
+                    fixed = c("lower_depth", "WIP" , "LITH", "CHM", "geomorphons"))
 
 head(mod_dredge, 10) 
 mod_dredge_1 <- get.models(mod_dredge, 1)[[1]] # fewest terms and lowest AIC
@@ -400,31 +401,62 @@ mod_dredge_2 <- get.models(mod_dredge, 2)[[1]]
 mod_dredge_3 <- get.models(mod_dredge, 3)[[1]]
 anova(mod_dredge_1, mod_dredge_2)
 anova(mod_dredge_1, mod_dredge_3)
+```
 
-summary(mod_dredge_1)
-anova(mod_dredge_1)
-MuMIn::r.squaredGLMM(mod_dredge_1)
-r2glmm::r2beta(mod_dredge_1, method = "nsj")
 
-anova(mod1, mod_dredge_1)
+```{r}
+dredge_mod_list <- list(mod_dredge_1, mod_dredge_2, mod_dredge_3)
+dredge_aic_list <- sapply(dredge_mod_list, AIC)
+dredge_par_list <- sapply(dredge_mod_list, function(x) attributes(logLik(x))$df)
+dredge_mod_names <- get_var_names(mod_dredge_1, mod_dredge_2, mod_dredge_3)
+dredge_mod_df <- data.frame(mod_names = dredge_mod_names,
+                     aic = dredge_aic_list, 
+                     par = dredge_par_list)
 
-saveRDS(mod_dredge_1, file = "SOIL CARBON/All_WA/analysis/models/PNW_Model_Dredge_Spline.rds")
+dredge_df_sorted <- dredge_mod_df %>%
+  arrange(aic, par)
+dr.lowest <- dredge_mod_df[1, ]       # Row with lowest col2 value
+dr.second_lowest <- dredge_mod_df[2, ] # Row with second-lowest col2 value
+
+# Check if the second-lowest is within 2 of the lowest
+if (abs(dr.lowest$aic - dr.second_lowest$aic) < 2 & dr.lowest$par > dr.second_lowest$par) {
+  dr.result <- dr.second_lowest$mod_names  # Pick based on lower col3 value
+} else {
+  dr.result <- dr.lowest$mod_names  # Otherwise, pick the lowest col2 value
+}
+
+dr.result
+
+best_dredge_model_num <- match(dr.result, dredge_mod_names)
+
+# Extract the best model from the list
+best_dredge_model <- dredge_mod_list[[best_dredge_model_num]]
+summary(best_dredge_model)
+anova(best_dredge_model)
+MuMIn::r.squaredGLMM(best_dredge_model)
+r2glmm::r2beta(best_dredge_model, method = "nsj")
+
+anova(mod1, best_dredge_model)
+
+formula(best_dredge_model)
+
+saveRDS(best_dredge_model, file = "SOIL CARBON/All_WA/analysis/models/PNW_Model_Dredge_Spline.rds")
 ```
 
 
 
 ```{r fig.show='hold', out.width="80%"}
-plot(mod_dredge_1)
-plot(mod_dredge_1, resid(.) ~ fitted(.)|sample_ID, abline = 0, asp = 1)
+plot(best_dredge_model)
+plot(best_dredge_model, resid(.) ~ fitted(.)|sample_ID, abline = 0, asp = 1)
 
-mod_resid_fit <- data.frame("sample_ID" = train_scale$sample_ID, 
-                            "resid" = resid(mod_dredge_1), 
-                            "fitted" = fitted(mod_dredge_1))
+mod_resid_fit <- data.frame("sample_ID" = as.factor(train_scale$sample_ID), 
+                            "resid" = resid(best_dredge_model), 
+                            "fitted" = fitted(best_dredge_model))
 
 model_resid_fit_plot <- ggplot(mod_resid_fit, aes(x = fitted, y = resid)) +
   geom_point() + 
   geom_hline(yintercept = 0, lty = 3) +
-  facet_wrap(vars(sample_ID)) +
+  ggplot2::facet_wrap(vars(sample_ID)) +
   ylab("Model Residuals") +
   xlab("Fitted Model Values") + 
   theme(
@@ -439,23 +471,23 @@ save(model_resid_fit_plot, file = "SOIL CARBON/All_WA/writing/Figures/Supplement
 
 ```{r}
 round(r.sq(y = (test_scale$SOC_stock_spline), 
-           y.fitted = 10**predict(mod_dredge_1, test_scale, allow.new.levels = TRUE)), 3)
+           y.fitted = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE)), 3)
 round(r.sq(y = (test_wet_scale$SOC_stock_spline), 
-           y.fitted = 10**predict(mod_dredge_1, test_wet_scale, allow.new.levels = TRUE)), 3)
+           y.fitted = 10**predict(best_dredge_model, test_wet_scale, allow.new.levels = TRUE)), 3)
 round(r.sq(y = (test_upl_scale$SOC_stock_spline), 
-           y.fitted = 10**predict(mod_dredge_1, test_upl_scale, allow.new.levels = TRUE)), 3)
+           y.fitted = 10**predict(best_dredge_model, test_upl_scale, allow.new.levels = TRUE)), 3)
 
-caret::RMSE(pred = 10**predict(mod_dredge_1, test_scale, allow.new.levels = TRUE), 
+caret::RMSE(pred = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE), 
             obs = test_scale$SOC_stock_spline)
-caret::RMSE(pred = 10**predict(mod_dredge_1, test_wet_scale, allow.new.levels = TRUE), 
+caret::RMSE(pred = 10**predict(best_dredge_model, test_wet_scale, allow.new.levels = TRUE), 
             obs = test_wet_scale$SOC_stock_spline)
-caret::RMSE(pred = 10**predict(mod_dredge_1, test_upl_scale, allow.new.levels = TRUE), 
+caret::RMSE(pred = 10**predict(best_dredge_model, test_upl_scale, allow.new.levels = TRUE), 
             obs = test_upl_scale$SOC_stock_spline)
-r2glmm::r2beta(mod_dredge_1, method = "nsj")[1,]
+r2glmm::r2beta(best_dredge_model, method = "nsj")[1,]
 
 ggplot()+
   geom_point(aes(y = test_scale$SOC_stock_spline,
-                 x = 10**predict(mod_dredge_1, test_scale, allow.new.levels = TRUE),
+                 x = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE),
                  colour = test_scale$sample_ID)) +
   geom_abline(slope = 1, intercept = 0)
 
@@ -470,14 +502,14 @@ png(filename = "SOIL CARBON/All_WA/writing/Figures/Supplemental/qq_lev_full.png"
 
 par(mfcol = c(3,2))
 
-qqnorm(resid(mod_dredge_1))
-qqline(resid(mod_dredge_1))
+qqnorm(resid(best_dredge_model))
+qqline(resid(best_dredge_model))
 
 
 
-lev <- hat(model.matrix(mod_dredge_1))
-cd <- cooks.distance(mod_dredge_1)
-plot(resid(mod_dredge_1) ~ lev, xlab = "leverage", ylab = "Residuals LMM Full")
+lev <- hat(model.matrix(best_dredge_model))
+cd <- cooks.distance(best_dredge_model)
+plot(resid(best_dredge_model) ~ lev, xlab = "leverage", ylab = "Residuals LMM Full")
 rec <- recordPlot()
 
 
@@ -495,9 +527,9 @@ library(spdep)
 library(sf)
 
 hlef_st <- st_read("SOIL CARBON/All_WA/data/points/hlef_pts_6394.gpkg") 
-hoh_st <- st_read("SOIL CARBON/All_WA/data/points/hoh_pts_2855.gpkg") |> select(names(hlef_st))
-mas_st <- st_read("SOIL CARBON/All_WA/data/points/mas_pts_2856.gpkg") |> select(names(hlef_st))
-col_st <- st_read("SOIL CARBON/All_WA/data/points/col_pts_2855.gpkg") |> select(names(hlef_st))
+hoh_st <- st_read("SOIL CARBON/All_WA/data/points/hoh_pts_2855.gpkg") |> dplyr::select(names(hlef_st))
+mas_st <- st_read("SOIL CARBON/All_WA/data/points/mas_pts_2856.gpkg") |> dplyr::select(names(hlef_st))
+col_st <- st_read("SOIL CARBON/All_WA/data/points/col_pts_2855.gpkg") |> dplyr::select(names(hlef_st))
 
 hlef_st_prj <- sf::st_transform(hlef_st, "EPSG:6931")
 hoh_st_prj <- sf::st_transform(hoh_st, "EPSG:6931")
@@ -558,12 +590,12 @@ coords_hlef <- sf::st_coordinates(pnw_st[pnw_st$site == "HLEF",])/1000
 coords_hoh <- sf::st_coordinates(pnw_st[pnw_st$site == "Hoh",])/1000
 coords_mas <- sf::st_coordinates(pnw_st[pnw_st$site == "Mas",])/1000
 coords_col <- sf::st_coordinates(pnw_st[pnw_st$site == "Col",])/1000
-resids <- resid(mod_dredge_1)
+resids <- resid(best_dredge_model)
 
-resids_hlef <- resid(mod_dredge_1)[pnw_st$site == "HLEF"]
-resids_hoh <- resid(mod_dredge_1)[pnw_st$site == "Hoh"]
-resids_mas <- resid(mod_dredge_1)[pnw_st$site == "Mas"]
-resids_col <- resid(mod_dredge_1)[pnw_st$site == "Col"]
+resids_hlef <- resid(best_dredge_model)[pnw_st$site == "HLEF"]
+resids_hoh <- resid(best_dredge_model)[pnw_st$site == "Hoh"]
+resids_mas <- resid(best_dredge_model)[pnw_st$site == "Mas"]
+resids_col <- resid(best_dredge_model)[pnw_st$site == "Col"]
 
 vario_all <- geoR::variog(coords = coords, data = resids, max.dist = 400)
 vario_hl <- geoR::variog(coords = coords_hlef, data = resids_hlef, max.dist = 10)
@@ -612,7 +644,7 @@ save(semivariograms, file = "/Users/Anthony/OneDrive - UW/University of Washingt
 
 #### Model fit stats and coefficients (R^2, etc)
 
-The model $R^2$ for `mod7` is `r round(r.sq(log10(wa_dat_scale$SOC_stock_spline), fitted(mod_dredge_1)), 3)`
+The model $R^2$ for `mod7` is `r round(r.sq(log10(wa_dat_scale$SOC_stock_spline), fitted(best_dredge_model)), 3)`
 
 
 ```{r}
@@ -632,7 +664,7 @@ ci_anova_tab_func <- function(model, data) {
     rename(Predictor = Effect,
            Rsq.upper.CL = upper.CL,
            Rsq.lower.CL = lower.CL) |> 
-    select(Predictor, Rsq, Rsq.upper.CL, Rsq.lower.CL)
+    dplyr::select(Predictor, Rsq, Rsq.upper.CL, Rsq.lower.CL)
   
   
   ci_anova_tab <- coef_est |> 
@@ -652,12 +684,12 @@ ci_anova_tab_func <- function(model, data) {
 }
 
 
-ci_anova_df <- ci_anova_tab_func(model = mod_dredge_1, data = train_scale)
+ci_anova_df <- ci_anova_tab_func(model = best_dredge_model, data = train_scale)
 
 ci_anova_df
 
 
-readr::write_csv(ci_anova_df, "SOIL CARBON/All_WA/data/dataframes/anova_mod_dredge_1_confint95.csv")
+readr::write_csv(ci_anova_df, "SOIL CARBON/All_WA/data/dataframes/anova_best_dredge_model_confint95.csv")
 
 ```
 
@@ -689,9 +721,9 @@ PI_func <- function(model, data) {
     return(list(PI, PI_trans, PI_rmse)) 
 }
 
-PI_trans <- PI_func(model = mod_dredge_1, data = test_scale)
-PI_trans_wet <- PI_func(model = mod_dredge_1, data = test_wet_scale)
-PI_trans_upl <- PI_func(model = mod_dredge_1, data = test_upl_scale)
+PI_trans <- PI_func(model = best_dredge_model, data = test_scale)
+PI_trans_wet <- PI_func(model = best_dredge_model, data = test_wet_scale)
+PI_trans_upl <- PI_func(model = best_dredge_model, data = test_upl_scale)
 
 saveRDS(PI_trans, file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_RMSE_Stocks.rds")
 saveRDS(PI_trans_wet, 
@@ -757,19 +789,19 @@ kf_rmse <- kFoldCV(K = 6,
         reps      = 10,
         randSeed  = 11,
         data = train_scale,
-        model = mod_dredge_1
+        model = best_dredge_model
         )
 kf_rmse_w <- kFoldCV(K = 6,
         reps      = 10,
         randSeed  = 11,
         data = train_wet_scale,
-        model = mod_dredge_1
+        model = best_dredge_model
         )
 kf_rmse_u <- kFoldCV(K = 6,
         reps      = 10,
         randSeed  = 11,
         data = train_upl_scale,
-        model = mod_dredge_1
+        model = best_dredge_model
         )
 
 kf_df <- data.frame(LandscapeClass = c("Full", "Wetland", "Upland"), 
@@ -782,30 +814,30 @@ readr::write_csv(kf_df, file = "SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_De
 
 ```{r}
 r2_po <- round(r.sq(y = (test_scale$SOC_stock_spline), 
-                         y.fitted =  10**predict(mod_dredge_1, 
+                         y.fitted =  10**predict(best_dredge_model, 
                                                  test_scale, allow.new.levels = TRUE)), 3)
 r2_po_w <- round(r.sq(y = (test_wet_scale$SOC_stock_spline), 
-                         y.fitted =  10**predict(mod_dredge_1, 
+                         y.fitted =  10**predict(best_dredge_model, 
                                                  test_wet_scale, allow.new.levels = TRUE)), 3)
 r2_po_u <- round(r.sq(y = (test_upl_scale$SOC_stock_spline), 
-                         y.fitted =  10**predict(mod_dredge_1, 
+                         y.fitted =  10**predict(best_dredge_model, 
                                                  test_upl_scale, allow.new.levels = TRUE)), 3)
 
-rmse_po <- caret::RMSE(pred = 10**predict(mod_dredge_1, 
+rmse_po <- caret::RMSE(pred = 10**predict(best_dredge_model, 
                                           test_scale, allow.new.levels = TRUE), 
                        obs = test_scale$SOC_stock_spline)
-rmse_po_w <- caret::RMSE(pred = 10**predict(mod_dredge_1, 
+rmse_po_w <- caret::RMSE(pred = 10**predict(best_dredge_model, 
                                             test_wet_scale, allow.new.levels = TRUE), 
                          obs = test_wet_scale$SOC_stock_spline)
-rmse_po_u <- caret::RMSE(pred = 10**predict(mod_dredge_1, 
+rmse_po_u <- caret::RMSE(pred = 10**predict(best_dredge_model, 
                                             test_upl_scale, allow.new.levels = TRUE), 
                          obs = test_upl_scale$SOC_stock_spline)
 
-plot(x = test_scale$SOC_stock_spline, y = 10**predict(mod_dredge_1, test_scale, re.form = NA,
+plot(x = test_scale$SOC_stock_spline, y = 10**predict(best_dredge_model, test_scale, re.form = NA,
                                                           allow.new.levels = T)) + abline(0,1)
 
-mumin_R2m <- MuMIn::r.squaredGLMM(mod_dredge_1)[[1]]
-mumin_R2c <- MuMIn::r.squaredGLMM(mod_dredge_1)[[2]]
+mumin_R2m <- MuMIn::r.squaredGLMM(best_dredge_model)[[1]]
+mumin_R2c <- MuMIn::r.squaredGLMM(best_dredge_model)[[2]]
 
 
 mod_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),

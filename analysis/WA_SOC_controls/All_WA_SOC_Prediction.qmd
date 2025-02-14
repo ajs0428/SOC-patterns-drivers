@@ -207,6 +207,7 @@ soc_path <- "/Users/Anthony/OneDrive - UW/University of Washington/Data and Mode
 soc_pred_func <- function(model, pred_stack, depth_ints, numcores) {
   stopifnot(is.vector(depth_ints))
   stopifnot(numcores < parallel::detectCores())
+  
   model$quantile_response = 0.5
   name <- str_extract(deparse(substitute(pred_stack)), "hlef|hoh|mas|col")
   
@@ -250,19 +251,19 @@ terraOptions(
 soc_pred_func(model = QRFM_stocks, 
               pred_stack = hlef_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 8)
+              numcores = 6)
 soc_pred_func(model = QRFM_stocks, 
               pred_stack = hoh_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 8)
+              numcores = 6)
 soc_pred_func(model = QRFM_stocks, 
               pred_stack = mas_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 8)
+              numcores = 6)
 soc_pred_func(model = QRFM_stocks, 
               pred_stack = col_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 8)
+              numcores = 6)
 ```
 
 ```{r}
@@ -283,7 +284,7 @@ plot(col_soc)
 - Urban areas include roads
 
 ```{r}
-#| eval: false
+#| eval: true
 nlcd_cats_hlef <- read.csv("SOIL CARBON/All_WA/data/dataframes/nlcd_cats_hlef.csv") |> 
   dplyr::select(-X)
 nlcd_cats_hoh<- read.csv("SOIL CARBON/All_WA/data/dataframes/nlcd_cats_hoh.csv")|> 
@@ -327,7 +328,7 @@ water_urban_masking <- function(rast_to_mask, mndwi, urban) {
 
 
 ```{r}
-#| eval: false
+#| eval: true
 water_urban_masking(hlef_soc, hlef_stack$MNDWI, hlef_nlcd)
 water_urban_masking(hoh_soc, hoh_stack$MNDWI, hoh_nlcd)
 water_urban_masking(mas_soc, mas_stack$MNDWI, mas_nlcd)
@@ -463,7 +464,7 @@ soc_map_sum_classes <- function(list_of_soc, list_of_wip){
 
 
 ```{r}
-#| eval: false
+#| eval: true
 
 soc_list <- list(
                 "hlef_soc"=hlef_soc_mask,
@@ -503,7 +504,7 @@ SOC_df |>
 ### Uhran et al 
 
 ```{r }
-#| eval: false
+#| eval: true
 col_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/ColvilleHUC_2855.shp") 
 mas_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/Mashel_HUC12_2856.shp")
 hoh_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/HOH_POLYGON_711.shp")
@@ -544,7 +545,7 @@ col_NWCAmin <- NWCA_extract(CONUS_NWCA_Min, col_studyarea, col_stack$WIP, rastpa
 ```
 
 ```{r}
-#| eval: false
+#| eval: true
 NWCA_df <- rbind(C_map_simp(hoh_NWCA/100),
       C_map_simp(mas_NWCA/100),
       C_map_simp(col_NWCA/100))
@@ -599,7 +600,7 @@ other_soc_data_func <- function(other_dat, study_area_poly, study_area_wip){
 
 
 ```{r}
-#| eval: false
+#| eval: true
 mcnicol_pctr <- rast("NPCTR_soil/doi_10.5061_dryad.5jf6j1r__v1/FluxProject_SOCmap/170730_soc1.tif") 
 
 mcnicol_hlef <- other_soc_data_func(other_dat = mcnicol_pctr,
@@ -649,6 +650,11 @@ gsoc_frac_pnw <- rbind(gsoc_frac_hlef, gsoc_frac_hoh, gsoc_frac_mas, gsoc_frac_c
   dplyr::select(StudyArea, everything())
 
 readr::write_csv(gsoc_frac_pnw, "SOIL CARBON/All_WA/data/dataframes/GSOC_Frac_Estimates_PNW.csv")
+```
+
+Dryw's data
+```{r}
+
 ```
 
 

@@ -155,42 +155,42 @@ save(texture_triangle_plot, file = "SOIL CARBON/All_WA/writing/Figures/Supplemen
 
 #Full modlabTel with all parameters in hypothetical structure 
 modlabT1 <- lmer(log10(carbon_perc) ~ 
-                  EVI*CHM + WIP*PET_MAP*pH*Clay +LITH + 
+                  EVI*CHM + WIP*PET_MAP*pH*Clay +LITH + geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 # No vegetation interaction
 modlabT2 <-lmer(log10(carbon_perc) ~ 
-                EVI+CHM + WIP*PET_MAP*pH*Clay +LITH +
+                EVI+CHM + WIP*PET_MAP*pH*Clay +LITH +geomorphons +
                lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 # Only one interaction with PET_MAP*pH*Clay
 modlabT3 <- lmer(log10(carbon_perc) ~ 
-                 EVI*CHM + WIP+PET_MAP*pH*Clay +LITH +
+                 EVI*CHM + WIP+PET_MAP*pH*Clay +LITH +geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 #No interaction all parameters
 modlabT4 <- lmer(log10(carbon_perc) ~ 
-                 EVI+CHM + WIP+PET_MAP+pH+Clay +LITH +
+                 EVI+CHM + WIP+PET_MAP+pH+Clay +LITH +geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 #No  EVI, CHM
 modlabT5 <- lmer(log10(carbon_perc) ~ 
-                 WIP+PET_MAP+pH+Clay +LITH + 
+                 WIP+PET_MAP+pH+Clay +LITH + geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 #No CHM, EVI, WIP
 modlabT6 <- lmer(log10(carbon_perc) ~ 
-                PET_MAP+pH+Clay +LITH +
+                PET_MAP+pH+Clay +LITH + geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
@@ -230,42 +230,42 @@ modlabT10 <- lmer(log10(carbon_perc) ~
 ```{r}
 #Full modlabel with all parameters in hypothetical structure 
 modlab1 <- lmer(log10(carbon_perc) ~ 
-                  EVI*CHM + WIP*MAP*pH*Clay +LITH + 
+                  EVI*CHM + WIP*MAP*pH*Clay +LITH + geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 # No vegetation interaction
 modlab2 <-lmer(log10(carbon_perc) ~ 
-                EVI+CHM + WIP*MAP*pH*Clay +LITH +
+                EVI+CHM + WIP*MAP*pH*Clay +LITH +geomorphons +
                lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 # Only one interaction with MAP*pH*Clay
 modlab3 <- lmer(log10(carbon_perc) ~ 
-                 EVI*CHM + WIP+MAP*pH*Clay +LITH +
+                 EVI*CHM + WIP+MAP*pH*Clay +LITH +geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 #No interaction all parameters
 modlab4 <- lmer(log10(carbon_perc) ~ 
-                 EVI+CHM + WIP+MAP+pH+Clay +LITH +
+                 EVI+CHM + WIP+MAP+pH+Clay +LITH +geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 #No  EVI, CHM
 modlab5 <- lmer(log10(carbon_perc) ~ 
-                 WIP+MAP+pH+Clay +LITH + 
+                 WIP+MAP+pH+Clay +LITH + geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
               )
 #No CHM, EVI, WIP
 modlab6 <- lmer(log10(carbon_perc) ~ 
-                MAP+pH+Clay +LITH +
+                MAP+pH+Clay +LITH + geomorphons +
                 lower_depth + (lower_depth|sample_ID),
                 #family = Gamma(link = "log"),
                 data = trainlab_scale, REML = F
@@ -437,7 +437,45 @@ anova(best_model_lab, modlab_dredge_1)
 
 summary(modlab_dredge_1)
 
-saveRDS(modlab_dredge_1, file = "SOIL CARBON/All_WA/analysis/models/PNW_Model_Lab_dredge_best.rds")
+```
+
+```{r}
+dredge_modlab_list <- list(modlab_dredge_1, modlab_dredge_2, modlab_dredge_3)
+dredge_aic_list <- sapply(dredge_modlab_list, AIC)
+dredge_par_list <- sapply(dredge_modlab_list, function(x) attributes(logLik(x))$df)
+dredge_modlab_names <- get_var_names(modlab_dredge_1, modlab_dredge_2, modlab_dredge_3)
+dredge_modlab_df <- data.frame(modlab_names = dredge_modlab_names,
+                     aic = dredge_aic_list, 
+                     par = dredge_par_list)
+
+dredge_df_sorted <- dredge_modlab_df %>%
+  arrange(aic, par)
+dr.lowest <- dredge_modlab_df[1, ]       # Row with lowest col2 value
+dr.second_lowest <- dredge_modlab_df[2, ] # Row with second-lowest col2 value
+
+# Check if the second-lowest is within 2 of the lowest
+if (abs(dr.lowest$aic - dr.second_lowest$aic) < 2 & dr.lowest$par > dr.second_lowest$par) {
+  dr.result <- dr.second_lowest$modlab_names  # Pick based on lower col3 value
+} else {
+  dr.result <- dr.lowest$modlab_names  # Otherwise, pick the lowest col2 value
+}
+
+dr.result
+
+best_dredge_model_num <- match(dr.result, dredge_modlab_names)
+
+# Extract the best model from the list
+best_dredge_model_lab <- dredge_modlab_list[[best_dredge_model_num]]
+summary(best_dredge_model_lab)
+anova(best_dredge_model_lab)
+MuMIn::r.squaredGLMM(best_dredge_model_lab)
+r2glmm::r2beta(best_dredge_model_lab, method = "nsj")
+
+anova(modlab1, best_dredge_model_lab)
+
+formula(best_dredge_model_lab)
+
+saveRDS(best_dredge_model_lab, file = "SOIL CARBON/All_WA/analysis/models/PNW_Model_Lab_dredge_best.rds")
 ```
 
 
