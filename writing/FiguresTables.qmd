@@ -36,6 +36,7 @@ library(ggpubr)
 library(ggspatial)
 library(patchwork)
 library(randomForest)
+library(mlr3verse)
 library(pdp)
 library(kernelshap)
 library(shapviz)
@@ -93,7 +94,7 @@ test.upl <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_Test_Upl_data.csv")
   dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor))
 
 pnw_dat_lab <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv") |> 
-  dplyr::select(-site, -X)
+  dplyr::select( -X)
 trainlab<- read.csv(
           file = "SOIL CARBON/All_WA/data/dataframes/Train_Lab_data.csv")|> 
   dplyr::select(-site, -X)
@@ -199,6 +200,8 @@ nwca_soc_est <- read.csv("SOIL CARBON/All_WA/data/dataframes/NWCA_SOC_C_map_simp
 mcnicol_soc_frac_form <- read.csv("SOIL CARBON/All_WA/data/dataframes/McNicol_2019_SOC_Frac_Estimates_HLEF.csv")
 
 gsoc_frac_pnw <- read.csv("SOIL CARBON/All_WA/data/dataframes/GSOC_Frac_Estimates_PNW.csv")
+
+ensemble_SOC <- read.csv("SOIL CARBON/All_WA/data/dataframes/ensemble_Frac_Estimates_PNW.csv")
 ```
 
 
@@ -245,9 +248,9 @@ mutate_tab <- function(table){
            Predictor = replace(Predictor, 
                                Predictor == "CHM", 
                                "Canopy Height"),
-           Predictor = replace(Predictor, 
-                               Predictor == "WIP", 
-                               "Wetland Intrinsic Potential"),
+           # Predictor = replace(Predictor, 
+           #                     Predictor == "WIP", 
+           #                     "Wetland Intrinsic Potential"),
            Predictor = replace(Predictor, 
                                Predictor == "HLI", 
                                "Heat Load Index"),
@@ -259,7 +262,16 @@ mutate_tab <- function(table){
                                "Depth"),
            Predictor = str_replace(Predictor, 
                                 "GEO", 
-                               "Geologic Age: "))
+                               "Geologic Age: "),
+           Predictor = str_replace(Predictor, 
+                                   "LITH", 
+                                   "Geolithology "),
+           Predictor = str_replace(Predictor, 
+                                   "PET_MAP", 
+                                   "PET:MAP"),
+           Predictor = str_replace(Predictor, 
+                                   "geomorphons", 
+                                   "Landform "))
 }
 
 
@@ -326,6 +338,73 @@ saveRDS(mean_stdev_stocks_table, file = "SOIL CARBON/All_WA/writing/Tables/mean_
 
 
 ```
+
+SOC % by site and depth(?)
+
+```{r}
+percSOC_table <- pnw_dat_lab |> mutate(depth_zone = case_when(lower_depth <= 25 ~ "0-25",
+                                             lower_depth > 25 & lower_depth <=50 ~ "25-50",
+                                             lower_depth > 50 & lower_depth <=75 ~ "50-75",
+                                             lower_depth > 75 & lower_depth <=100 ~ "75-100",
+                                             lower_depth > 100 & lower_depth <=125 ~ "100-125",
+                                             lower_depth > 125 & lower_depth <=150 ~ "125-150",
+                                             .default = " > 150"),
+                      wetupl = case_when(WIP >= 0.50 ~ "wet",
+                                         .default = "upl")) |> 
+  group_by(site, wetupl, .groups = 'drop') |> 
+  summarise(mean_percSOC = mean(carbon_perc),
+            sd_percSOC = sd(carbon_perc),
+            n = n()) |>
+  mutate(se_percSOC = sd_percSOC/sqrt(n),
+         # depth_zone = ordered(depth_zone, levels = 
+         #                                   c("0-25", "25-50","50-75",
+         #                                     "75-100","100-125", "125-150", 
+         #                                     " > 150")),
+         site = case_when(str_detect(site, "(?i)HOH") ~ "HRW",
+                            str_detect(site, "(?i)MAS") ~ "MRW",
+                            str_detect(site, "(?i)COL") ~ "CVW",
+                            str_detect(site, "(?i)HLEF") ~ "HLEF",
+                            .default = "All"),
+         site = factor(site, levels = c("HLEF", "HRW", "MRW", "CVW")),
+         wetupl = case_when(str_detect(wetupl, "wet") ~ "Wetland",
+                            .default = "Upland"),
+         dplyr::mutate(across(where(is.numeric), ~base::round(.x, 2)))) |> 
+  dplyr::select(site, wetupl, mean_percSOC, sd_percSOC, se_percSOC, n) |> 
+  flextable_fun() |> 
+  merge_v(j = c(1)) |> 
+  mk_par(
+    part = "header", j = 1,
+    value = as_paragraph("Study\nArea")
+    ) |>
+  mk_par(
+    part = "header", j = 2,
+    value = as_paragraph("Landscape\nClass")
+    ) |>
+  mk_par(
+    part = "header", j = 3,
+    value = as_paragraph("Lower Horizon\nDepth (cm)")
+    ) |>
+  mk_par(
+    part = "header", j = 4,
+    value = as_paragraph("Mean\nSOC %")
+    ) |>
+  mk_par(
+    part = "header", j = 4,
+    value = as_paragraph("Std. Deviation \nSOC %")
+    ) |>
+  mk_par(
+    part = "header", j = 5,
+    value = as_paragraph("Std. Error \nSOC %")
+  ) |>
+    hline(part = "body", i = 2, j = 2:6) |>
+    hline(part = "body", i = 4, j = 2:6) |>
+    hline(part = "body", i = 6, j = 2:6) |>
+    hline(part = "body", i = 8, border = thick_border) |> 
+  fix_border_issues()
+
+saveRDS(percSOC_table, file = "SOIL CARBON/All_WA/writing/Tables/SOC_percent_bySite.rds")
+```
+
 
 1m Stocks from samples
 ```{r}
@@ -409,19 +488,91 @@ saveRDS(wa_stocks_dat_table, file = "SOIL CARBON/All_WA/writing/Tables/Stocks_we
 ```
 
 
+Parial correlation table 
+
+```{r}
+library(ppcor)
+
+pnw_lab_wet_ppcor <- pnw_dat_lab |> filter(WIP >= 0.50) |> 
+  dplyr::select(carbon_perc, lower_depth, PET_MAP, pH, Clay) |> 
+  ppcor::pcor(method = "spearman") 
+pnw_lab_upl_ppcor <- pnw_dat_lab |> filter(WIP < 0.50) |> 
+  dplyr::select(carbon_perc, lower_depth, PET_MAP, pH, Clay) |> 
+  ppcor::pcor(method = "spearman") 
+pnw_wet_ppcor <- pnw_dat |> filter(WIP >= 0.50) |> 
+  dplyr::select(SOC_stock_spline, lower_depth, PET_MAP, 
+                MAT, WIP, CHM, (LITH), (geomorphons)) |> 
+  mutate(LITH = rank(LITH), 
+         geomorphons = rank(geomorphons)) |> 
+  ppcor::pcor(method = "spearman") 
+pnw_upl_ppcor <- pnw_dat |> filter(WIP < 0.50) |> 
+  dplyr::select(SOC_stock_spline, lower_depth, PET_MAP, 
+                MAT, WIP, CHM, (LITH), (geomorphons)) |> 
+  mutate(LITH = rank(LITH), 
+         geomorphons = rank(geomorphons)) |> 
+  ppcor::pcor(method = "spearman") 
+
+ppcor_func <- function(ppcor_df, iv) {
+  ppcor_col <- ppcor_df$estimate |> data.frame() |> tibble::rownames_to_column(var = "Predictor") |>  tibble::as_tibble() |> dplyr::select(Predictor, !!iv)
+  return(ppcor_col)
+}
+
+wetlab_ppcor <- ppcor_func(pnw_lab_wet_ppcor, "carbon_perc")
+upllab_ppcor <- ppcor_func(pnw_lab_upl_ppcor, "carbon_perc")
+wet_ppcor <- ppcor_func(pnw_wet_ppcor, "SOC_stock_spline")
+upl_ppcor <- ppcor_func(pnw_upl_ppcor, "SOC_stock_spline")
+
+
+all_lab_ppor <- wetlab_ppcor |> rename(carbon_perc_wet = carbon_perc) |> left_join(upllab_ppcor, by = join_by(Predictor)) |> rename(carbon_perc_upl = carbon_perc) |> filter(Predictor != "carbon_perc")
+
+all_ppor <- wet_ppcor |> rename(SOC_stock_spline_wet = SOC_stock_spline) |> left_join(upl_ppcor, by = join_by(Predictor)) |> rename(SOC_stock_spline_upl = SOC_stock_spline) |> filter(Predictor != "SOC_stock_spline")
+```
+
+
+```{r results='asis'}
+all_lab_ppor_ft <- all_lab_ppor |> 
+  mutate_tab() |>  
+  mutate(dplyr::mutate(across(where(is.numeric), ~base::round(.x, 2)))) |> 
+  flextable_fun() |> 
+  mk_par(
+    part = "header", j = 2,
+    value = as_paragraph("SOC %", "\nWetland (WIP ≥ 50%)")
+    ) |> 
+  mk_par(
+    part = "header", j = 3,
+    value = as_paragraph("SOC %", "\nUpland (WIP < 50%)")
+    ) 
+all_ppor_ft <- all_ppor |> 
+  mutate_tab() |> 
+  mutate(dplyr::mutate(across(where(is.numeric), ~base::round(.x, 2)))) |> 
+  flextable_fun() |> 
+    mk_par(
+    part = "header", j = 2,
+    value = as_paragraph("SOC Stock (g cm", as_sup("-2"), ")", "\nWetland (WIP ≥ 50%)")
+    ) |> 
+  mk_par(
+    part = "header", j = 3,
+    value = as_paragraph("SOC Stock (g cm", as_sup("-2"), ")", "\nUpland (WIP < 50%)")
+    ) 
+
+saveRDS(all_lab_ppor_ft, "SOIL CARBON/All_WA/writing/Tables/all_lab_ppor_ft.rds")
+saveRDS(all_ppor_ft, "SOIL CARBON/All_WA/writing/Tables/all_ppor_ft.rds")
+```
+
 Map table stats
 
 ```{r}
 PNW_Mapped_SOC <- PNW_SOC_df |> 
-  bind_rows(gsoc_frac_pnw) |> 
-  bind_rows(mcnicol_soc_frac_form) |> 
+  #bind_rows(gsoc_frac_pnw) |> 
+  bind_rows(ensemble_SOC) |> 
+  #bind_rows(mcnicol_soc_frac_form) |> 
   mutate(StudyArea = case_when(str_detect(StudyArea, "(?i)HOH") ~ "HRW",
                             str_detect(StudyArea, "(?i)MAS") ~ "MRW",
                             str_detect(StudyArea, "(?i)COL") ~ "CVW",
                             str_detect(StudyArea, "(?i)HLEF") ~ "HLEF",
                             .default = NA)) |> 
   bind_rows(y = nwca_soc_est) |> 
-  mutate(Source = case_when(str_detect(Name, "(?i)gsoc") ~ "GSOC",
+  mutate(Source = case_when(str_detect(Name, "(?i)ensemble") ~ "Ensemble Model",
                             str_detect(Name, "(?i)mcnicol") ~ "McNicol et al., 2019",
                             str_detect(Name, "(?i)nwca") ~ "Uhran et al., 2021",
                             .default = "This Study")) |> 
@@ -447,32 +598,87 @@ PNW_Mapped_SOC <- PNW_SOC_df |>
   compose(part = "header", i=1, j = 2,
                value = c(as_paragraph("Study\nArea")  )) |>
   compose(part = "header", i=1, j = 4,
-               value = c(as_paragraph("Total \nArea (ha)")  )) |>
+               value = c(as_paragraph("Total \nArea\n(ha)")  )) |>
   compose(part = "header", i=1, j = 5,
                value = c(as_paragraph("Mean 1m \nSOC Stock\n", 
-                                      ("Mg ha"), as_sup("-1")))) |>
+                                      "(Mg ha", as_sup("-1"), ")"))) |>
   compose(part = "header", i=1, j = 6,
-               value = c(as_paragraph("Total 1m\nSOC (Tg)")  )) |>
+               value = c(as_paragraph("Total 1m\nSOC Stock\n(Tg)")  )) |>
   merge_v(j = c(1,2)) |>
-  hline(part = "body", i = 9) |>
-  hline(part = "body", i = 21) |>
+  hline(part = "body", i = 8) |>
+  hline(part = "body", i = 19) |>
   #hline(part = "body", i = 27) |> 
-  hline(part = "body", i = 3, j = 2:6) |> 
-  hline(part = "body", i = 5, j = 2:6) |> 
-  hline(part = "body", i = 7, j = 2:6) |> 
-  hline(part = "body", i = 12, j = 2:6) |> 
-  hline(part = "body", i = 15, j = 2:6) |> 
-  hline(part = "body", i = 18, j = 2:6) |> 
+  hline(part = "body", i = 2, j = 2:6) |> 
+  hline(part = "body", i = 4, j = 2:6) |> 
+  hline(part = "body", i = 6, j = 2:6) |> 
+  hline(part = "body", i = 10, j = 2:6) |> 
+  hline(part = "body", i = 13, j = 2:6) |> 
+  hline(part = "body", i = 16, j = 2:6) |> 
   hline(part = "body", i = 21, j = 2:6) |> 
-  hline(part = "body", i = 24, j = 2:6) |> 
-  hline(part = "body", i = 26, j = 2:6) |> 
-  hline(part = "body", i = 28, j = 2:6) |> 
+  hline(part = "body", i = 23, j = 2:6) |> 
+  hline(part = "body", i = 25, j = 2:6) |> 
+  #hline(part = "body", i = 28, j = 2:6) |> 
   fix_border_issues()
 
 
 PNW_Mapped_SOC
 
 saveRDS(PNW_Mapped_SOC, "SOIL CARBON/All_WA/writing/Tables/PNW_Mapped_SOC.rds")
+```
+
+Uncertainty prediction intervals from RFM 
+
+```{r}
+mappedSOC_025_1m_depths_sum_df <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_mappedSOC_025_1m_depths_sum_df.csv") |>  mutate(across(contains("SOC"), ~ . * 100))
+mappedSOC_975_1m_depths_sum_df <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_mappedSOC_975_1m_depths_sum_df.csv") |>  mutate(across(contains("SOC"), ~ . * 100)) 
+
+uncertainty_table_mapped_SOC <- mappedSOC_025_1m_depths_sum_df |> 
+  dplyr::select(-Perc10thSOC_Mgha, -Perc90thSOC_Mgha) |> 
+  rename(Perc025_AverageSOC_Mgha = AverageSOC_Mgha,
+         Perc025_Total_SOC_Tg = Total_SOC_Tg) |> 
+  cbind(mappedSOC_975_1m_depths_sum_df[,c("AverageSOC_Mgha", "Total_SOC_Tg")]) |> 
+  rename(Perc975_AverageSOC_Mgha = AverageSOC_Mgha,
+         Perc975_Total_SOC_Tg = Total_SOC_Tg)  |> 
+  mutate(StudyArea = case_when(str_detect(StudyArea, "(?i)HOH") ~ "HRW",
+                            str_detect(StudyArea, "(?i)MAS") ~ "MRW",
+                            str_detect(StudyArea, "(?i)COL") ~ "CVW",
+                            str_detect(StudyArea, "(?i)HLEF") ~ "HLEF",
+                            .default = NA)) |> 
+  mutate(Name = case_when(#str_detect(Name, "(?i)list") ~ "Total",
+                            str_detect(Name, "(?i)_wet") ~ "Wetland",
+                            str_detect(Name, "(?i)_upl") ~ "Upland",
+                            .default = "Total")) |> 
+  dplyr::arrange(match(Name, c("Total", "Wetland", "Upland")),
+                 match(StudyArea, c("HLEF", "HRW", "MRW", "CVW"))) |> 
+  dplyr::mutate(across(where(is.numeric), ~ case_when(
+    . > 100  ~ round(., 0),  # Round to the nearest hundred
+    #. > 100 & . <= 1000 ~ round(., 0),  # Round to the nearest ten
+    . > 10 & . <= 100 ~ round(., 1),
+    . > 0 & . <= 10  ~ round(., 2),  # Round to the nearest whole number
+    TRUE ~ .  # Default case (if needed)
+  ))) |> 
+  mutate(Perc95th_AverageSOC_Mgha = paste0(Perc025_AverageSOC_Mgha, " - ", Perc975_AverageSOC_Mgha),
+         Perc95th_TotalSOC_Tg = paste0(Perc025_Total_SOC_Tg, " - ", Perc975_Total_SOC_Tg)) |> 
+  dplyr::select(Name, StudyArea, Total_area, Perc95th_AverageSOC_Mgha, Perc95th_TotalSOC_Tg) |> 
+  flextable_fun() |>
+  compose(part = "header", i=1, j = 1,
+               value = c(as_paragraph("Landscape \nClass")  )) |>
+  compose(part = "header", i=1, j = 2,
+               value = c(as_paragraph("Study\nArea")  )) |>
+  compose(part = "header", i=1, j = 3,
+               value = c(as_paragraph("Total \nArea (ha)")  )) |>
+  compose(part = "header", i=1, j = 4,
+               value = c(as_paragraph("95% Prediction Interval\nMean 1m SOC Stock\n", 
+                                      ("Mg ha"), as_sup("-1")))) |>
+  compose(part = "header", i=1, j = 5,
+               value = c(as_paragraph("95% Prediction Interval\nTotal 1m SOC Stock \n(Tg)")  )) |>
+  merge_v(j = c(1,2)) |> 
+  hline(part = "body", i = 4, j = 2:5) |> 
+  hline(part = "body", i = 8, j = 2:5) |> 
+  fix_border_issues()
+uncertainty_table_mapped_SOC
+
+saveRDS(uncertainty_table_mapped_SOC, "SOIL CARBON/All_WA/writing/Tables/PNW_Uncertainty_Mapped_SOC.rds")
 ```
 
 
@@ -576,6 +782,39 @@ theme_param <- theme(
 ```
 
 
+```{r}
+
+est_func <- function(data, coef_string){
+  if(str_detect(deparse(substitute(data)), "stocks")){
+    dat_type <- "stocks"  
+  } else {
+    dat_type <- "lab"
+  }
+  coef <- data[data$Predictor == coef_string, "Coefficient"]
+  est_2.5 <- data[data$Predictor == coef_string, "conf2.5"]
+  est_97.5 <- data[data$Predictor == coef_string, "conf.975"]
+  
+  est_string <- paste0("scaled coefficient estimate = ", 
+                      coef, " 95% CI: ",
+                      est_2.5, " - ", est_97.5)
+  print(est_string)
+  saveRDS(est_string, paste0("SOIL CARBON/All_WA/writing/in_text_values/",
+                             coef_string, "_", dat_type, "_est.rds"))
+}
+for(i in anova_ci_stocks$Predictor){
+  est_func(anova_ci_stocks, i)
+  #print(i)
+}
+for(i in anova_ci_lab$Predictor){
+  est_func(anova_ci_lab, i)
+  #print(i)
+}
+
+
+```
+
+
+
 #### Model fits vs. Predictors
 
 
@@ -583,7 +822,7 @@ theme_param <- theme(
 #### Prediction vs. Actual Plots
 
 ```{r}
-library(RColorBrewer)
+
 predict_plot <- function(model, data) {
     
     mod_string <- tolower(deparse(substitute(model)))
@@ -895,7 +1134,7 @@ saveRDS(coef_plots, file = "/Users/Anthony/OneDrive - UW/University of Washingto
 ```{r}
 ks_format_func <- function (a_ks){
   ks_vars_form <- a_ks$S |> as.data.frame() |> 
-    dplyr::summarise(across(everything(), ~ sum(abs(.x)))) |>
+    dplyr::summarise(across(everything(), ~ mean(abs(.x)))) |>
     pivot_longer(everything(), names_to = "column", values_to = "abs_sum") |>
     arrange(desc(abs_sum)) |>
     slice_head(n = 5)
@@ -905,9 +1144,28 @@ ks_vars <- ks_format_func(ks)
 ks_wet_vars <- ks_format_func(ks_wet)
 ks_upl_vars <- ks_format_func(ks_upl)
 
+shap_est_func <- function(ks_df, var_name, stockorlab) {
+    saveRDS(ks_df[ks_df$column == var_name, "abs_sum"][[1]], 
+            paste0("SOIL CARBON/All_WA/writing/in_text_values/",
+                   var_name,
+                   "_shap_",
+                   stockorlab,
+                   ".rds"))
+}
+
+for(i in ks_vars$column){
+  shap_est_func(ks_vars, i, "stocks")
+}
+
+
 ks_lab_vars <- ks_format_func(ks_lab)
 ks_lab_wet_vars <- ks_format_func(ks_lab_wet)
 ks_lab_upl_vars <- ks_format_func(ks_lab_upl)
+
+for(i in ks_lab_vars$column){
+  shap_est_func(ks_lab_vars, i, "lab")
+}
+
 
 shap_fullmod_plots <- sv_dependence(shapviz(ks), 
                                     v = c(ks_vars$column[1],
@@ -922,6 +1180,52 @@ shap_fullmod_lab_plots <- sv_dependence(shapviz(ks_lab),
                                      ks_lab_vars$column[3], 
                                      ks_lab_vars$column[4]), 
                   color_var = ks_lab_vars$column[5])
+```
+
+
+```{r}
+ks_wet_vars |> left_join(y = ks_upl_vars, by = join_by(column)) |> 
+  dplyr::rename("Wetland_SHAP" = abs_sum.x,
+                "Upland_SHAP" = abs_sum.y) |> 
+  mutate(WetUplDiff = `Wetland_SHAP` - `Upland_SHAP`) |> 
+  mutate(column = fct_relevel(column, c("MAT","MAP", "PET_MAP", "WIP", "lower_depth"))) |>
+  ggplot(aes(y = column, x = WetUplDiff)) +
+  geom_col() +
+    scale_y_discrete(labels = \(x) 
+        str_replace_all(x, c(lower_depth = "Depth",
+                             PET_MAP = "PET:MAP",
+                             CHM = "Canopy Height",
+                             LITH = "Geolithology",
+                             DTM = "Elevation", 
+                             geomorphons = "Landform",
+                             grad_1000 = "Gradient 1000m",
+                             grad_300 = "Gradient 300m",
+                             grad_50 = "Gradient 50m",
+                             dev_1000 = "Deviation 1000m",
+                             dev_300 = "Deviation 300m",
+                             dev_50 = "Deviation 50m"))
+        ) + theme_param +
+ks_lab_wet_vars |> left_join(y = ks_lab_upl_vars, by = join_by(column)) |> 
+  dplyr::rename("Wetland_SHAP" = abs_sum.x,
+                "Upland_SHAP" = abs_sum.y) |> 
+  mutate(WetUplDiff = `Wetland_SHAP` - `Upland_SHAP`) |> 
+  mutate(column = fct_relevel(column, c("PET_MAP","MAP", "Clay", "pH", "lower_depth"))) |>
+  ggplot(aes(y = column, x = WetUplDiff)) +
+  geom_col() +
+    scale_y_discrete(labels = \(x) 
+        str_replace_all(x, c(lower_depth = "Depth",
+                             PET_MAP = "PET:MAP",
+                             CHM = "Canopy Height",
+                             LITH = "Geolithology",
+                             DTM = "Elevation", 
+                             geomorphons = "Landform",
+                             grad_1000 = "Gradient 1000m",
+                             grad_300 = "Gradient 300m",
+                             grad_50 = "Gradient 50m",
+                             dev_1000 = "Deviation 1000m",
+                             dev_300 = "Deviation 300m",
+                             dev_50 = "Deviation 50m"))
+        ) + theme_param
 ```
 
 
@@ -1052,7 +1356,8 @@ shap_full_mod_lab_plot <- shap_fullmod_lab_plots_form +
           plot.tag.position = c(0.1, 1)) &
   theme_param
 
-
+shap_full_mod_plot
+shap_full_mod_lab_plot
 saveRDS(shap_full_mod_plot, "SOIL CARBON/All_WA/writing/Figures/shap_full_mod_plot.rds")
 saveRDS(shap_full_mod_lab_plot, "SOIL CARBON/All_WA/writing/Figures/shap_full_mod_lab_plot.rds")
 
@@ -1181,15 +1486,17 @@ saveRDS(ia_both_plots, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Inter
 
 LMER Interactions
 
+
+
+
 ```{r}
-library(pdp)
+pnw_dat_lab |> filter(WIP < 0.50) |> 
+  dplyr::select(carbon_perc, lower_depth, PET_MAP, pH, Clay) |> 
+  ppcor::pcor(method = "spearman")
 
-lmm_lab_int <- partial(lmm_lab, pred.var = c("pH", "PET_MAP"), train = trainlab,
-                       type = "regression")
+ggplot(data = pnw_dat_lab |> filter(WIP >= 0.50)) +
+  geom_point(aes(x = Clay, y = carbon_perc, size = lower_depth, colour = PET_MAP))
 
-pdp::plotPartial(lmm_lab_int)
-
-effects::effect("PET_MAP:pH", lmm_lab)
 ```
 
 
@@ -1224,5 +1531,90 @@ lmm_interact_plots <- lmm_stocks_wip_depth_plot + lmm_lab_ph_petmap_plot +
   theme(legend.position='top', plot.tag.position = c(0, 1))
 lmm_interact_plots
 saveRDS(lmm_interact_plots, "SOIL CARBON/All_WA/writing/Figures/lmm_interact_plots.rds")
+```
+
+### RFM Partial Dependence
+
+```{r}
+library(iml)
+RF_task <- mlr3::as_task_regr(train, target = "SOC_stock_spline", id = "rfm")
+RF_task$set_col_roles("sample_ID", "group")
+RF_task$feature_names
+to_remove <- RF_task$feature_names[str_detect(RF_task$feature_names, "_1000|_300|_50|nlcd")]
+RF_task$select(dplyr::setdiff(RF_task$feature_names, to_remove))
+RF_task$feature_names
+
+RF_task_feats <- RF_task$data(cols = RF_task$feature_names)
+RF_task_target <- RF_task$data(cols = RF_task$target_names)
+
+predictor <- iml::Predictor$new(QRFM_stocks,
+                                data = RF_task_feats, 
+                                y = RF_task_target)
+
+ale_petmap_qrf <- iml::FeatureEffect$new(predictor, feature = c("PET_MAP", "WIP"), method = "ale",  grid.size = 10)
+ale_depth <- iml::FeatureEffect$new(predictor, feature = c("lower_depth"), method = "ale",  grid.size = 10)
+ale_geo_qrf <- iml::FeatureEffect$new(predictor, feature = c("geomorphons", "WIP"), method = "ale",  grid.size = 10)
+
+
+ale_rf_stocks <- 
+ale_petmap_qrf$results |> 
+  ggplot(aes(y = WIP, x = PET_MAP, fill = .ale)) +
+  xlab("PET:MAP") +
+  geom_rect(aes(xmin = .left, xmax = .right, ymin = .bottom, ymax = .top)) +
+  scale_fill_viridis_c(option = "G", name = "Accumulated\nLocal\nEffects") +
+  theme_param +
+
+ale_geo_qrf$results |> 
+  dplyr::rename("Landform" = geomorphons) |> 
+  ggplot(aes(x = WIP, y = .ale, colour = factor(Landform))) +
+  geom_line(linewidth = 1.5) +
+  scale_colour_manual(values = RColorBrewer::brewer.pal(8, "BrBG"), 
+                      name = "Landform") +
+  ylab("Accumulated Local Effects") +
+  theme_param +
+  plot_annotation(tag_levels = "A", tag_suffix = ".") +
+  plot_layout() &
+  theme(legend.position='top', plot.tag.position = c(0, 1))
+ale_rf_stocks
+saveRDS(ale_rf_stocks, "SOIL CARBON/All_WA/writing/Figures/ALE_RF_Stocks_Plot.rds")
+```
+
+```{r}
+RF_lab_task <- as_task_regr(trainlab, target = "carbon_perc", id = "rfm_lab")
+RF_lab_task$set_col_roles( "sample_ID", "group")
+to_remove_lab <- RF_lab_task$feature_names[str_detect(RF_lab_task$feature_names, "_1000|_300|_50|nlcd")]
+RF_lab_task$select(dplyr::setdiff(RF_lab_task$feature_names, to_remove_lab))
+RF_lab_task$feature_names
+
+RF_lab_task_feats <- RF_lab_task$data(cols = RF_lab_task$feature_names)
+RF_lab_task_target <- RF_lab_task$data(cols = RF_lab_task$target_names)
+
+predictorlab <- iml::Predictor$new(QRFM_lab,
+                                data = RF_lab_task_feats, 
+                                y = RF_lab_task_target)
+
+ale_ph_map <- iml::FeatureEffect$new(predictorlab, feature = c("MAP", "pH"), method = "ale",  grid.size = 10)
+ale_ph_petmap <- iml::FeatureEffect$new(predictorlab, feature = c("PET_MAP", "pH"), method = "ale",  grid.size = 10)
+
+ale_rf_lab <- 
+ale_ph_map$results |> 
+  ggplot(aes(y = pH, x = MAP, fill = .ale)) +
+  geom_rect(aes(xmin = .left, xmax = .right, ymin = .bottom, ymax = .top)) + 
+  scale_fill_viridis_c(option = "E", name = "Accumulated\nLocal\nEffects", limits = c(-0.5, 0.5)) +
+  theme_param +
+ale_ph_petmap$results |> 
+  ggplot(aes(y = pH, x = PET_MAP, fill = .ale)) +
+  geom_rect(aes(xmin = .left, xmax = .right, ymin = .bottom, ymax = .top)) + 
+  scale_fill_viridis_c(option = "E", name = "Accumulated\nLocal\nEffects", limits = c(-0.5, 0.5)) +
+  theme_param +
+  xlab("PET:MAP") +
+  plot_annotation(tag_levels = "A", tag_suffix = ".") +
+  plot_layout(guides = "collect", axis_titles = "collect") &
+  theme(plot.tag.position = c(0, 1))
+
+ale_rf_lab
+
+saveRDS(ale_rf_lab, "SOIL CARBON/All_WA/writing/Figures/ALE_RF_Lab_Plot.rds")
+
 ```
 

@@ -192,6 +192,32 @@ readr::write_csv(pnw_dat_horC_lab, "SOIL CARBON/All_WA/data/dataframes/pnw_lab_d
 
 ```
 
+```{r}
+all_hor_n <- pnw_dat_horC |> 
+  mutate(site = case_when(lon < -130 ~ "HLEF",
+                          lon < -123 & lon > -130 ~ "Hoh",
+                          lon < -120 & lon > -122.9 ~ "Mas",
+                          lon > -120 ~ "Col")) |> 
+  group_by(site) |> 
+  summarise(n = n())
+
+min_hor_n <- pnw_dat_horC |> 
+  filter(carbon_perc < 10) |> 
+  mutate(site = case_when(lon < -130 ~ "HLEF",
+                          lon < -123 & lon > -130 ~ "Hoh",
+                          lon < -120 & lon > -122.9 ~ "Mas",
+                          lon > -120 ~ "Col")) |> 
+  group_by(site) |> 
+  summarise(n = n())
+
+diff_tbl <- all_hor_n |> left_join(min_hor_n, by = join_by(site), suffix = c(".all", ".min")) |>
+  mutate(diff = n.all - n.min,
+         perc_diff = round(diff/n.all, 2)) 
+diff_tbl
+```
+
+
+
 Next, create a subset of the data with only the predictor variables
 
 - This will be joined to the new spline dataframes

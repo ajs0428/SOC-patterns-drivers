@@ -52,33 +52,12 @@ setGDALconfig("GDAL_PAM_ENABLED", "FALSE")
 
 ### Models & Data
 
-```{r}
-
-mod7 <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/All_WA_Model7d1_Spline.RData"))
-modw <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/All_WA_Model_Wet_Spline.RData"))
-modu <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/All_WA_Model_Upl_Spline.RData"))
-
-modd1 <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Stocks_Model.RData"))
-modd1w <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Wet_Stocks_Model.RData"))
-modd1u <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Upl_Stocks_Model.RData"))
-
-RFM <- get(load("SOIL CARBON/All_WA/analysis/models/ALl_WA_RandomForest.RData"))
-
-GLM <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Stocks_Model.RData"))
-GLMw <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Wet_Stocks_Model.RData"))
-GLMu <- get(load("SOIL CARBON/All_WA/analysis/models/All_WA_Upl_Stocks_Model.RData"))
-
-fit.lqmm <- get(load("SOIL CARBON/All_WA/analysis/models/mod7_fit_lqmm.RData"))
-
-wa_dat <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds.csv")
-wa_stocks_dat <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_preds.csv")
-```
 
 
 #### Spatial layers
 
 ```{r}
-soc_preds <- list.files("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/", pattern = "sum_linear|sum_RF|pedon", full.names = TRUE) |> lapply(terra::rast) 
+soc_preds <- list.files("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/", pattern = "PNW_hlef|PNW_hoh|PNW_mas|PNW_col",  full.names = TRUE) |> lapply(terra::rast) 
 
 soc_preds_sm <- list()
 for(i in 1:length(soc_preds)){
@@ -86,11 +65,11 @@ for(i in 1:length(soc_preds)){
   names(soc_preds_sm[[i]]) <- "SOC"
 }
 
-names(soc_preds) <- list.files("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/", pattern = "sum_linear|sum_RF|pedon", full.names = F) |>
+names(soc_preds) <- list.files("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/",
+                               pattern = "PNW_hlef|PNW_hoh|PNW_mas|PNW_col", 
+                               full.names = F) |>
     str_remove(pattern = ".tif")
 
-names(soc_preds_sm) <- list.files("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/", pattern = "sum_linear|sum_RF|pedon", full.names = F) |>
-    str_remove(pattern = ".tif")
 ```
 
 
@@ -99,13 +78,7 @@ hoh_poly <- st_read("SOIL CARBON/All_WA/data/Vectors/HOH_POLYGON_711.gpkg") |> s
 mas_poly <- st_read("SOIL CARBON/All_WA/data/Vectors/Mashel_HUC12_2856.shp")
 col_poly <- st_read("SOIL CARBON/All_WA/data/Vectors/ColvilleHUC_2855.shp")
 
-hoh_stack_pedons <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/hoh_stack_pedons_water_urban_mask_scale.tif")
-mas_stack_pedons <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/mas_stack_pedons_water_urban_mask_scale.tif")
-col_stack_pedons <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/col_stack_pedons_water_urban_mask_scale.tif")
 
-hoh_stack_depths <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/hoh_stack_depths_water_urban_mask_scale.tif")
-mas_stack_depths <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/mas_stack_depths_water_urban_mask_scale.tif")
-col_stack_depths <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/col_stack_depths_water_urban_mask_scale.tif")
 
 hoh_wip <- rast("SOIL CARBON/All_WA/data/Rasters/Hoh_WIP_Final_2855_Mask.tif", lyrs = "WIP")
 mas_wip <- rast("SOIL CARBON/All_WA/data/Rasters/Mashel_WIP_Final_2856_Mask.tif", lyrs = "WIP")

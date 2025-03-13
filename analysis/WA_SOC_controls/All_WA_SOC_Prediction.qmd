@@ -63,7 +63,7 @@ Load SOC Point Data
 Load in the raster stacks 
 
 ```{r}
-#| eval: true
+#| eval: false
 hlef_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/HLEF_PredictorStack_Class.tif") |>
     tidyterra::rename_with(~gsub("_median", "", .x, fixed = TRUE)) 
 hlef_stack$PET_MAP <- hlef_stack$PET/hlef_stack$MAP
@@ -246,7 +246,7 @@ terraOptions(
 ```
 
 ```{r}
-#| eval: true
+#| eval: false
 
 soc_pred_func(model = QRFM_stocks, 
               pred_stack = hlef_stack_select, 
@@ -284,7 +284,7 @@ plot(col_soc)
 - Urban areas include roads
 
 ```{r}
-#| eval: true
+#| eval: false
 nlcd_cats_hlef <- read.csv("SOIL CARBON/All_WA/data/dataframes/nlcd_cats_hlef.csv") |> 
   dplyr::select(-X)
 nlcd_cats_hoh<- read.csv("SOIL CARBON/All_WA/data/dataframes/nlcd_cats_hoh.csv")|> 
@@ -328,7 +328,7 @@ water_urban_masking <- function(rast_to_mask, mndwi, urban) {
 
 
 ```{r}
-#| eval: true
+#| eval: false
 water_urban_masking(hlef_soc, hlef_stack$MNDWI, hlef_nlcd)
 water_urban_masking(hoh_soc, hoh_stack$MNDWI, hoh_nlcd)
 water_urban_masking(mas_soc, mas_stack$MNDWI, mas_nlcd)
@@ -464,7 +464,7 @@ soc_map_sum_classes <- function(list_of_soc, list_of_wip){
 
 
 ```{r}
-#| eval: true
+#| eval: false
 
 soc_list <- list(
                 "hlef_soc"=hlef_soc_mask,
@@ -504,7 +504,7 @@ SOC_df |>
 ### Uhran et al 
 
 ```{r }
-#| eval: true
+#| eval: false
 col_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/ColvilleHUC_2855.shp") 
 mas_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/Mashel_HUC12_2856.shp")
 hoh_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/HOH_POLYGON_711.shp")
@@ -545,7 +545,7 @@ col_NWCAmin <- NWCA_extract(CONUS_NWCA_Min, col_studyarea, col_stack$WIP, rastpa
 ```
 
 ```{r}
-#| eval: true
+#| eval: false
 NWCA_df <- rbind(C_map_simp(hoh_NWCA/100),
       C_map_simp(mas_NWCA/100),
       C_map_simp(col_NWCA/100))
@@ -600,7 +600,7 @@ other_soc_data_func <- function(other_dat, study_area_poly, study_area_wip){
 
 
 ```{r}
-#| eval: true
+#| eval: false
 mcnicol_pctr <- rast("NPCTR_soil/doi_10.5061_dryad.5jf6j1r__v1/FluxProject_SOCmap/170730_soc1.tif") 
 
 mcnicol_hlef <- other_soc_data_func(other_dat = mcnicol_pctr,
@@ -621,6 +621,7 @@ readr::write_csv(mcnicol_soc_frac_form, "SOIL CARBON/All_WA/data/dataframes/McNi
 
 GSOC Soilgrids or Dryw's data
 ```{r}
+#| eval: false
 gsoc <- rast("GSOC/DATA_GSOCSEQ_MAP_GSOCSEQ.GSOCMAP1-5-0.tif")
 
 gsoc_hlefsocwip <- other_soc_data_func(other_dat = gsoc, 
@@ -654,7 +655,33 @@ readr::write_csv(gsoc_frac_pnw, "SOIL CARBON/All_WA/data/dataframes/GSOC_Frac_Es
 
 Dryw's data
 ```{r}
+ensemble_SOC <- rast("USFS/Data/Output/final_0_100cm_AVE_Mg_ha_r60.tif") 
 
+ensemble_SOC_hlef <- other_soc_data_func(other_dat = ensemble_SOC, 
+                                   study_area_poly = hlef_study_area, 
+                                   study_area_wip = hlef_stack$WIP)
+ensemble_SOC_hoh <- other_soc_data_func(other_dat = ensemble_SOC, 
+                                   study_area_poly = hoh_study_area, 
+                                   study_area_wip = hoh_stack$WIP)
+ensemble_SOC_mas <- other_soc_data_func(other_dat = ensemble_SOC, 
+                                   study_area_poly = mas_study_area, 
+                                   study_area_wip = mas_stack$WIP)
+ensemble_SOC_col <- other_soc_data_func(other_dat = ensemble_SOC, 
+                                   study_area_poly = col_study_area, 
+                                   study_area_wip = col_stack$WIP)
+
+ensemble_frac_hlef <- C_map_wet_fractions(ensemble_SOC_hlef[[1]], ensemble_SOC_hlef[[2]]) |> 
+  mutate(StudyArea = "HLEF")
+ensemble_frac_hoh <- C_map_wet_fractions(ensemble_SOC_hoh[[1]], ensemble_SOC_hoh[[2]]) |> 
+  mutate(StudyArea = "Hoh")
+ensemble_frac_mas <- C_map_wet_fractions(ensemble_SOC_mas[[1]], ensemble_SOC_mas[[2]]) |> 
+  mutate(StudyArea = "Mas")
+ensemble_frac_col <- C_map_wet_fractions(ensemble_SOC_col[[1]], ensemble_SOC_col[[2]]) |> 
+  mutate(StudyArea = "Col")
+
+ensemble_PNW <- rbind(ensemble_frac_hlef, ensemble_frac_hoh, ensemble_frac_mas, ensemble_frac_col) |> dplyr::select(StudyArea, everything())
+
+readr::write_csv(ensemble_PNW, "SOIL CARBON/All_WA/data/dataframes/ensemble_Frac_Estimates_PNW.csv")
 ```
 
 
@@ -662,7 +689,7 @@ Dryw's data
 
 
 ```{r}
-QRFM_stocks$quantile_response = 0.975
+#QRFM_stocks$quantile_response = 0.975
 
 soc_quantpred_func <- function(model, pred_stack, depth_ints, numcores) {
   stopifnot(is.vector(depth_ints))
@@ -688,22 +715,76 @@ soc_quantpred_func <- function(model, pred_stack, depth_ints, numcores) {
   rast_high_stack_sum <- sum(rast(rast_high_list), na.rm = T)
   names(rast_high_stack_sum) <- "soc_975"
   rast_95 <- c(rast_low_stack_sum, rast_high_stack_sum)
-  # writeRaster(rast_stack_sum, filename = paste0(soc_path, "PNW_", name, "_SOC_RFM_1m.tif"),
-  #             overwrite = TRUE)
-  return(rast_95)
+  writeRaster(rast_95, 
+              filename = paste0(soc_path, "PNW_", name, "_025_975_SOC_RFM_1m.tif"),
+               overwrite = TRUE)
+  
+  #return(rast_95)
 }
 
-test05 <- soc_pred_func(model = QRFM_stocks, pred_stack = r, depth_ints = seq(25, 100, 25),
-                        numcores = 1)
-test <- soc_quantpred_func(model = QRFM_stocks, pred_stack = r, depth_ints = seq(25, 100, 25), numcores = 1)
-
-plot(test05)
-plot(test$soc_025)
-plot(test$soc_975)
+# test05 <- soc_pred_func(model = QRFM_stocks, pred_stack = r, depth_ints = seq(25, 100, 25),
+#                         numcores = 1)
+# test <- soc_quantpred_func(model = QRFM_stocks, pred_stack = r, depth_ints = seq(25, 100, 25), numcores = 1)
+# 
+# plot(test05)
+# plot(test$soc_025)
+# plot(test$soc_975)
 ```
 
 
 ```{r}
-test05 <- soc_pred_func(model = QRFM_stocks, pred_stack = r, depth_ints = seq(25, 100, 25))
+#| eval: false
+soc_quantpred_func(model = QRFM_stocks, 
+              pred_stack = hlef_stack_select, 
+              depth_ints = seq(25, 100, 25),
+              numcores = 6)
+soc_quantpred_func(model = QRFM_stocks, 
+              pred_stack = hoh_stack_select, 
+              depth_ints = seq(25, 100, 25),
+              numcores = 6)
+soc_quantpred_func(model = QRFM_stocks, 
+              pred_stack = mas_stack_select, 
+              depth_ints = seq(25, 100, 25),
+              numcores = 6)
+soc_quantpred_func(model = QRFM_stocks, 
+              pred_stack = col_stack_select, 
+              depth_ints = seq(25, 100, 25),
+              numcores = 6)
+```
+
+```{r}
+hlef_int_rast <- (rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/PNW_hlef_025_975_SOC_RFM_1m.tif"))
+hoh_int_rast <- (rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/PNW_hoh_025_975_SOC_RFM_1m.tif"))
+mas_int_rast <- (rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/PNW_mas_025_975_SOC_RFM_1m.tif"))
+col_int_rast <- (rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/PNW_col_025_975_SOC_RFM_1m.tif"))
+```
+
+```{r}
+#| eval: false
+soc_025_list <- list(
+                "hlef_025_soc"= hlef_int_rast$soc_025,
+                 "hoh_025_soc" = hoh_int_rast$soc_025,
+                 "mas_025_soc" = mas_int_rast$soc_025,
+                 "col_025_soc" = col_int_rast$soc_025
+                 )
+soc_975_list <- list(
+                "hlef_975_soc"= hlef_int_rast$soc_975,
+                 "hoh_975_soc" = hoh_int_rast$soc_975,
+                 "mas_975_soc" = mas_int_rast$soc_975,
+                 "col_975_soc" = col_int_rast$soc_975
+                 )
+wip_list <- list(
+    "hlef_wip" = hlef_stack$WIP, 
+     "hoh_wip" = hoh_stack$WIP, 
+     "mas_wip" = mas_stack$WIP, 
+     "col_wip" = col_stack$WIP
+                 )
+
+mappedSOC_025_1m_depths_sum_df <- soc_map_sum_classes(soc_025_list, wip_list)
+mappedSOC_975_1m_depths_sum_df <- soc_map_sum_classes(soc_975_list, wip_list)
+
+mappedSOC_025_1m_depths_sum_df
+readr::write_csv(mappedSOC_025_1m_depths_sum_df, "SOIL CARBON/All_WA/data/dataframes/PNW_mappedSOC_025_1m_depths_sum_df.csv")
+readr::write_csv(mappedSOC_975_1m_depths_sum_df, "SOIL CARBON/All_WA/data/dataframes/PNW_mappedSOC_975_1m_depths_sum_df.csv")
 ```
 

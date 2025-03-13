@@ -377,6 +377,23 @@ readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling
 ```
 
 ```{r}
+#| fig-width: 8
+#| fig-height: 4
+ale_rf_stocks <- readRDS(paste0(dir_loc,"SOIL CARBON/All_WA/writing/Figures/ALE_RF_Stocks_Plot.rds"))
+ale_rf_stocks
+
+
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+ale_rf_lab <- readRDS(paste0(dir_loc,"SOIL CARBON/All_WA/writing/Figures/ALE_RF_Lab_Plot.rds"))
+ale_rf_lab
+
+```
+
+```{r}
 #| label: tbl-LMM-ANOVA
 #| tbl-cap: Supporting Table 2. ANOVA and 95% Confidence intervals for predictors in the linear mixed models (LMMs) across the full, wetland, and upland datasets
 #| include: true
@@ -546,7 +563,18 @@ shap_dependence_plot <- get(load("/Users/Anthony/OneDrive - UW/University of Was
 shap_dependence_plot
 ```
 
-In additional separate models for wetlands (LMM~wet depths~) and uplands (LMM~upl depths~) , MAP was a significant positive predictor for SOC stocks in LMM~upl depths~ but not significant in LMM~wet depths~, which did not support our second hypothesis. MAP was significant in GLM~full pedons~ and in the upland pedon model (GLM~upl pedons~) but not in the wetland pedon model (GLM~wet pedons~)
+### Mapped uncertainty
+
+```{r}
+#| label: tbl-mapped-uncertainty
+#| tbl-cap: Supporting Table X. 95% Prediction interval ranges for mapped SOC stocks. Prediction intervals were calculated using the quantile random forest prediction for the 2.5% and 97.5% quantiles. 
+#| include: true
+
+
+uncertainty_table_mapped_SOC <- readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/PNW_Uncertainty_Mapped_SOC.rds")
+
+uncertainty_table_mapped_SOC
+```
 
 @stewartRevealingHiddenCarbon2024
 
