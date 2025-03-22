@@ -168,7 +168,9 @@ pnw_dat_horC <- wa_dat |>
                   carbon_perc, carbon_stock_g_cm2, BD_g_cm3)  |> 
   rbind(HLEF_stocks) #|>filter(bottom <= 200) 
 glimpse(pnw_dat_horC)
+readr::write_csv(pnw_dat_horC, "SOIL CARBON/All_WA/data/dataframes/pnw_stocks_data.csv")
 
+pnw_dat_horC |> group_by(sample_ID) |> summarise(lat = first(lat), lon = first(lon)) |> readr::write_csv("SOIL CARBON/All_WA/data/dataframes/pnw_stocks_latlon_only.csv")
 
 pnw_dat_horC_lab <- wa_dat_lab |>
     #filter(depth_cm <= 150) |>
@@ -181,7 +183,7 @@ pnw_dat_horC_lab <- wa_dat_lab |>
            thickness_cm = case_when(is.na(depth_cm - lag(depth_cm)) ~ bottom,
                                    (top > bottom) ~ bottom,
                                    .default = bottom - top)) |> 
-    dplyr::select(sample_ID, top, center, bottom, rock_perc,,
+    dplyr::select(sample_ID, top, center, bottom, rock_perc,
                   carbon_perc, carbon_stock_g_cm2,
                   lat, lon,
                   pH, Sand, Silt, Clay, SiltClay) |> 
@@ -191,6 +193,9 @@ glimpse(pnw_dat_horC_lab)
 readr::write_csv(pnw_dat_horC_lab, "SOIL CARBON/All_WA/data/dataframes/pnw_lab_data.csv")
 
 ```
+
+
+
 
 ```{r}
 all_hor_n <- pnw_dat_horC |> 
