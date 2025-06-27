@@ -322,7 +322,8 @@ mean_stdev_stocks_table <- pnw_dat |> group_by(site, lower_depth) |>
     arrange(site) |> 
     rename("Study Area" = site,
            "Depth" = lower_depth) |>
-    relocate(`Study Area`, Depth, mean, sd, se, n) |> 
+    dplyr::select(-sd) |> 
+    relocate(`Study Area`, Depth, mean, se, n) |> 
     flextable_fun() |>
     merge_v(j = ~ `Study Area`) |> 
     mk_par(
@@ -333,16 +334,16 @@ mean_stdev_stocks_table <- pnw_dat |> group_by(site, lower_depth) |>
     part = "header", j = 3,
     value = as_paragraph("Mean SOC Stock\n(g cm", as_sup("-2"), ")")
     ) |> 
+    # mk_par(
+    # part = "header", j = 4,
+    # value = as_paragraph("Std. Deviation SOC Stock\n(g cm", as_sup("-2"), ")")
+    # ) |> 
     mk_par(
     part = "header", j = 4,
-    value = as_paragraph("Std. Deviation SOC Stock\n(g cm", as_sup("-2"), ")")
-    ) |> 
-    mk_par(
-    part = "header", j = 5,
     value = as_paragraph("Std. Error SOC Stock\n(g cm", as_sup("-2"), ")")
     ) |> 
     hline(part = "body", border = fp_border_default(width =0)) |> 
-    add_body_row(top = FALSE, values = "", colwidths = c( 6)) |>
+    add_body_row(top = FALSE, values = "", colwidths = c( 5)) |>
     hline(part = "body", i = 6) |>
     hline(part = "body", i = 12) |>
     hline(part = "body", i = 18) |>
@@ -388,6 +389,7 @@ percSOC_table <- pnw_dat_lab |> mutate(depth_zone = case_when(lower_depth <= 25 
   dplyr::select(site, wetupl, mean_percSOC, sd_percSOC, se_percSOC, n) |> 
   mutate(site = fct_relevel(site, c("HLEF", "HRW", "MRW", "CVW"))) |>
   dplyr::arrange(site) |> 
+  dplyr::select(-sd_percSOC) |> 
   flextable_fun() |> 
   merge_v(j = c(1)) |> 
   mk_par(
@@ -402,17 +404,17 @@ percSOC_table <- pnw_dat_lab |> mutate(depth_zone = case_when(lower_depth <= 25 
     part = "header", j = 3,
     value = as_paragraph("Mean\nSOC %")
     ) |>
+  # mk_par(
+  #   part = "header", j = 4,
+  #   value = as_paragraph("Std. Deviation \nSOC %")
+  #   ) |>
   mk_par(
     part = "header", j = 4,
-    value = as_paragraph("Std. Deviation \nSOC %")
-    ) |>
-  mk_par(
-    part = "header", j = 5,
     value = as_paragraph("Std. Error \nSOC %")
   ) |>
-    hline(part = "body", i = 2, j = 2:6) |>
-    hline(part = "body", i = 4, j = 2:6) |>
-    hline(part = "body", i = 6, j = 2:6) |>
+    hline(part = "body", i = 2, j = 2:5) |>
+    hline(part = "body", i = 4, j = 2:5) |>
+    hline(part = "body", i = 6, j = 2:5) |>
     hline(part = "body", i = 8, border = thick_border) |> 
   fix_border_issues()
 
@@ -726,7 +728,7 @@ PNW_Wet_Area_Table <- PNW_Wet_Area |>
   compose(part = "header", i=1, j = 3,
                value = c(as_paragraph("NWI Wetland\nArea (ha)")  )) |>
   compose(part = "header", i=1, j = 4,
-               value = c(as_paragraph("% Change\n(WIP-NWI)")  )) 
+               value = c(as_paragraph("% Change\n(WIP-NWI)/NWI")  )) 
 PNW_Wet_Area_Table
 saveRDS(PNW_Wet_Area_Table, "SOIL CARBON/All_WA/writing/Tables/PNW_Wet_Area_Table.rds")
 ```
@@ -992,11 +994,15 @@ qrf_lab_plot <- predict_plot(model = QRFM_lab, data = testlab) +
 # as_ggplot(wip_legend) 
 
 
-model_fit_plots <- lmm_stocks_plot + qrf_stocks_plot + lmm_lab_plot + qrf_lab_plot +
+model_fit_plots <-( lmm_stocks_plot + ggtitle("LMM")) + (qrf_stocks_plot + ggtitle("RFM")) + lmm_lab_plot + qrf_lab_plot +
     patchwork::plot_layout(nrow = 2, ncol = 2, axis_titles = "collect",
                            widths = 1, byrow = T, guides = "collect"
                           ) +
-    plot_annotation(tag_levels = list(c("A ", "B", "C", "D")), tag_suffix = ".")
+    plot_annotation(tag_levels = list(c("A ", "B", "C", "D")), tag_suffix = ".") &
+  theme( plot.tag = element_text(size = 8, face = "bold"),
+          plot.tag.position = c(0, 1.01),
+          plot.title = element_text(hjust = 0.5),
+          legend.key.width = unit(0.3, "cm"))
 model_fit_plots
 saveRDS(model_fit_plots, file = "SOIL CARBON/All_WA/writing/Figures/Model_Test_Fit_Scatter.rds")
 ```
@@ -1104,7 +1110,7 @@ coef_fig_lmm_stocks <- coef_fig_func(anova_ci_stocks, lmm_stocks)
 coef_fig_lmm_lab <- coef_fig_func(anova_ci_lab, lmm_lab)
 
 qrf_stocks_shap <- sv_importance(shapviz(ks), kind = "both", 
-                                 max_display = 8, alpha = 0.1, fill = "black") + 
+                                 max_display = 8, alpha = 0.12, fill = "black") + 
     scale_colour_viridis_c(
       name = "Scaled\nFeature\nValue", option = "D",
       breaks = c(0, 1), labels = c("Low: 0", "High: 1")
@@ -1125,7 +1131,7 @@ qrf_stocks_shap <- sv_importance(shapviz(ks), kind = "both",
     ) +
     theme_param 
 qrf_lab_shap <- sv_importance(shapviz(ks_lab), kind = "both", 
-                              max_display = 8, alpha = 0.1, fill = "black") +
+                              max_display = 8, alpha = 0.12, fill = "black") +
   scale_colour_viridis_c(
       name = "Scaled\nFeature\nValue", option = "D",
       breaks = c(0, 1), labels = c("Low: 0", "High: 1")
@@ -1155,9 +1161,9 @@ coef_plots <- (coef_fig_lmm_stocks + ggtitle("LMM") +
   qrf_lab_shap + 
     plot_layout(nrow = 2, ncol = 2, axis_titles = "collect", guides = "collect")  +
     plot_annotation(tag_levels = list(c("A.", "B.","C.", "D."))) & 
-    theme(plot.tag = element_text(size = 8),
+    theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 0.95),
-          plot.title = element_text(hjust = 0.5),
+          plot.title = element_text(hjust = 0.5, face = "bold"),
           legend.key.width = unit(0.3, "cm")) 
 
 
@@ -1405,7 +1411,7 @@ shap_interact_pdp <- (shap_1_2_pdp_plot +
   shap_lab_2_3_pdp_plot +
   plot_layout(nrow = 2, ncol = 2, axis_titles = "collect_y")  + 
   plot_annotation() & 
-    theme(plot.tag = element_text(size = 8),
+    theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1))
 shap_interact_pdp
 
@@ -1424,13 +1430,13 @@ shap_fullmod_lab_plots_form <- shap_lab_func(shap_fullmod_lab_plots)
 shap_full_mod_plot <- shap_fullmod_plots_form + 
     plot_layout(nrow = 2, ncol = 2, axis_titles = "collect", guides = "collect")  +
     plot_annotation(tag_levels = list(c("A.", "B.","C.", "D."))) & 
-    theme(plot.tag = element_text(size = 8),
+    theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1)) &
   theme_param
 shap_full_mod_lab_plot <- shap_fullmod_lab_plots_form + 
     plot_layout(nrow = 2, ncol = 2, axis_titles = "collect", guides = "collect")  +
     plot_annotation(tag_levels = list(c("A.", "B.","C.", "D."))) & 
-    theme(plot.tag = element_text(size = 8),
+    theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1)) &
   theme_param
 
@@ -1522,7 +1528,7 @@ ia_lab_5_plot <- plot(ia_lab_5)|> lab_func() + theme_param
 ia_plots <- ia_1_plot + ia_2_plot + ia_3_plot + ia_4_plot +
   plot_layout(nrow = 1, ncol = 4, axis_titles = "collect", guides = "collect")  +
     plot_annotation() & 
-    theme(plot.tag = element_text(size = 8),
+    theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1)) &
   theme_param
 
@@ -1531,7 +1537,7 @@ ia_plots
 ia_lab_plots <- ia_lab_1_plot + ia_lab_2_plot + ia_lab_3_plot + ia_lab_4_plot +
   plot_layout(nrow = 1, ncol = 4, axis_titles = "collect", guides = "collect")  +
     plot_annotation() & 
-    theme(plot.tag = element_text(size = 8),
+    theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1)) &
   theme_param
 
@@ -1542,7 +1548,7 @@ ia_both_plots <- (ia_1_plot + ylab(expression(SOC~Stock~g~cm^{2}))) +
   (ia_lab_1_plot+ ylab("SOC %")) + ia_lab_2_plot + ia_lab_3_plot +
   plot_layout(nrow = 2, ncol = 3, axis_titles = "collect", guides = "collect")  +
     plot_annotation() & 
-    theme(plot.tag = element_text(size = 8),
+    theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1)) &
   theme_param
 
@@ -1606,7 +1612,9 @@ lmm_lab_ph_petmap_plot <- interact_plot(lmm_lab,
 lmm_interact_plots <- lmm_stocks_wip_depth_plot + lmm_lab_ph_petmap_plot + 
   plot_annotation(tag_levels = "A", tag_suffix = ".") +
   plot_layout() &
-  theme(legend.position='top', plot.tag.position = c(0, 1))
+  theme(legend.position='top', 
+        plot.tag.position = c(0, 1),
+        plot.tag = element_text(size = 8, face = "bold"))
 lmm_interact_plots
 saveRDS(lmm_interact_plots, "SOIL CARBON/All_WA/writing/Figures/lmm_interact_plots.rds")
 ```
@@ -1652,7 +1660,9 @@ ale_geo_qrf$results |>
   theme_param +
   plot_annotation(tag_levels = "A", tag_suffix = ".") +
   plot_layout() &
-  theme(legend.position='top', plot.tag.position = c(0, 1))
+  theme(legend.position='top', 
+        plot.tag.position = c(0, 1),
+        plot.tag = element_text(size = 8, face = "bold"))
 ale_rf_stocks
 saveRDS(ale_rf_stocks, "SOIL CARBON/All_WA/writing/Figures/ALE_RF_Stocks_Plot.rds")
 ```
@@ -1688,7 +1698,8 @@ ale_ph_petmap$results |>
   xlab("PET:MAP") +
   plot_annotation(tag_levels = "A", tag_suffix = ".") +
   plot_layout(guides = "collect", axis_titles = "collect") &
-  theme(plot.tag.position = c(0, 1))
+  theme(plot.tag.position = c(0, 1),
+        plot.tag = element_text(size = 8, face = "bold"))
 
 ale_rf_lab
 
@@ -1700,3 +1711,8 @@ saveRDS(ale_rf_lab, "SOIL CARBON/All_WA/writing/Figures/ALE_RF_Lab_Plot.rds")
 
 ```
 
+### Dead text section
+
+Model choice influences interpretation of drivers and potential upscaling performance
+
+Our choice to use both a LMM and RFM were driven by specifically testing hypothetical model predictors in the LMM while gaining additional insight into potential non-linear predictor relationships using machine learning with RFM. While the LMM, did not perform as well as the RFM on the test datasets, we found the LMM more interpretable regarding potential drivers. This is a well documented issue for machine learning algorithms and it is a challenge to transfer the observations derived from machine learning to process based models or ecosystem processes [@xiaResearchChallengesOpportunities2020]. However, the RFM does not require strict assumptions for the response variable distribution which is the case in the LMM and why we used a $log_{10}$ transformation for both SOC stock and SOC %. Overall we found the RFM consistently out-performed the LMM for both SOC stocks and SOC %. In particular, the RFM was able to maintain higher R2 and low RMSE for both wetland and upland observations in the test dataset. The difference between the LMM and RFM in capturing the SOC % in wetlands test dataset could be the result from the model flexibility of the RFM. The importance of model choice has been emphasized before in Yu et al., (2021) where a random forest outperformed a LMM in estimating SOC concentration in relation to climatic and geochemical predictors, consistent with our research results. Our research shows conservative estimates of SOC stocks are produced when LMMs are used to capture the geographic distribution of depth-dependent SOC stocks. Conversely, the complex relationships between SOC, Depth, and other factors can be captured by models such as the RFM, but with the risk of overfitting to observations and over-predicting SOC stocks in mapped predictions.

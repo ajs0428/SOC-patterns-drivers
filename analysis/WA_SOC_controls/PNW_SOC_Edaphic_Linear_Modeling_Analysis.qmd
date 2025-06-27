@@ -118,7 +118,7 @@ trainlab_scale |> group_by(LITH) |>
             panel.grid.major = element_line("gray80"),
             axis.ticks = element_blank())
 
-pH_hist <- ggplot(trainlab_scale, aes(x = pH)) + 
+pH_hist <- ggplot(trainlab, aes(x = pH)) + 
   geom_histogram() +
   scale_fill_viridis_d(name = "Study Area", labels = c("CRW", "HRW", "MRW")) +
   theme(panel.background = element_blank(),
@@ -133,6 +133,10 @@ save(pH_hist, file = "SOIL CARBON/All_WA/writing/Figures/Supplemental/pH_histogr
 wa_tex_plotdat <- pnw_dat_lab |> 
   select(site,
          Sand, Silt, Clay) |>
+  mutate(site = case_when(site == "Col" ~ "CVW",
+                          site == "Hoh" ~ "HRW",
+                          site == "Mas" ~ "MRW",
+                          .default = site)) |>
   na.omit() |> 
   mutate(sum = sum(Sand, Silt, Clay)) |> 
   dplyr::rename_with(tolower) 
@@ -482,30 +486,38 @@ saveRDS(best_dredge_model_lab, file = "SOIL CARBON/All_WA/analysis/models/PNW_Mo
 
 
 ```{r}
-
+png(filename = "SOIL CARBON/All_WA/writing/Figures/Supplemental/qq_lev_edaphic_full.png", width = 12, height = 8, units = "in", res = 300)
+par(mfcol = c(2,2))
 check_assump_func <- function(model) {
   plot(model)
-  plot(model, resid(.) ~ fitted(.)|sample_ID, abline = 0)
+  plot(model, resid(.) ~ fitted(.)|sample_ID, abline = 0, ylab = "Model Residuals", xlab = "Fitted Model")
   
   qqnorm(resid(model))
   qqline(resid(model))
   
   lev <- hat(model.matrix(model))
-  plot(resid(model) ~ lev, xlab = "leverage")
+  plot(resid(model) ~ lev, xlab = "Leverage", ylab = "Model Residuals")
   
   cd <- cooks.distance(model)
-  plot(lev)
+  plot(lev, ylab = "Leverage")
   points(cd, col = "blue")
+  legend("topleft",
+         legend = "Cooks Distance", 
+         text.col = "blue",
+         pch = 1,
+         col = "blue")
   
-  hist(as.vector(unlist(ranef(model)$sample_ID)))
+  hist(as.vector(unlist(ranef(model)$sample_ID)), main = "", xlab = "Random Effect Conditional Means")
 }
-
-
 
 check_assump_func(modlab_dredge_2)
 #check_assump_func(mod_lab_w)
 #check_assump_func(mod_lab_u)
 
+rec <- recordPlot()
+
+
+dev.off()
 
 ```
 

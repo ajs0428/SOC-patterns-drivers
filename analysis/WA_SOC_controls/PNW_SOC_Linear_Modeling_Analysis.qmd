@@ -497,23 +497,40 @@ ggplot()+
 
 
 ```{r fig.show='hold', out.width="60%"}
-
 png(filename = "SOIL CARBON/All_WA/writing/Figures/Supplemental/qq_lev_full.png", width = 12, height = 8, units = "in", res = 300)
+par(mfcol = c(2,2))
 
-par(mfcol = c(3,2))
+check_assump_func <- function(model) {
+  plot(model)
+  plot(model, resid(.) ~ fitted(.)|sample_ID, abline = 0, ylab = "Model Residuals", xlab = "Fitted Model")
+  
+  qqnorm(resid(model))
+  qqline(resid(model))
+  
+  lev <- hat(model.matrix(model))
+  plot(resid(model) ~ lev, xlab = "Leverage", ylab = "Model Residuals")
+  
+  cd <- cooks.distance(model)
+  plot(lev, ylab = "Leverage")
+  points(cd, col = "blue")
+  legend("topleft",
+         legend = "Cooks Distance", 
+         text.col = "blue",
+         pch = 1,
+         col = "blue")
+  
+  hist(as.vector(unlist(ranef(model)$sample_ID)), main = "", xlab = "Random Effect Conditional Means")
+}
 
-qqnorm(resid(best_dredge_model))
-qqline(resid(best_dredge_model))
+check_assump_func(best_dredge_model)
 
 
-
-lev <- hat(model.matrix(best_dredge_model))
-cd <- cooks.distance(best_dredge_model)
-plot(resid(best_dredge_model) ~ lev, xlab = "leverage", ylab = "Residuals LMM Full")
 rec <- recordPlot()
 
 
 dev.off()
+
+
 
 
 ```
@@ -597,7 +614,7 @@ resids_hoh <- resid(best_dredge_model)[pnw_st$site == "Hoh"]
 resids_mas <- resid(best_dredge_model)[pnw_st$site == "Mas"]
 resids_col <- resid(best_dredge_model)[pnw_st$site == "Col"]
 
-vario_all <- geoR::variog(coords = coords, data = resids, max.dist = 400)
+vario_all <- geoR::variog(coords = coords, data = resids, max.dist = 2000)
 vario_hl <- geoR::variog(coords = coords_hlef, data = resids_hlef, max.dist = 10)
 vario_h <- geoR::variog(coords = coords_hoh, data = resids_hoh, max.dist = 35)
 vario_m <- geoR::variog(coords = coords_mas, data = resids_mas, max.dist = 35)
@@ -624,6 +641,10 @@ semivariograms <- (ggplot(vario_all_df, aes(x = distance_km, y = semivariance)) 
   geom_point() + 
   xlab("Distance All Sites (km)") +
   ylim(0, 1.2*max(vario_all_df$semivariance))) /
+(ggplot(vario_hl_df, aes(x = distance_km, y = semivariance)) +
+  geom_point()+ 
+  xlab("Distance HLEF (km)") +
+  ylim(0, 1.2*max(vario_all_df$semivariance)))/
 (ggplot(vario_h_df, aes(x = distance_km, y = semivariance)) +
   geom_point()+ 
   xlab("Distance HRW (km)") +
