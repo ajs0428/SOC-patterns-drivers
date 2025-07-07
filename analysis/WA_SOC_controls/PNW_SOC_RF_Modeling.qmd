@@ -26,7 +26,6 @@ knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = 
 knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
 library(rgl)
 library(terra)
-library(terra)
 library(sf)
 library(mapview)
 library(car)
