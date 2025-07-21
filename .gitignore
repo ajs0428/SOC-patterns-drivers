@@ -1,8 +1,5 @@
 *
 !**/PNW*.qmd
-!**/*.rds
-!**/*.R
-!**/*.RData
 *Manuscript*
 *Supplementary*
 *.RHistory
