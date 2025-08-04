@@ -151,7 +151,7 @@ tune_instance_lab <- ti(task = RF_lab_task,
 
 
 ```{r}
-#| eval: true
+#| eval: false
 tuner_lab = mlr3tuning::tnr("grid_search", resolution = 10, batch_size = 5)
 tuner_lab$param_set
 tuner_lab$optimize(tune_instance_lab)
@@ -172,7 +172,9 @@ RF_lab_lrn_tuned$predict_type = "quantiles"
 RF_lab_lrn_tuned$param_set$values = tune_instance_lab$result_learner_param_vals[[1]]
 RF_lab_lrn_tuned$train(RF_lab_task)$model
 
-saveRDS(RF_lab_lrn_tuned, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds")
+RF_lab_lrn_tuned_whole <- RF_lab_lrn_tuned$train(RF_lab_task)
+
+saveRDS(RF_lab_lrn_tuned_whole, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds")
 RF_lab_lrn_tuned$model$r.squared
 ```
 

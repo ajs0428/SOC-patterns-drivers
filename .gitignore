@@ -1,6 +1,8 @@
 *
 !**/PNW*.qmd
+!writing/PNW_FiguresTables.qmd
 *Manuscript*
 *Supplementary*
 *.RHistory
 !.gitignore
+.Rproj.user

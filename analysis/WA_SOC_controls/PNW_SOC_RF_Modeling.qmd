@@ -182,7 +182,8 @@ RF_lrn_tuned$predict_type = "quantiles"
 RF_lrn_tuned$param_set$values = tune_instance$result_learner_param_vals[[1]]
 RF_lrn_tuned$train(RF_task)$model
 
-saveRDS(RF_lrn_tuned, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned.rds")
+RF_lrn_tuned_whole <- RF_lrn_tuned$train(RF_task)
+saveRDS(RF_lrn_tuned_whole, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned.rds")
 
 ```
 
