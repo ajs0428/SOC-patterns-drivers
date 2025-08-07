@@ -73,14 +73,19 @@ r.sq <- function(y,y.fitted){
 pnw_dat <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_data_MLR3_RFM_LMM.csv") |>
   dplyr::select(-site, -X, ) |>
   dplyr::mutate(across(where(is.character), as.factor))
-test <- read.csv("SOIL CARBON/All_WA/data/dataframes/Test_data.csv") |> 
-  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor))
 train <- read.csv("SOIL CARBON/All_WA/data/dataframes/Train_data.csv") |> 
   dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor))
+test <- read.csv("SOIL CARBON/All_WA/data/dataframes/Test_data.csv") |> 
+  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
+  mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)))
 test.wet <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_Test_Wet_data.csv") |> 
-  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor))
+  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
+  mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)),
+         LITH = factor(LITH, levels = levels(train$LITH)))
 test.upl <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_Test_Upl_data.csv") |> 
-  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor))
+  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
+  mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)),
+         LITH = factor(LITH, levels = levels(train$LITH)))
 
 glimpse(pnw_dat)
 glimpse(train) 
@@ -202,7 +207,7 @@ saveRDS(RF_rr, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_resamp
 ```{r}
 RF_rr <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_resampling.rds")
 RF_rr_acc <- RF_rr$score(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
-RF_rr_acc[, .(iteration, regr.rmse, regr.mse, rsq)]
+RF_rr_acc[, .(iteration, regr.rmse, regr.mse, regr.rsq)]
 RF_rr$aggregate(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
 autoplot(RF_rr, measure = msr("regr.rsq"), type = "histogram")
 autoplot(RF_rr, measure = msr("regr.rmse"), type = "histogram")
@@ -425,7 +430,7 @@ qrf_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
                       caret::postResample(pred = qrf.upl.test, 
                                           obs = (test.upl$SOC_stock_spline))[[1]])
     )
-qrf_errdf
+qrf_errdf |> flextable::flextable()
 
 readr::write_csv(qrf_errdf, file = "SOIL CARBON/All_WA/data/dataframes/MLR3_RFM_ErrorDF.csv")
 ```

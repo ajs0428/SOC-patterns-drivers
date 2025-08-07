@@ -391,7 +391,8 @@ gmod <- update(best_model, . ~ . + MAP + MAT -WIP -lower_depth - PET_MAP +
                  PET_MAP*WIP*lower_depth,
                              na.action = "na.fail")
 
-mod_dredge <- dredge(gmod, rank = "AIC", extra = "R^2", m.lim = c(1,10), 
+mod_dredge <- MuMIn::dredge(gmod, rank = "AIC", #extra = "R^2", 
+                            m.lim = c(1,10), 
                      subset =  (xor(MAP, PET_MAP) && !(MAP&&PET_MAP)),
                     fixed = c("lower_depth", "WIP" , "LITH", "CHM", "geomorphons"))
 
@@ -401,6 +402,7 @@ mod_dredge_2 <- get.models(mod_dredge, 2)[[1]]
 mod_dredge_3 <- get.models(mod_dredge, 3)[[1]]
 anova(mod_dredge_1, mod_dredge_2)
 anova(mod_dredge_1, mod_dredge_3)
+anova(mod_dredge_2, mod_dredge_3)
 ```
 
 
@@ -470,20 +472,29 @@ save(model_resid_fit_plot, file = "SOIL CARBON/All_WA/writing/Figures/Supplement
 ```
 
 ```{r}
-round(r.sq(y = (test_scale$SOC_stock_spline), 
-           y.fitted = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE)), 3)
-round(r.sq(y = (test_wet_scale$SOC_stock_spline), 
-           y.fitted = 10**predict(best_dredge_model, test_wet_scale, allow.new.levels = TRUE)), 3)
-round(r.sq(y = (test_upl_scale$SOC_stock_spline), 
-           y.fitted = 10**predict(best_dredge_model, test_upl_scale, allow.new.levels = TRUE)), 3)
 
-caret::RMSE(pred = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE), 
-            obs = test_scale$SOC_stock_spline)
-caret::RMSE(pred = 10**predict(best_dredge_model, test_wet_scale, allow.new.levels = TRUE), 
-            obs = test_wet_scale$SOC_stock_spline)
-caret::RMSE(pred = 10**predict(best_dredge_model, test_upl_scale, allow.new.levels = TRUE), 
-            obs = test_upl_scale$SOC_stock_spline)
 r2glmm::r2beta(best_dredge_model, method = "nsj")[1,]
+
+best_dredge_model_R2list <- c(
+  "lmmMargR2" = MuMIn::r.squaredGLMM(best_dredge_model)[1],
+  "lmmCondR2" = MuMIn::r.squaredGLMM(best_dredge_model)[2],
+  "lmmTestR2" = round(r.sq(y = (test_scale$SOC_stock_spline), 
+           y.fitted = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE)), 3),
+  "lmmTestR2wet" = round(r.sq(y = (test_wet_scale$SOC_stock_spline), 
+           y.fitted = 10**predict(best_dredge_model, test_wet_scale, allow.new.levels = TRUE)), 3),
+  "lmmTestR2upl" = round(r.sq(y = (test_upl_scale$SOC_stock_spline), 
+           y.fitted = 10**predict(best_dredge_model, test_upl_scale, allow.new.levels = TRUE)), 3),
+
+  "lmmTestRMSE" = caret::RMSE(pred = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE), 
+            obs = test_scale$SOC_stock_spline),
+  "lmmTestRMSEwet" = caret::RMSE(pred = 10**predict(best_dredge_model, test_wet_scale, allow.new.levels = TRUE), 
+            obs = test_wet_scale$SOC_stock_spline),
+  "lmmTestRMSEupl" = caret::RMSE(pred = 10**predict(best_dredge_model, test_upl_scale, allow.new.levels = TRUE), 
+            obs = test_upl_scale$SOC_stock_spline)
+  )
+best_dredge_model_R2list
+saveRDS(best_dredge_model_R2list, file = "SOIL CARBON/All_WA/writing/in_text_values/best_dredge_model_R2list.rds")
+
 
 ggplot()+
   geom_point(aes(y = test_scale$SOC_stock_spline,
