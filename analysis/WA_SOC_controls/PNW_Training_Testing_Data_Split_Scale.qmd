@@ -1,0 +1,255 @@
+---
+title: "Training and Testing Splitting for WA SOC Stocks and %"
+author: "Anthony Stewart"
+format: html
+---
+
+```{r setup}
+library(formatR)
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
+knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+library(tidyverse)
+library(terra)
+library(mlr3verse)
+library(mlr3spatial)
+library(tidyr)
+
+set.seed(11)
+```
+
+
+### Stock points with splined stock values
+
+
+```{r}
+hlef_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/hlef_pts_6394.gpkg"))
+hoh_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/hoh_pts_2855.gpkg")) #|> 
+mas_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/mas_pts_2856.gpkg")) #|> 
+col_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/col_pts_2855.gpkg")) #|> 
+
+
+pnw_dat <- rbind(hoh_dat, mas_dat, col_dat) |> 
+    select(names(hlef_dat)) |> 
+    rbind(hlef_dat) |> 
+    mutate(across(where(is.character),  as.factor),
+           site = fct_reorder(site, SOC_stock_spline, .fun = "median"),
+           PET_MAP = PET/MAP,
+           #SOC_stock_spline = log10(SOC_stock_spline)
+                                    ) |>
+    dplyr::rename_with(~gsub("_median", "", .x, fixed = TRUE)) |> 
+    dplyr::select(SOC_stock_spline, sample_ID, site, lower_depth,
+                          WIP, MAP, LITH, nlcd_reclass, PET_MAP,
+                         MAT, CHM, HLI, EVI, NDVI, DTM, geomorphons,
+                         dev_1000, dev_300, dev_50, 
+                         grad_1000, grad_300, grad_50)
+pnw_dat
+
+readr::write_csv(pnw_dat, "SOIL CARBON/All_WA/data/dataframes/PNW_data_MLR3_RFM_LMM.csv")
+
+```
+
+
+### Laboratory points with edaphic factors and carbon%
+
+```{r}
+hlef_lab_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/hlef_lab_pts_6394.gpkg"))
+hoh_lab_pts <- data.frame(vect("SOIL CARBON/All_WA/data/points/hoh_lab_pts_2855.gpkg"))
+mas_lab_pts <- data.frame(vect("SOIL CARBON/All_WA/data/points/mas_lab_pts_2856.gpkg"))
+col_lab_pts <- data.frame(vect("SOIL CARBON/All_WA/data/points/col_lab_pts_2855.gpkg"))
+
+pnw_dat_lab <- rbind(hoh_lab_pts, mas_lab_pts, col_lab_pts) |> 
+    select(names(hlef_lab_dat)) |> 
+    rbind(hlef_lab_dat) |> 
+    dplyr::filter(!is.na(pH)) |> 
+    mutate(
+        across(where(is.character),  as.factor),
+        site = fct_reorder(site, carbon_perc, .fun = "median"),
+        PET_MAP = PET/MAP) |>
+    dplyr::rename_with(~gsub("_median", "", .x, fixed = TRUE)) |> 
+    dplyr::select(carbon_perc, sample_ID, site, lower_depth,
+                         WIP, MAP, LITH, nlcd_reclass, PET_MAP,
+                         MAT, CHM, HLI, EVI, NDVI, DTM, geomorphons,
+                        pH, Sand, Silt, Clay, SiltClay,
+                         dev_1000, dev_300, dev_50, 
+                         grad_1000, grad_300, grad_50)
+pnw_dat_lab 
+
+readr::write_csv(pnw_dat_lab, "SOIL CARBON/All_WA/data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv")
+```
+
+### Split data into training and testing
+
+- The data should be split based on the `sample_ID` due to the relationship between horizons in the same pedon
+
+```{r}
+set.seed(11)
+
+training_portion <- 0.85
+
+stocks_tsk <- as_task_regr(pnw_dat, target = "SOC_stock_spline", id = "stocks")
+stocks_tsk$col_roles$group = c("sample_ID")
+split <- partition(stocks_tsk, ratio = training_portion)
+
+train <- pnw_dat[split$train,]
+test <- pnw_dat[-split$train,]
+train.wet <- pnw_dat[split$train,] |> filter(WIP >= 0.5)
+test.wet <- pnw_dat[-split$train,] |> filter(WIP >= 0.5)
+train.upl <- pnw_dat[split$train,] |> filter(WIP < 0.5)
+test.upl <- pnw_dat[-split$train,] |> filter(WIP < 0.5)
+
+nrow(train) 
+nrow(test)
+train |> group_by(site) |> summarise(n = n())
+test |> group_by(site) |> summarise(n = n())
+
+write.csv(pnw_dat, "SOIL CARBON/All_WA/data/dataframes/PNW_data_MLR3_RFM_LMM.csv")
+write.csv(test, "SOIL CARBON/All_WA/data/dataframes/Test_data.csv")
+write.csv(train, "SOIL CARBON/All_WA/data/dataframes/Train_data.csv")
+write.csv(test.wet, "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Wet_data.csv")
+write.csv(test.upl, "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Upl_data.csv")
+```
+
+
+```{r}
+lab_tsk <- as_task_regr(pnw_dat_lab, target = "carbon_perc", id = "lab")
+lab_tsk$col_roles$group = "sample_ID"
+split_lab <- partition(lab_tsk, ratio = 0.85)
+
+trainlab <- pnw_dat_lab[split_lab$train,]
+testlab <- pnw_dat_lab[-split_lab$train,]
+trainlab.wet <- pnw_dat_lab[split_lab$train,] |> filter(WIP >= 0.5)
+testlab.wet <- pnw_dat_lab[-split_lab$train,] |> filter(WIP >= 0.5)
+trainlab.upl <- pnw_dat_lab[split_lab$train,] |> filter(WIP < 0.5)
+testlab.upl <- pnw_dat_lab[-split_lab$train,] |> filter(WIP < 0.5)
+
+nrow(trainlab) 
+nrow(testlab)
+
+write.csv(pnw_dat_lab, "SOIL CARBON/All_WA/data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv")
+write.csv(testlab, "SOIL CARBON/All_WA/data/dataframes/Test_Lab_data.csv")
+write.csv(trainlab, "SOIL CARBON/All_WA/data/dataframes/Train_Lab_data.csv")
+write.csv(testlab.wet, "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Lab_Wet_data.csv")
+write.csv(testlab.upl, "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Lab_Upl_data.csv")
+```
+
+
+
+### Scaling the dataframes for the LMMs
+
+```{r}
+scale_fun <- function(traindf, scaledf, target, wip) {
+    
+    train_means <- traindf |> summarise(across(
+        dplyr::where(is.numeric) & !all_of(target),
+                  ~ dplyr::case_when(TRUE ~ mean(.))))
+    train_sd <- traindf |> summarise(across(
+            dplyr::where(is.numeric) & !all_of(target),
+                      ~ dplyr::case_when(TRUE ~ sd(.))))
+    train_scale_params <- rbind(train_means, train_sd) |> t() |> 
+      data.frame() |> 
+      tibble::rownames_to_column(var = "Parameter") |> 
+      rename("Mean" = "X1",
+             "SD" = "X2") 
+    if(tolower(wip) == "wet"){
+        scaled_df <- scaledf |> 
+          filter(WIP >= 0.50) |> 
+          dplyr::mutate(across(all_of(train_scale_params$Parameter), ~
+                      (.x - train_scale_params$Mean[match(cur_column(),
+                                                          train_scale_params$Parameter)])/
+                      train_scale_params$SD[match(cur_column(), 
+                                                  train_scale_params$Parameter)]))
+      } else if(tolower(wip) == "upl") {
+       scaled_df <- scaledf |> 
+          filter(WIP < 0.50) |> 
+          mutate(across(all_of(train_scale_params$Parameter), ~
+                      (.x - train_scale_params$Mean[match(cur_column(),
+                                                          train_scale_params$Parameter)])/
+                      train_scale_params$SD[match(cur_column(), 
+                                                  train_scale_params$Parameter)])) 
+      } else {
+        scaled_df <- scaledf |> 
+          mutate(across(all_of(train_scale_params$Parameter), ~
+                      (.x - train_scale_params$Mean[match(cur_column(),
+                                                          train_scale_params$Parameter)])/
+                      train_scale_params$SD[match(cur_column(), 
+                                                  train_scale_params$Parameter)]))
+      }
+      return(scaled_df)
+}
+```
+
+
+```{r}
+train_scale <- scale_fun(traindf = train, scaledf = train, 
+                         target = "SOC_stock_spline", wip = "all")
+train_wet_scale <- scale_fun(traindf = train, scaledf = train, 
+                             target = "SOC_stock_spline", wip = "wet")
+train_upl_scale <- scale_fun(traindf = train, scaledf = train,
+                             target = "SOC_stock_spline", wip = "upl")
+
+test_scale <- scale_fun(traindf = train, scaledf = test, 
+                        target = "SOC_stock_spline", wip = "all")
+test_wet_scale <- scale_fun(traindf = train, scaledf = test,
+                            target = "SOC_stock_spline", wip = "wet")
+test_upl_scale <- scale_fun(traindf = train, scaledf = test, 
+                            target = "SOC_stock_spline", wip = "upl")
+
+write_csv(train_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Scale.csv")
+write_csv(train_wet_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv")
+write_csv(train_upl_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Upl_Scale.csv")
+write_csv(test_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Scale.csv")
+write_csv(test_wet_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Wet_Scale.csv")
+write_csv(test_upl_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Upl_Scale.csv")
+```
+
+
+```{r}
+trainlab_scale <- scale_fun(traindf = trainlab, scaledf = trainlab, 
+                            target = "carbon_perc", wip = "all")
+trainlab_wet_scale <- scale_fun(traindf = trainlab, scaledf = trainlab, 
+                                target = "carbon_perc", wip = "wet")
+trainlab_upl_scale <- scale_fun(traindf = trainlab, scaledf = trainlab, 
+                                target = "carbon_perc", wip = "upl")
+
+testlab_scale <- scale_fun(traindf = trainlab, scaledf = testlab, 
+                           target = "carbon_perc", wip = "all")
+testlab_wet_scale <- scale_fun(traindf = trainlab, scaledf = testlab, 
+                               target = "carbon_perc", wip = "wet")
+testlab_upl_scale <- scale_fun(traindf = trainlab, scaledf = testlab, 
+                               target = "carbon_perc", wip = "upl")
+
+write_csv(trainlab_scale , 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Scale.csv")
+write_csv(trainlab_wet_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Wet_Scale.csv")
+write_csv(trainlab_upl_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Upl_Scale.csv")
+write_csv(testlab_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Scale.csv")
+write_csv(testlab_wet_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Wet_Scale.csv")
+write_csv(testlab_upl_scale, 
+          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Upl_Scale.csv")
+
+```
+
+
+
+```{r}
+hist(test$SOC_stock_spline)
+hist(train$SOC_stock_spline)
+
+train |> group_by(geomorphons) |> 
+  #filter(WIP > 0.5) |> 
+  summarise(mean=mean(SOC_stock_spline)) |> 
+  ggplot(aes(x = geomorphons, y = mean)) + geom_col()
+
+```
+

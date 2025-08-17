@@ -1,0 +1,373 @@
+---
+title: 'Data processing for interpolated depth intervals'
+author: "Anthony Stewart"
+output: html_document
+---
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+h1, h3 {
+  text-align: center;
+}
+```
+
+
+```{r setup, include=FALSE}
+library(formatR)
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 75)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
+knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+library(terra)
+library(aqp)
+library(ithir)
+library(mpspline2)
+library(dplyr)
+library(ggplot2)
+library(here)
+```
+
+### Data
+
+The dataset of SOC stock by horizons for 96 pedon locations in Washington state contains 481 separate observations.
+
+the first part is processiing raw data which is then 
+
+Heen Latinee Data points 
+
+```{r}
+#| eval: false
+HLEF_2022 <- openxlsx::read.xlsx("/Users/Anthony/OneDrive - UW/University of Washington/Lab Work/HLEF2022/HLEF2022LAB.xlsx", sheet = "HLEF_FullData") |>
+    mutate(top = case_when(is.na(depth_cm - lag(depth_cm)) ~ 0,
+                            (lag(depth_cm) > depth_cm) ~ 0,
+                               .default = lag(depth_cm)), 
+            bottom = depth_cm, 
+            center = case_when( (top > bottom) ~ top - top/2,
+                                   .default = abs(top - (top - bottom)/2)),
+           SiltClay = silt + clay, 
+           thickness_cm = case_when(is.na(depth_cm - lag(depth_cm)) ~ bottom,
+                                   (top > bottom) ~ bottom,
+                                   .default = bottom - top)) |> 
+  dplyr::select(sample_ID, lat, lon, depth_cm, 
+                BD_g_cm3, rock_perc, carbon_perc, ph,
+                sand, silt, clay, SiltClay,top, bottom, center, thickness_cm) |> 
+  rename(Sand = sand,
+         Silt = silt,
+         Clay = clay,
+         pH = ph) |>
+  mutate(carbon_stock_g_cm2 =
+           ((carbon_perc/100)*BD_g_cm3*thickness_cm)*(1-rock_perc/100)) |> 
+  group_by(sample_ID) |> 
+  filter(n() > 2)
+HLEF_2022
+```
+
+```{r}
+#| eval: false
+HLEF_USFS <- openxlsx::read.xlsx("HLEF/USFS_Box/HLEF_USFS_Upl.xlsx", 
+                                 sheet = "Sheet3", startRow = 1, detectDates = TRUE) |> 
+  rename(sample_ID = "sample_ID",
+         lat = latitude,
+         lon = longitude,
+         BD_g_cm3 = "bulk.density.(g/cm3)",
+         Clay = "clay.%",
+         Silt = "silt.%" ,
+         Sand = "sand.%",
+         rock_perc = "rock.frag.%", 
+         top = "min.depth.(cm)",
+         bottom = "max.depth.(cm)",
+         carbon_perc = "Total.Carbon.pcnt") |> 
+  mutate(thickness_cm = case_when(is.na(bottom - lag(bottom)) ~ bottom,
+                                   (top > bottom) ~ bottom,
+                                   .default = bottom - top),
+         center = case_when( (top > bottom) ~ top - top/2,
+                                   .default = abs(top - (top - bottom)/2)),
+         carbon_stock_g_cm2 = (carbon_perc/100)*thickness_cm*BD_g_cm3*(1-rock_perc/100),
+         depth_cm = bottom,
+         SiltClay = Silt + Clay) |>
+  select(sample_ID, lat, lon, BD_g_cm3, rock_perc, pH, Sand,
+         Silt, Clay, SiltClay, top, bottom, depth_cm, center, thickness_cm,
+         carbon_perc, carbon_stock_g_cm2) 
+
+names(HLEF_2022) %in% names(HLEF_USFS)
+
+HLEF_Full <- rbind(HLEF_2022, HLEF_USFS)
+
+```
+
+
+```{r}
+#| eval: false
+wa_dat <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_horizons.csv") |> 
+  dplyr::select(-redox, -field_texture_binned, -field_texture) |>
+  mutate(carbon_stock_g_cm2 = ((carbon_perc/100)*BD_g_cm3*thickness_cm)*(1-rock_perc/100))
+glimpse(wa_dat)
+
+# wa_dat |> mutate(stock_check = (carbon_perc*thickness_cm*BD_g_cm3)*(1-rock_perc/100)) |> 
+#   ggplot() + 
+#   geom_point(aes(x = carbon_stock_g_cm2, y = stock_check))
+
+ph_dat <- openxlsx::read.xlsx("/Users/Anthony/OneDrive - UW/University of Washington/Lab Work/WA_Texture_pH/All_PNW_horizons_pH_PSA Analysis.xlsx", sheet = "pH Datasheet", startRow = 2, cols = c(2:5)) |> 
+  na.omit() |> dplyr::select(`Site|depth`, pH)
+
+psa_dat <- openxlsx::read.xlsx("/Users/Anthony/OneDrive - UW/University of Washington/Lab Work/WA_Texture_pH/All_PNW_horizons_pH_PSA.xlsx", 
+                               sheet = "PSA Draft Analysis", cols = c(1:8)) |> 
+    dplyr::rename("SOCperc" = "SOC%",
+           "SiltClay" = "SILT+CLAY",
+           "sample_ID" = "Site",
+           "StudyArea" = "Study.Area",
+           "depth_cm" = "depth") |>
+  mutate("Site|depth" = paste0(sample_ID, "|", depth_cm)) |> 
+  dplyr::select(`Site|depth`, Sand, Silt, Clay, SiltClay)
+
+wa_dat_lab <- wa_dat |> 
+  left_join(y = ph_dat, by = join_by(helper == `Site|depth`)) |>
+  left_join(y = psa_dat, by = join_by(helper == `Site|depth`)) |> 
+  na.omit() |> 
+  mutate(
+         # Clay = case_when(is.na(Clay) ~ 0,
+         #                  .default = Clay),
+         # Silt = case_when(is.na(Silt) ~ 0,
+         #                  .default = Silt),
+         # Sand = case_when(is.na(Sand) ~ 0,
+         #                  .default = Sand),
+         SiltClay = Silt+Clay)
+glimpse(wa_dat_lab)
+
+readr::write_csv(wa_dat_lab, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/All_WA_horizons_pH_PSA_lab.csv")
+```
+
+Next we calculate top, center, and bottoms of the soil horizons
+
+```{r}
+#| eval: false
+HLEF_stocks <- HLEF_Full |> dplyr::select(sample_ID, top, center, rock_perc,
+                                          bottom, carbon_perc, 
+                                          lat, lon,
+                                          carbon_stock_g_cm2, BD_g_cm3)
+HLEF_lab <- HLEF_Full |> dplyr::select(sample_ID, top, center, rock_perc,
+                                       bottom, carbon_perc, carbon_stock_g_cm2,
+                                       lat, lon,
+                                       pH, Sand, Silt, Clay, SiltClay) |> 
+  filter(carbon_perc < 10)
+
+pnw_dat_horC <- wa_dat |>
+    mutate(top = case_when(is.na(depth_cm - lag(depth_cm)) ~ 0,
+                            (lag(depth_cm) > depth_cm) ~ 0,
+                               .default = lag(depth_cm)), 
+            bottom = depth_cm, 
+            center = case_when( (top > bottom) ~ top - top/2,
+                                   .default = abs(top - (top - bottom)/2)),
+           thickness_cm = case_when(is.na(depth_cm - lag(depth_cm)) ~ bottom,
+                                   (top > bottom) ~ bottom,
+                                   .default = bottom - top)) |>
+    dplyr::select(sample_ID, top, center, bottom, rock_perc,
+                  lat, lon,
+                  carbon_perc, carbon_stock_g_cm2, BD_g_cm3)  |> 
+  rbind(HLEF_stocks) 
+glimpse(pnw_dat_horC)
+readr::write_csv(pnw_dat_horC, "SOIL CARBON/All_WA/data/dataframes/pnw_stocks_data.csv")
+pnw_dat_horC |> group_by(sample_ID) |> summarise(lat = first(lat), lon = first(lon)) |> readr::write_csv("SOIL CARBON/All_WA/data/dataframes/pnw_stocks_latlon_only.csv")
+```
+
+
+```{r}
+#| eval: false
+
+pnw_dat_horC_lab <- wa_dat_lab |>
+    #filter(depth_cm <= 150) |>
+    mutate(top = case_when(is.na(depth_cm - lag(depth_cm)) ~ 0,
+                            (lag(depth_cm) > depth_cm) ~ 0,
+                               .default = lag(depth_cm)), 
+            bottom = depth_cm, 
+            center = case_when( (top > bottom) ~ top - top/2,
+                                   .default = abs(top - (top - bottom)/2)),
+           thickness_cm = case_when(is.na(depth_cm - lag(depth_cm)) ~ bottom,
+                                   (top > bottom) ~ bottom,
+                                   .default = bottom - top)) |> 
+    dplyr::select(sample_ID, top, center, bottom, rock_perc,
+                  carbon_perc, carbon_stock_g_cm2,
+                  lat, lon,
+                  pH, Sand, Silt, Clay, SiltClay) |> 
+  rbind(HLEF_lab) #|> filter(bottom <= 200) 
+glimpse(pnw_dat_horC_lab)
+
+readr::write_csv(pnw_dat_horC_lab, "SOIL CARBON/All_WA/data/dataframes/pnw_lab_data.csv")
+
+```
+
+
+```{r}
+#| label: start with post-processed data
+
+pnw_dat_horC <- read.csv(here("data/dataframes/pnw_stocks_data.csv"))
+pnw_dat_horC_lab <-  read.csv(here("data/dataframes/pnw_lab_data.csv"))
+```
+
+
+
+```{r}
+all_hor_n <- pnw_dat_horC |> 
+  mutate(site = case_when(lon < -130 ~ "HLEF",
+                          lon < -123 & lon > -130 ~ "Hoh",
+                          lon < -120 & lon > -122.9 ~ "Mas",
+                          lon > -120 ~ "Col")) |> 
+  group_by(site) |> 
+  summarise(n = n())
+
+min_hor_n <- pnw_dat_horC |> 
+  filter(carbon_perc < 10) |> 
+  mutate(site = case_when(lon < -130 ~ "HLEF",
+                          lon < -123 & lon > -130 ~ "Hoh",
+                          lon < -120 & lon > -122.9 ~ "Mas",
+                          lon > -120 ~ "Col")) |> 
+  group_by(site) |> 
+  summarise(n = n())
+
+diff_tbl <- all_hor_n |> left_join(min_hor_n, by = join_by(site), suffix = c(".all", ".min")) |>
+  mutate(diff = n.all - n.min,
+         perc_diff = round(diff/n.all, 2)) 
+diff_tbl
+```
+
+
+
+Next, create a subset of the data with only the predictor variables
+
+- This will be joined to the new spline dataframes
+
+- There should be 96 rows (number of pedons collected in WA) + 20 pedons in HLEF
+
+```{r}
+pnw_hor_dat_sub <- pnw_dat_horC |> dplyr::select(-c( 
+                                             carbon_perc, carbon_stock_g_cm2, rock_perc
+                                             )) |>
+    group_by(sample_ID) |>
+    filter(row_number() == 1) |> 
+    dplyr::select(sample_ID, everything())
+glimpse(pnw_hor_dat_sub)
+
+```
+
+In order to generate mapped predictions of SOC stock, we use adjust the dataset from observations of horizons of varying depths to observations of standard depth increments. Specifically, we use the mass-preserving spline method of Bishop et al (1999) (doi: 10.1016/S0016-7061(99)00003-8) to generate SOC stock estimates for intervals of 0-30cm, 30-60cm, and 60-100cm
+```{r }
+pnw_spl_soc <- mpspline_tidy(obj = pnw_dat_horC |> 
+                              select(sample_ID, top, bottom, carbon_stock_g_cm2), 
+                        var_name = "carbon_stock_g_cm2", 
+                        d = seq(0, 200, 25),
+                        lam = 0.7,
+                        vlow = 0.002,
+                        vhigh = 1.8)
+pnw_spl_percC <- mpspline_tidy(obj = pnw_dat_horC |> 
+                             filter(!is.na(carbon_perc)) |>
+                              select(sample_ID, top, bottom, carbon_perc), 
+                        var_name = "carbon_perc", 
+                        d = seq(0, 200, 25),
+                        lam = 0.7,
+                        vlow = 0.5,
+                        vhigh = 55)
+pnw_spl_bd <- mpspline_tidy(obj = pnw_dat_horC |> 
+                             filter(!is.na(BD_g_cm3)) |>
+                              select(sample_ID, top, bottom, BD_g_cm3), 
+                        var_name = "BD_g_cm3", 
+                        d = seq(0, 200, 25),
+                        lam = 0.7,
+                        vlow = 0.03,
+                        vhigh = 1.85)
+pnw_spl_rock <- mpspline_tidy(obj = pnw_dat_horC |> 
+                             filter(!is.na(BD_g_cm3)) |>
+                              select(sample_ID, top, bottom, rock_perc), 
+                        var_name = "rock_perc", 
+                        d = seq(0, 200, 25),
+                        lam = 0.7,
+                        vlow = 0,
+                        vhigh = 95)
+
+
+pnw_spl_dat_spline_join <- pnw_spl_soc$est_dcm |>
+    tibble::rownames_to_column(var = "spline_var") |> 
+    left_join(y = pnw_hor_dat_sub, by = join_by(sample_ID), 
+              relationship = "many-to-one") |>
+    left_join(y = pnw_spl_percC$est_dcm |> 
+                tibble::rownames_to_column(var = "spline_var") |> 
+                select(spline_var, SPLINED_VALUE) |>
+                dplyr::rename(carbon_perc = SPLINED_VALUE),
+              by = join_by(spline_var)) |>
+    left_join(y = pnw_spl_rock$est_dcm |> 
+                tibble::rownames_to_column(var = "spline_var") |> 
+                select(spline_var, SPLINED_VALUE) |>
+                dplyr::rename(rock_perc = SPLINED_VALUE),
+              by = join_by(spline_var)) |>
+    left_join(y = pnw_spl_bd$est_dcm |> 
+                tibble::rownames_to_column(var = "spline_var") |> 
+                select(spline_var, SPLINED_VALUE) |>
+                dplyr::rename(BD_Spline = SPLINED_VALUE),
+              by = join_by(spline_var)) |>
+    rename(SOC_stock_spline = SPLINED_VALUE,
+           upper_depth = UD,
+           lower_depth = LD) |> 
+  filter( lower_depth <= 150)
+glimpse(pnw_spl_dat_spline_join)
+min(pnw_spl_dat_spline_join$SOC_stock_spline)
+max(pnw_spl_dat_spline_join$SOC_stock_spline)
+nrow(pnw_spl_dat_spline_join)
+
+pnw_spl_dat_recalc_stocks <- pnw_spl_dat_spline_join |>
+  mutate(SOC_stock_recalc_spline = ((carbon_perc/100)*BD_Spline*20)*(1-rock_perc/100))
+max(pnw_spl_dat_recalc_stocks$SOC_stock_recalc_spline)
+glimpse(pnw_spl_dat_recalc_stocks)
+```
+
+
+```{r }
+write.csv(pnw_spl_dat_spline_join |> select(-spline_var), 
+          file = "SOIL CARBON/All_WA/data/dataframes/pnw_spl_datperc_0_15_30_60_100_150_200.csv")
+write.csv(pnw_spl_dat_spline_join |> select(-carbon_perc, -spline_var),
+          file = "SOIL CARBON/All_WA/data/dataframes/pnw_spl_dat_15_30_60_100_150_200.csv")
+write.csv(pnw_spl_dat_recalc_stocks |> select(-spline_var),
+          file = "SOIL CARBON/All_WA/data/dataframes/pnw_spl_dat_recalc_stocks_25cm.csv")
+
+
+```
+
+```{r}
+pnw_sum_spl <- pnw_spl_dat_spline_join |> 
+  group_by(lower_depth) |> 
+  summarise(meanSOC = mean(SOC_stock_spline),
+            n = n())
+
+ggplot() + 
+  geom_point(data = pnw_dat_horC |> filter(sample_ID == "PB-LOW-WET-63"), 
+             aes(x = carbon_stock_g_cm2, y = (bottom), colour = (bottom-top))) + 
+  geom_point(data = pnw_spl_dat_recalc_stocks|> filter(sample_ID == "PB-LOW-WET-63"), 
+             aes(x = SOC_stock_recalc_spline, y = (lower_depth)), colour = "red") +
+  scale_y_reverse()
+ggplot() + 
+  geom_point(data = pnw_dat_horC , 
+             aes(x = carbon_stock_g_cm2, y = (bottom), colour = (bottom-top))) + 
+  geom_point(data = pnw_spl_dat_recalc_stocks, 
+             aes(x = SOC_stock_recalc_spline, y = (lower_depth)), colour = "red") +
+  scale_y_reverse()
+ggplot(pnw_spl_dat_recalc_stocks) + 
+  geom_point(aes(y = lower_depth, x = SOC_stock_recalc_spline)) 
+
+ggplot(data = pnw_spl_dat_recalc_stocks |> 
+             group_by(lower_depth) |> 
+             summarise(mean = mean(SOC_stock_recalc_spline))) + 
+  geom_col( 
+           aes(y = mean, x = (lower_depth)))
+
+ggplot() + 
+  geom_point(data = pnw_dat_horC, 
+             aes(x = carbon_perc, y = (bottom)), colour = "blue") + 
+  geom_point(data = pnw_spl_dat_spline_join, 
+             aes(x = carbon_perc, y = (lower_depth)), colour = "red") +
+  scale_y_reverse()
+```
+
+```{r}
+range(pnw_spl_dat_recalc_stocks$SOC_stock_recalc_spline)
+```
+

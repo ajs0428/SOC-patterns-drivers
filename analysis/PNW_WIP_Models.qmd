@@ -1,0 +1,189 @@
+---
+title: "PNW Wetland Mapping"
+format: html
+---
+
+```{r}
+#| label: setup
+
+library(formatR)
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
+knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+
+library(terra)
+library(tidyverse)
+library(randomForest)
+```
+
+
+Functions
+
+```{r}
+mutate_tab <- function(table){
+    table |> mutate(Predictor = str_replace_all(Predictor, 
+                                                c(lower_depth = "Depth",
+                                                 PET_MAP = "PET:MAP",
+                                                 CHM = "Canopy Height",
+                                                 Hoh_TreeHeight = "Canopy Height",
+                                                 Band_1 = "NDWI", 
+                                                 Hoh_DTW_allrivers = "DTW",
+                                                 LITH = "PM",
+                                                 DTM = "Elevation", 
+                                                 geomorphons = "Landform",
+                                                 grad_1000 = "Gradient 1000m",
+                                                 grad_300 = "Gradient 300m",
+                                                 grad_150 = "Gradient 150m",
+                                                 grad_50 = "Gradient 50m",
+                                                 dev_1000 = "Deviation 1000m",
+                                                 dev_300 = "Deviation 300m",
+                                                 dev_50 = "Deviation 50m")))
+}
+
+theme_param <- theme(
+    text = element_text(size = 8),
+    legend.position = 'right', 
+    legend.key.size = unit(0.6, "cm"),
+    legend.spacing.x = unit(1.2, "cm"),
+    legend.text = element_text(size = rel(0.70), hjust = 0.5),
+    panel.background = element_blank(),
+    panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
+    axis.ticks = element_blank(),
+    axis.text = element_text(size = rel(0.8)),
+    axis.title = element_text(size = rel(1))
+    )
+```
+
+
+Data and model import       
+- HRW is already published twice Stewart et al., 2024 and Halabisky et al., 2023
+```{r}
+
+HLEF_ConfMat <- readRDS(("HLEF/HLEF WIP/WIP_Export/HLEF_RF_Model_Final_ConfMat_stats.rds"))
+HLEF_Model <- get(load("HLEF/HLEF WIP/WIP_Export/HLE_RF_Model_Final.RData"))
+
+HRW_ConfMat_only <- HLEF_ConfMat$table
+HRW_ConfMat_only[1,] <- c(190, 14)
+HRW_ConfMat_only[2,] <- c(10, 85)
+HRW_Model <- get(load("WIP/Hoh_data/Results/Hoh_2022_fullmodel_v08.RFmodel"))$model
+
+MRW_ConfMat <- get(load("Mashel/Mashel_WIP_2024/Model_Export/MAS_RF_Model_Final_ConfMat_stats.rda"))
+MRW_Model <- get(load("Mashel/Mashel_WIP_2024/Model_Export/MAS_RF_Model_Final.RData"))
+
+CVW_ConfMat <- get(load("Colville/Colville_WIP_2024/Model_Export/COL_RF_Model_Final_ConfMat_stats.rda"))
+CVW_Model <- get(load("Colville/Colville_WIP_2024/Model_Export/COL_RF_Model_Final.RData"))
+
+```
+
+Accuracy stats 
+- Pulling HRW from Halabisky et al., 2023
+```{r}
+
+
+All_WIP_Acc_DF <- data.frame(StudyArea = c("HLEF", "HRW", "MRW", "CVW"),
+                             OverallAcc = c(HLEF_ConfMat$overall[[1]], 0.92, 
+                                            MRW_ConfMat$overall[[1]], CVW_ConfMat$overall[[1]]),
+                             Kappa = c(HLEF_ConfMat$overall[[2]], kappa(HRW_ConfMat_only)[[1]], 
+                                   MRW_ConfMat$overall[[2]], CVW_ConfMat$overall[[2]]),
+                             OmissionWet = c(1- HLEF_ConfMat$byClass[[1]], 0.14, 
+                                           1- MRW_ConfMat$byClass[[1]], 1- CVW_ConfMat$byClass[[1]]),
+                             ComissionWet = c(1- HLEF_ConfMat$byClass[[2]], 0.11, 
+                                           1- MRW_ConfMat$byClass[[2]], 1- CVW_ConfMat$byClass[[2]])
+                             )
+
+All_WIP_Acc_DF
+
+readr::write_csv(All_WIP_Acc_DF, "SOIL CARBON/All_WA/data/dataframes/All_WIP_Acc_DF.csv")
+```
+
+Variable Importance
+
+```{r}
+HLEF_VarImp <- as_tibble(importance(HLEF_Model), rownames = "Predictor") |> select(Predictor, MeanDecreaseAccuracy) |> 
+    dplyr::arrange(desc(MeanDecreaseAccuracy)) |> mutate_tab() |> dplyr::slice(1:5) |> mutate(StudyArea = "HLEF")
+
+HRW_VarImp <- as_tibble(importance(HRW_Model), rownames = "Predictor") |> select(Predictor, MeanDecreaseAccuracy) |> 
+    dplyr::arrange(desc(MeanDecreaseAccuracy)) |> mutate_tab() |> dplyr::slice(1:5) |> mutate(StudyArea = "HRW")
+
+MRW_VarImp <- as_tibble(importance(MRW_Model), rownames = "Predictor") |> select(Predictor, MeanDecreaseAccuracy) |> 
+    dplyr::arrange(desc(MeanDecreaseAccuracy)) |> mutate_tab() |> dplyr::slice(1:5) |> mutate(StudyArea = "MRW")
+
+CVW_VarImp <- as_tibble(importance(CVW_Model), rownames = "Predictor") |> select(Predictor, MeanDecreaseAccuracy) |> 
+    dplyr::arrange(desc(MeanDecreaseAccuracy)) |> mutate_tab() |> dplyr::slice(1:5) |> mutate(StudyArea = "CVW")
+
+allsite_WIPimp <- rbind(HLEF_VarImp, HRW_VarImp, MRW_VarImp, CVW_VarImp) 
+
+readr::write_csv(allsite_WIPimp, file = "SOIL CARBON/All_WA/data/dataframes/PNW_WIP_VarImp.csv")
+
+
+```
+
+
+Wetland area comparison?
+
+NWI for each study area 
+```{r}
+
+NWI_area_fun <- function(NWI, studyarea) {
+    NWI_fil <- NWI |> terra::project(studyarea) |> 
+        terra::crop(y = studyarea) |> 
+        tidyterra::filter(WETLAND_TY != "Estuarine and Marine Deepwater",
+                                         WETLAND_TY != "Estuarine and Marine Wetland",
+                                         WETLAND_TY != "Freshwater Pond",
+                                         WETLAND_TY != "Lake") |> 
+        tidyterra::filter(!(WETLAND_TY == "Riverine" & ACRES > 100))
+    writeVector(NWI_fil, filename = paste0("SOIL CARBON/All_WA/data/Vectors/NWI/", 
+                                           str_extract(terra::sources(studyarea), 
+                                                       "HLEF|HOH|Mashel|Colville"),
+                                           "NWI_filtered.gpkg"), overwrite = TRUE)
+    NWI_Area <- sum(terra::expanse(NWI_fil, unit = "ha", transform = FALSE))
+    return(NWI_Area)
+}
+
+HLEF_NWI_Area <- NWI_area_fun(NWI = vect("NWI/HLEF_HU8_19010301_Watershed/HU8_19010301_Wetlands.shp") ,
+             vect("SOIL CARBON/All_WA/data/Vectors/HLEF_Polygon_EPSG_6394.gpkg"))
+HRW_NWI_Area <- NWI_area_fun(NWI = vect("NWI/HOH_NWI_CROP_RPJ.shp") |> 
+                                 tidyterra::filter(!(WETLAND_TY == "Riverine" & ACRES > 100)),
+             vect("SOIL CARBON/All_WA/data/Vectors/HOH_POLYGON_711.shp"))
+MRW_NWI_Area <- NWI_area_fun(NWI = vect("Mashel/Mashel_WIP_2024/DataExport/Mashel_NWI.shp") ,
+             vect("SOIL CARBON/All_WA/data/Vectors/Mashel_HUC12_2856.shp"))
+CVW_NWI_Area <- NWI_area_fun(NWI = vect("Colville/Colville_WIP_2024/DataExport/ColvilleNWI_filter.shp") ,
+             vect("SOIL CARBON/All_WA/data/Vectors/ColvilleHUC_2855.shp"))
+
+NWI_areas_df <- data.frame(StudyArea = c("HLEF", "HRW", "MRW", "CVW"),
+                           NWI_wet_ha = c(HLEF_NWI_Area, HRW_NWI_Area, MRW_NWI_Area, CVW_NWI_Area))
+
+readr::write_csv(NWI_areas_df, "SOIL CARBON/All_WA/data/dataframes/PNW_NWI_wetland_areas.csv")
+
+```
+
+
+WIP raster formatting (where else...)
+```{r}
+
+HLEF_WIP <- rast("SOIL CARBON/All_WA/data/Rasters/HLEF_WIP_6394.tif")
+HRW_WIP <- rast("SOIL CARBON/All_WA/data/Rasters/Hoh_WIP_Final_2855_Mask.tif")
+MRW_WIP <- rast("SOIL CARBON/All_WA/data/Rasters/Mashel_WIP_Final_2856_Mask.tif")
+CVW_WIP <- rast("SOIL CARBON/All_WA/data/Rasters/Colville_WIP_Final_2855_Mask.tif")
+
+HLEF_SOC <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/hlef_soc_water_urban_mask.tif")
+HRW_SOC <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/hoh_soc_water_urban_mask.tif")
+MRW_SOC <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/mas_soc_water_urban_mask.tif")
+CVW_SOC <- rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/col_soc_water_urban_mask.tif")
+
+
+HLEF_WIP_mask <- terra::mask(HLEF_WIP, mask = HLEF_SOC, maskvalues = NA, updatevalue = NA, 
+                             filename = "SOIL CARBON/All_WA/data/Rasters/VizRasters/HLEF_WIP_water_urban_mask.tif",
+                             overwrite = TRUE)
+HRW_WIP_mask <- terra::mask(HRW_WIP, mask = HRW_SOC, maskvalues = NA, updatevalue = NA, 
+                             filename = "SOIL CARBON/All_WA/data/Rasters/VizRasters/HRW_WIP_water_urban_mask.tif",
+                             overwrite = TRUE)
+MRW_WIP_mask <- terra::mask(MRW_WIP, mask = MRW_SOC, maskvalues = NA, updatevalue = NA, 
+                             filename = "SOIL CARBON/All_WA/data/Rasters/VizRasters/MRW_WIP_water_urban_mask.tif",
+                             overwrite = TRUE)
+CVW_WIP_mask <- terra::mask(CVW_WIP, mask = CVW_SOC, maskvalues = NA, updatevalue = NA, 
+                             filename = "SOIL CARBON/All_WA/data/Rasters/VizRasters/CVW_WIP_water_urban_mask.tif",
+                             overwrite = TRUE)
+
+```
+
