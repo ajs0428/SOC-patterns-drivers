@@ -24,7 +24,7 @@ but these are the necessary files
 
 
 The majority of the R code is contained in Quarto (.qmd) files \
-which is similar to R markdown and can be run in RStudio
+which is similar to Rmarkdown and can be run in RStudio
 
 R workflow for reproducing:
 
@@ -50,10 +50,17 @@ Otherwise the scripts model stocks
 
  	- Additional .qmd documents with "noWIP" are similar \
 modeling scripts but without the WIP parameter
-- Finally mapped are produced with 
+
+- Finally mapped SOC stock predictions are produced with 
 	- PNW_SOC_Prediction.qmd 
+	- QGIS for stylistic rendering
 	
-	- Final maps are made in QGIS 
+Figures and tables for the manuscript are created in
+    - PNW_Figures_Tables.qmd
+There are many figures and tables which require derived tables \
+or models from the earlier scripts. However these are also \
+in a zip folder
+- required_figurestables.zip
 
 
 Authors: 
