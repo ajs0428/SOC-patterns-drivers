@@ -103,6 +103,13 @@ RF_task$feature_names
 to_remove <- RF_task$feature_names[str_detect(RF_task$feature_names, "_1000|_300|_50|nlcd")]
 RF_task$select(dplyr::setdiff(RF_task$feature_names, to_remove))
 RF_task$feature_names
+
+RF_task_full <- mlr3::as_task_regr(pnw_dat, target = "SOC_stock_spline", id = "rfm")
+RF_task_full$set_col_roles("sample_ID", "group")
+RF_task_full$feature_names
+to_remove <- RF_task_full$feature_names[str_detect(RF_task_full$feature_names, "_1000|_300|_50|nlcd")]
+RF_task_full$select(dplyr::setdiff(RF_task_full$feature_names, to_remove))
+RF_task_full$feature_names
 ```
 
 
@@ -188,7 +195,18 @@ RF_lrn_tuned$param_set$values = tune_instance$result_learner_param_vals[[1]]
 RF_lrn_tuned$train(RF_task)$model
 
 RF_lrn_tuned_whole <- RF_lrn_tuned$train(RF_task)
-saveRDS(RF_lrn_tuned_whole, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned.rds")
+saveRDS(RF_lrn_tuned_whole, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned.rds") # This is the final model
+
+
+RF_lrn_full_tuned = lrn("regr.ranger", 
+                        quantile_response = 0.5,
+              quantiles = c(0.025, 0.5, 0.975))
+RF_lrn_full_tuned$predict_type = "quantiles"
+RF_lrn_full_tuned$param_set$values = tune_instance$result_learner_param_vals[[1]]
+RF_lrn_full_tuned$train(RF_task_full)$model
+
+RF_lrn_tuned_full <- RF_lrn_tuned$train(RF_task_full)
+saveRDS(RF_lrn_tuned_full, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned_fulldata.rds") # This is the final model
 
 ```
 
