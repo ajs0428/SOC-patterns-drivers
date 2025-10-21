@@ -297,6 +297,9 @@ saveRDS(ks_wet,
         file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Wet.rds")
 saveRDS(ks_upl, 
         file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Upl.rds")
+
+ks_full <- kernelshap(object = RF_lrn_full_tuned$model, X = rtbx, bg_X = train_select, parallel = T, )
+
 ```
 
 ```{r}
