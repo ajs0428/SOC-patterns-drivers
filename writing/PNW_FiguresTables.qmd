@@ -65,7 +65,7 @@ Data sources
 # knitr::purl("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/WA_SOC_controls/PNW_SOC_Prediction.qmd", output = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/WA_SOC_controls/PNW_SOC_Prediction.R")
 
 #source("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/WA_SOC_controls/PNW_SOC_Prediction.R")
-source("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/All_WA_Functions.R")
+source("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/All_WA_Functions.R") 
 ```
 
 ### Models
