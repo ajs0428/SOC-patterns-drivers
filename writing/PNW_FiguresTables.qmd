@@ -87,21 +87,23 @@ pnw_dat <- read.csv(here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv"))
 wa_stocks_dat <- read.csv(here("data/dataframes/All_WA_1m_stocks_preds.csv"))
 
 train <- read.csv(here("data/dataframes/Train_data.csv")) |> 
-  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor))
+  dplyr::select(-X) |> dplyr::mutate(across(where(is.character), as.factor))
 test <- read.csv(here("data/dataframes/Test_data.csv")) |> 
-  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
+  dplyr::select(-X) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
   mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)))
 test_viz <- read.csv(here("data/dataframes/Test_data.csv")) |> 
   dplyr::select( -X) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
   mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)))
 test.wet <- read.csv(here("data/dataframes/RFM_Test_Wet_data.csv")) |> 
-  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
+  dplyr::select(-X) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
   mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)))
 test.upl <- read.csv(here("data/dataframes/RFM_Test_Upl_data.csv")) |> 
-  dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
+  dplyr::select(-X) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
   mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)))
 RF_testpred <- read.csv(here("data/dataframes/PNW_SOC_RF_test_pred_response.csv")) |> 
   select(-WIP) |> 
+  cbind(test)
+LMM_testpred <- read.csv(here("data/dataframes/PNW_SOC_LMM_test_pred_response.csv")) |> 
   cbind(test)
 RF_testprednw <- read.csv(here("data/dataframes/PNW_SOC_RF_noWIP_test_pred_response.csv")) |> 
   cbind(test)
@@ -112,20 +114,23 @@ pnw_dat_lab <- read.csv(here("data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv")) |
   dplyr::select( -X)
 trainlab<- read.csv(
           file = here("data/dataframes/Train_Lab_data.csv")) |> 
-  dplyr::select(-site, -X)
+  dplyr::select(-X)
 testlab<- read.csv(
           file = here("data/dataframes/Test_Lab_data.csv"))|> 
-  dplyr::select(-site, -X)
+  dplyr::select(-X)
 testlab_viz<- read.csv(
           file = here("data/dataframes/Test_Lab_data.csv"))|> 
   dplyr::select( -X)
 testlab_wet<- read.csv(
           file = here("data/dataframes/RFM_Test_Lab_Wet_data.csv"))|> 
-  dplyr::select(-site, -X)
+  dplyr::select(X)
 testlab_upl<- read.csv(
           file = here("data/dataframes/RFM_Test_Lab_Upl_data.csv")) |> 
-  dplyr::select(-site, -X)
+  dplyr::select(-X)
 RF_testlabpred <- read.csv(here("data/dataframes/PNW_SOC_Edaphic_RF_test_pred_response.csv")) |>
+  select(-WIP) |> 
+  cbind(testlab)
+LMM_testlabpred <- read.csv(here("data/dataframes/PNW_SOC_Edaphic_LMM_test_pred_response.csv")) |>
   cbind(testlab)
 
 train_dat_scale <- read.csv(here("data/dataframes/PNW_Spline_Stocks_Train_Scale.csv"))
@@ -939,40 +944,42 @@ saveRDS(PNW_WIPimp_plot, "/Users/Anthony/OneDrive - UW/University of Washington/
 
 ```{r}
 
-predict_plot <- function(model, data) {
+predict_plot <- function(model_testpred) {
+  
+      fit_vals <- model_testpred["predict"]
+      true_vals <- model_testpred["truth"]
+      axis_max <- c(max(fit_vals)*1.1, max(true_vals)*1.1)[which.max(c(max(fit_vals), max(true_vals)))]
+      mod_string <- tolower(deparse(substitute(model_testpred)))
     
-    mod_string <- tolower(deparse(substitute(model)))
-    if(str_detect(mod_string, pattern = "lmm")) {
-        fit_vals <- 10**predict(model, data, allow.new.levels = TRUE)
-        dep_var <- all.vars(formula(model))[1]
-        WIP_vals <- data$WIP*sd(train$WIP) + mean(train$WIP)
-    } else if(str_detect(mod_string, pattern = "rf")){
-         fit_vals <- predict(model, data)
-         dep_var <- model$model$dependent.variable.name
-         WIP_vals <- data$WIP
-    }
+      if(str_detect(mod_string, pattern = "lmm") & str_detect(mod_string, pattern = "lab")) {
+        WIP_vals <- testlab["WIP"]
+      } else if(str_detect(mod_string, pattern = "lmm") & !str_detect(mod_string, pattern = "lab")) {
+        WIP_vals <- test["WIP"]
+      } else if(str_detect(mod_string, pattern = "rf") & str_detect(mod_string, pattern = "lab")){
+        WIP_vals <- testlab["WIP"]
+      } else if(str_detect(mod_string, pattern = "rf") & !str_detect(mod_string, pattern = "lab")) {
+        WIP_vals <- test["WIP"]
+      }
     
     
-    if(str_detect(dep_var, pattern = "carbon_perc")){
+    if(any(str_detect(names(model_testpred), pattern = "carbon_perc"))){
         xlabel <- "Observed SOC (%)"
         ylabel <- "Predicted SOC (%)"
-        axis_max <- floor(max(fit_vals, data[,1])*1.2)
-    } else if(str_detect(dep_var, pattern = "SOC_stock_spline")){
+    } else if(any(str_detect(names(model_testpred), pattern = "SOC_stock_spline"))){
         xlabel <- expression(Observed~SOC~g~cm^{"-2"})
         ylabel <- expression(Predicted~SOC~g~cm^{"-2"})
-        axis_max <- floor(max(fit_vals, data[,1])*1.2)
     }
     
+    
     #Graphing 
-    
-    
-    predict_graph <- ggplot(data = data) + 
-        geom_point(aes(y = fit_vals,
-                       x = .data[[dep_var]],
-                       fill = WIP_vals,
+
+    predict_graph <- ggplot(data = model_testpred) +
+        geom_point(aes(y = fit_vals[[1]],
+                       x = true_vals[[1]],
+                       fill = WIP_vals[[1]],
                        shape = site
-                       ), 
-                   #shape = 21, 
+                       ),
+                   #shape = 21,
                    size = 3.5) +
         geom_abline(intercept = 0, slope = 1) +
         scale_fill_gradientn(colours = RColorBrewer::brewer.pal(n = 9, name = "YlGnBu"),
@@ -982,19 +989,21 @@ predict_plot <- function(model, data) {
                              ) +
         scale_shape_manual(name = "Study\nArea",
                            values = c(21, 22, 24, 25),
-                           labels = c("Col" = "CVW", "HLEF" = "HLEF", 
+                           labels = c("Col" = "CVW", "HLEF" = "HLEF",
                                       "Hoh" = "HRW", "Mas" = "MRW")) +
         # annotate(geom = "text", x = axis_max/2, y = axis_max,
         #          label = as.expression(bquote(R^2 == .(R2)))) +
-        ylab(ylabel) + 
-        xlab(xlabel) + 
-        xlim(0, axis_max) + 
+        ylab(ylabel) +
+        xlab(xlabel) +
+        xlim(0, axis_max) +
         ylim(0, axis_max) +
         theme_param
 
     return(predict_graph)
     
 }
+
+predict_plot(RF_testlabpred)
 
 lmm_lab_r2 <- format(round(r.sq(y = testlab$carbon_perc, 
                                 y.fitted = 10**predict(lmm_lab, testlab_scale, 
@@ -1004,6 +1013,8 @@ qrf_lab_r2 <- format(round(r.sq(y = RF_testlabpred$truth,
 lmm_stocks_r2 <- format(round(r.sq(y = test_dat_scale$SOC_stock_spline,
                                    y.fitted = 10**predict(lmm_stocks, test_dat_scale,
                                              allow.new.levels = TRUE)), 2), nsmall = 2)
+lmm_stocks_noWIP_r2 <- format(round(r.sq(y = LMM_testprednw$truth,
+                                   y.fitted = LMM_testprednw$predict), 2), nsmall = 2)
 qrf_stocks_r2 <- format(round(r.sq(y = RF_testpred$truth, 
                                    y.fitted = RF_testpred$predict), digits = 2), nsmall = 2)
 qrf_stocks_noWIP_r2 <- format(round(r.sq(y = RF_testprednw$truth,
@@ -1016,25 +1027,28 @@ qrf_stocks_noWIP_r2 <- format(round(r.sq(y = RF_testprednw$truth,
 #| label: pred_act_plots
 #| fig-width: 6.5
 #| fig-height: 5
-lmm_lab_plot <- predict_plot(model = lmm_lab, 
-                             data = testlab_scale) +
+lmm_lab_plot <- predict_plot(LMM_testlabpred) +
     annotate(geom = "text", x = 6, y = 9,
              label = as.expression(bquote(R^2 == .(lmm_lab_r2)))) +
     theme(legend.position = "none") 
 
-lmm_stocks_plot <- predict_plot(model = lmm_stocks, data = test_dat_scale) +
+lmm_stocks_plot <- predict_plot(LMM_testpred) +
     annotate(geom = "text", x = 1.3, y = 1.8,
              label = as.expression(bquote(R^2 == .(lmm_stocks_r2)))) 
-
-qrf_stocks_plot <- predict_plot(model = QRFM_stocks, data = test_viz) +
+lmm_stocks_nw_plot <- predict_plot(LMM_testprednw) +
     annotate(geom = "text", x = 1.3, y = 1.8,
-             label = as.expression(bquote(R^2 == .(qrf_stocks_r2)))) 
-
-predict_plot(model = QRFM_stocks_noWIP, data = test_viz) +
+             label = as.expression(bquote(R^2 == .(lmm_stocks_noWIP_r2)))) 
+qrf_stocks_plot <- predict_plot(RF_testpred) +
     annotate(geom = "text", x = 1.3, y = 1.8,
-             label = as.expression(bquote(R^2 == .(qrf_stocks_r2))))
-
-qrf_lab_plot <- predict_plot(model = QRFM_lab, data = testlab_viz) + 
+             label = as.expression(bquote(R^2 == .(qrf_stocks_r2)))) +
+    annotate("rect", xmin = 1.25, xmax = 1.8, ymin = 0.8, ymax = 1.55, alpha = 0.1, 
+             colour = "red")
+qrf_stocks_nw_plot <- predict_plot(RF_testprednw) +
+    annotate(geom = "text", x = 1.3, y = 1.8,
+             label = as.expression(bquote(R^2 == .(qrf_stocks_noWIP_r2)))) + 
+    annotate("rect", xmin = 1.25, xmax = 1.8, ymin = 0.8, ymax = 1.55, alpha = 0.1, 
+             colour = "red")
+qrf_lab_plot <- predict_plot(RF_testlabpred) + 
     theme(legend.position = "none") +
     annotate(geom = "text", x = 6, y = 9,
              label = as.expression(bquote(R^2 == .(qrf_lab_r2)))) 
@@ -1044,18 +1058,20 @@ qrf_lab_plot <- predict_plot(model = QRFM_lab, data = testlab_viz) +
 # as_ggplot(wip_legend) 
 
 
-model_fit_plots <-( lmm_stocks_plot + ggtitle("LMM")) + 
-    (qrf_stocks_plot + ggtitle("RFM")) + lmm_lab_plot + qrf_lab_plot +
-    patchwork::plot_layout(nrow = 2, ncol = 2, axis_titles = "collect",
+model_fit_plots <-
+  (lmm_stocks_plot + ggtitle("LMM")) + (qrf_stocks_plot + ggtitle("RFM")) +
+  lmm_stocks_nw_plot + qrf_stocks_nw_plot +
+  lmm_lab_plot + qrf_lab_plot +
+    patchwork::plot_layout(nrow = 3, ncol = 2, axis_titles = "collect",
                            widths = 1, byrow = T, guides = "collect"
                           ) +
-    plot_annotation(tag_levels = list(c("A ", "B", "C", "D")), tag_suffix = ".") &
+    plot_annotation(tag_levels = list(c("A ", "B", "C", "D", "E", "F")), tag_suffix = ".") &
   theme( plot.tag = element_text(size = 8, face = "bold"),
-          plot.tag.position = c(0, 1.01),
+          plot.tag.position = c(0.1, 1.03),
           plot.title = element_text(hjust = 0.5),
           legend.key.width = unit(0.3, "cm"))
 model_fit_plots
-saveRDS(model_fit_plots, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Model_Test_Fit_Scatter.rds")
+saveRDS(model_fit_plots, file = here("writing/Figures/Model_Test_Fit_Scatter.rds"))
 ```
 
 

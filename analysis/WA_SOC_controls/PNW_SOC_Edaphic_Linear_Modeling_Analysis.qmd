@@ -119,7 +119,7 @@ trainlab_scale |> group_by(LITH) |>
             panel.grid.major = element_line("gray80"),
             axis.ticks = element_blank())
 
-pH_hist <- ggplot(trainlab, aes(x = pH)) + 
+pH_hist <- ggplot(trainlab_scale, aes(x = pH)) + 
   geom_histogram() +
   scale_fill_viridis_d(name = "Study Area", labels = c("CRW", "HRW", "MRW")) +
   theme(panel.background = element_blank(),
@@ -152,7 +152,7 @@ texture_triangle_plot <- ggsoiltexture(wa_tex_plotdat) +
           panel.background = element_blank())
 
 texture_triangle_plot
-save(texture_triangle_plot, file = "Swriting/Figures/Supplemental/texture_triangle_plot.rda"|> here())
+save(texture_triangle_plot, file = "writing/Figures/Supplemental/texture_triangle_plot.rda"|> here())
 ```
 
 
@@ -422,7 +422,7 @@ gmod_lab <- update(best_model_lab, . ~ . +
                     MAP + MAT*Clay*SiltClay, 
                    na.action = "na.fail", data = trainlab_scale)
 
-modlab_dredge <- dredge(gmod_lab, rank = "AIC", extra = "R^2", m.lim = c(1,10),
+modlab_dredge <- dredge(gmod_lab, rank = "AIC", m.lim = c(1,10),
                    fixed = c("lower_depth", "pH", "Clay"),
                    subset =  (xor(SiltClay, Clay) && !(SiltClay&&Clay) && xor(MAP, PET_MAP) && !(MAP&&PET_MAP)))
 
@@ -603,7 +603,7 @@ saveRDS(PI_trans_lab, file = "data/dataframes/LMM_PredictInterval_RMSE_Lab.rds" 
 saveRDS(PI_trans_wet_lab, 
         file = "data/dataframes/LMM_Wet_PredictInterval_RMSE_Lab.rds" |> here())
 saveRDS(PI_trans_upl_lab, 
-        file = "data/ dataframes/LMM_PredictInterval_Upl_RMSE_Lab.rds" |> here())
+        file = "data/dataframes/LMM_PredictInterval_Upl_RMSE_Lab.rds" |> here())
 
 ```
 
@@ -704,6 +704,12 @@ rmse_po_lab_u <- caret::RMSE(pred = 10**predict(modlab_dredge_1,
 mumin_R2m_lab <- MuMIn::r.squaredGLMM(modlab_dredge_1)[[1]]
 mumin_R2c_lab <- MuMIn::r.squaredGLMM(modlab_dredge_1)[[2]]
 
+
+LMM_testlabpred <- data.frame(truth = testlab_scale$carbon_perc,
+                             predict = 10**predict(modlab_dredge_1, 
+                                                   testlab_scale, allow.new.levels = TRUE))
+readr::write_csv(LMM_testlabpred,
+                 here("data/dataframes/PNW_SOC_Edaphic_LMM_test_pred_response.csv")) 
 
 mod_errdf_lab <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
                             "LMM.LogMargR2" = c(mumin_R2m_lab, -999, -999),

@@ -22,7 +22,7 @@ h1, h3, h4 {
 library(formatR)
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+
 library(rgl)
 library(terra)
 library(lme4)
@@ -61,6 +61,8 @@ library(grid)
 library(gridExtra)
 library(ppcor)
 library(stringr)
+library(here)
+here()
 
 knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
@@ -78,17 +80,17 @@ r.sq <- function(y,y.fitted){
 
 ```{r}
 train_scale <- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Scale.csv")
+          "data/dataframes/PNW_Spline_Stocks_Train_Scale.csv" |> here())
 train_wet_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv")
+          "data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv" |> here())
 train_upl_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Upl_Scale.csv")
+          "data/dataframes/PNW_Spline_Stocks_Train_Upl_Scale.csv" |> here())
 test_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Scale.csv")
+          "data/dataframes/PNW_Spline_Stocks_Test_Scale.csv" |> here())
 test_wet_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Wet_Scale.csv")
+          "data/dataframes/PNW_Spline_Stocks_Test_Wet_Scale.csv" |> here())
 test_upl_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Upl_Scale.csv")
+          "data/dataframes/PNW_Spline_Stocks_Test_Upl_Scale.csv" |> here())
 
 glimpse(test_scale)
 ```
@@ -442,7 +444,7 @@ anova(mod1, best_dredge_model)
 
 formula(best_dredge_model)
 
-saveRDS(best_dredge_model, file = "SOIL CARBON/All_WA/analysis/models/PNW_Model_Dredge_Spline.rds")
+saveRDS(best_dredge_model, file = "analysis/models/PNW_Model_Dredge_Spline.rds" |> here())
 ```
 
 
@@ -468,7 +470,7 @@ model_resid_fit_plot <- ggplot(mod_resid_fit, aes(x = fitted, y = resid)) +
     strip.text = element_text(size = 4.5)
   )
 model_resid_fit_plot
-save(model_resid_fit_plot, file = "SOIL CARBON/All_WA/writing/Figures/Supplemental/model_resid_fit_plot.Rdata")
+save(model_resid_fit_plot, file = "writing/Figures/Supplemental/model_resid_fit_plot.Rdata" |> here())
 ```
 
 ```{r}
@@ -493,7 +495,7 @@ best_dredge_model_R2list <- c(
             obs = test_upl_scale$SOC_stock_spline)
   )
 best_dredge_model_R2list
-saveRDS(best_dredge_model_R2list, file = "SOIL CARBON/All_WA/writing/in_text_values/best_dredge_model_R2list.rds")
+saveRDS(best_dredge_model_R2list, file = "writing/in_text_values/best_dredge_model_R2list.rds" |> here())
 
 
 ggplot()+
@@ -508,7 +510,7 @@ ggplot()+
 
 
 ```{r fig.show='hold', out.width="60%"}
-png(filename = "SOIL CARBON/All_WA/writing/Figures/Supplemental/qq_lev_full.png", width = 12, height = 8, units = "in", res = 300)
+png(filename = "writing/Figures/Supplemental/qq_lev_full.png" |> here(), width = 12, height = 8, units = "in", res = 300)
 par(mfcol = c(2,2))
 
 check_assump_func <- function(model) {
@@ -554,10 +556,10 @@ dev.off()
 library(spdep)
 library(sf)
 
-hlef_st <- st_read("SOIL CARBON/All_WA/data/points/hlef_pts_6394.gpkg") 
-hoh_st <- st_read("SOIL CARBON/All_WA/data/points/hoh_pts_2855.gpkg") |> dplyr::select(names(hlef_st))
-mas_st <- st_read("SOIL CARBON/All_WA/data/points/mas_pts_2856.gpkg") |> dplyr::select(names(hlef_st))
-col_st <- st_read("SOIL CARBON/All_WA/data/points/col_pts_2855.gpkg") |> dplyr::select(names(hlef_st))
+hlef_st <- st_read("data/points/hlef_pts_6394.gpkg" |> here()) 
+hoh_st <- st_read("data/points/hoh_pts_2855.gpkg" |> here()) |> dplyr::select(names(hlef_st))
+mas_st <- st_read("data/points/mas_pts_2856.gpkg" |> here()) |> dplyr::select(names(hlef_st))
+col_st <- st_read("data/points/col_pts_2855.gpkg" |> here()) |> dplyr::select(names(hlef_st))
 
 hlef_st_prj <- sf::st_transform(hlef_st, "EPSG:6931")
 hoh_st_prj <- sf::st_transform(hoh_st, "EPSG:6931")
@@ -579,7 +581,7 @@ pnw_st <- pnw_st_prj |>
 # #pnw_st_coords <- pnw_st |> sf::st_coordinates() |> data.frame()
 # #wa_dat_scale$X <- pnw_st_coords$X
 # #wa_dat_scale$Y <- pnw_st_coords$Y
-# #write.csv(wa_dat_scale, "SOIL CARBON/All_WA/data/dataframes/PNW_SOC_ExtractPreds_SFcoords.csv")
+# #write.csv(wa_dat_scale, "data/dataframes/PNW_SOC_ExtractPreds_SFcoords.csv" |> here())
 # 
 # 
 # # Create neighbors list using k-nearest neighbors
@@ -669,7 +671,7 @@ semivariograms <- (ggplot(vario_all_df, aes(x = distance_km, y = semivariance)) 
   xlab("Distance CVW (km)") +
   ylim(0, 1.2*max(vario_all_df$semivariance))) + plot_layout(axes = "collect")
 
-save(semivariograms, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/Semivariograms.RData")
+save(semivariograms, file = "writing/Figures/Supplemental/Semivariograms.Rdata" |> here())
 ```
 
 
@@ -721,7 +723,7 @@ ci_anova_df <- ci_anova_tab_func(model = best_dredge_model, data = train_scale)
 ci_anova_df
 
 
-readr::write_csv(ci_anova_df, "SOIL CARBON/All_WA/data/dataframes/anova_best_dredge_model_confint95.csv")
+readr::write_csv(ci_anova_df, "data/dataframes/anova_best_dredge_model_confint95.csv" |> here())
 
 ```
 
@@ -757,11 +759,11 @@ PI_trans <- PI_func(model = best_dredge_model, data = test_scale)
 PI_trans_wet <- PI_func(model = best_dredge_model, data = test_wet_scale)
 PI_trans_upl <- PI_func(model = best_dredge_model, data = test_upl_scale)
 
-saveRDS(PI_trans, file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_RMSE_Stocks.rds")
+saveRDS(PI_trans, file = "data/dataframes/LMM_PredictInterval_RMSE_Stocks.rds" |> here())
 saveRDS(PI_trans_wet, 
-        file = "SOIL CARBON/All_WA/data/dataframes/LMM_Wet_PredictInterval_RMSE_Stocks.rds")
+        file = "data/dataframes/LMM_Wet_PredictInterval_RMSE_Stocks.rds" |> here())
 saveRDS(PI_trans_upl, 
-        file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_Upl_RMSE_Stocks.rds")
+        file = "data/dataframes/LMM_PredictInterval_Upl_RMSE_Stocks.rds" |> here())
 
 
 ```
@@ -839,7 +841,7 @@ kf_rmse_u <- kFoldCV(K = 6,
 kf_df <- data.frame(LandscapeClass = c("Full", "Wetland", "Upland"), 
                     LMM.k2_rmse = c(kf_rmse[[2]], kf_rmse_w[[2]], kf_rmse_u[[2]]))
 kf_df
-readr::write_csv(kf_df, file = "SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_Depths_Dataframe.csv")
+readr::write_csv(kf_df, file = "data/dataframes/KFold_RMSE_Depths_Dataframe.csv" |> here())
 
 ```
 
@@ -871,6 +873,11 @@ plot(x = test_scale$SOC_stock_spline, y = 10**predict(best_dredge_model, test_sc
 mumin_R2m <- MuMIn::r.squaredGLMM(best_dredge_model)[[1]]
 mumin_R2c <- MuMIn::r.squaredGLMM(best_dredge_model)[[2]]
 
+LMM_testpred <- data.frame(truth = test_scale$SOC_stock_spline,
+                             predict = 10**predict(best_dredge_model, test_scale, re.form = NA,
+                                                          allow.new.levels = T))
+readr::write_csv(LMM_testpred,
+                 here("data/dataframes/PNW_SOC_LMM_test_pred_response.csv")) 
 
 mod_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
                                 "LMM.LogMargR2" = c(mumin_R2m, -999, -999),
@@ -881,7 +888,7 @@ mod_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
 
 mod_errdf
 
-readr::write_csv(mod_errdf, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/PNW_Stocks_model_fit.csv")
+readr::write_csv(mod_errdf, file = "data/dataframes/PNW_Stocks_model_fit.csv" |> here())
 ```
 
 
