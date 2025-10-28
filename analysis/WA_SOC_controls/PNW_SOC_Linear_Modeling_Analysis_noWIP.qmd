@@ -22,7 +22,7 @@ h1, h3, h4 {
 library(formatR)
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+
 library(rgl)
 library(terra)
 library(lme4)
@@ -61,7 +61,8 @@ library(grid)
 library(gridExtra)
 library(ppcor)
 library(stringr)
-
+library(here)
+here()
 knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
 ```
@@ -78,22 +79,22 @@ r.sq <- function(y,y.fitted){
 
 ```{r}
 train_scale <- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Scale.csv") |> 
+          "data/dataframes/PNW_Spline_Stocks_Train_Scale.csv" |> here()) |> 
   dplyr::select(-WIP)
 train_wet_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv")|> 
+          "data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv" |> here())|> 
   dplyr::select(-WIP)
 train_upl_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Upl_Scale.csv")|> 
+          "data/dataframes/PNW_Spline_Stocks_Train_Upl_Scale.csv" |> here())|> 
   dplyr::select(-WIP)
 test_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Scale.csv")|> 
+          "data/dataframes/PNW_Spline_Stocks_Test_Scale.csv" |> here())|> 
   dplyr::select(-WIP)
 test_wet_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Wet_Scale.csv")|> 
+          "data/dataframes/PNW_Spline_Stocks_Test_Wet_Scale.csv" |> here())|> 
   dplyr::select(-WIP)
 test_upl_scale<- read.csv(
-          "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Upl_Scale.csv")|> 
+          "data/dataframes/PNW_Spline_Stocks_Test_Upl_Scale.csv" |> here())|> 
   dplyr::select(-WIP)
 
 glimpse(test_scale)
@@ -397,9 +398,9 @@ gmod <- update(best_model, . ~ . + MAP + MAT -lower_depth - PET_MAP +
                  PET_MAP*lower_depth,
                              na.action = "na.fail")
 
-mod_dredge <- dredge(gmod, rank = "AIC", extra = "R^2", m.lim = c(1,10), 
+mod_dredge <- dredge(gmod, rank = "AIC", m.lim = c(1,10), 
                      subset =  (xor(MAP, PET_MAP) && !(MAP&&PET_MAP)),
-                    fixed = c("lower_depth", "WIP" , "LITH", "CHM", "geomorphons"))
+                    fixed = c("lower_depth", "geomorphons", "LITH"))
 
 head(mod_dredge, 10) 
 mod_dredge_1 <- get.models(mod_dredge, 1)[[1]] # fewest terms and lowest AIC
@@ -446,7 +447,7 @@ anova(mod1, best_dredge_model)
 
 formula(best_dredge_model)
 
-saveRDS(best_dredge_model, file = "SOIL CARBON/All_WA/analysis/models/PNW_Model_Dredge_Spline_noWIP.rds")
+saveRDS(best_dredge_model, file = "analysis/models/PNW_Model_Dredge_Spline_noWIP.rds" |> here())
 ```
 
 
@@ -472,7 +473,7 @@ model_resid_fit_plot <- ggplot(mod_resid_fit, aes(x = fitted, y = resid)) +
     strip.text = element_text(size = 4.5)
   )
 model_resid_fit_plot
-save(model_resid_fit_plot, file = "SOIL CARBON/All_WA/writing/Figures/Supplemental/model_resid_fit_plot_noWIP.Rdata")
+save(model_resid_fit_plot, file = "writing/Figures/Supplemental/model_resid_fit_plot_noWIP.rdata" |> here())
 ```
 
 ```{r}
@@ -497,6 +498,11 @@ ggplot()+
                  colour = test_scale$sample_ID)) +
   geom_abline(slope = 1, intercept = 0)
 
+LMM_testprednw <- data.frame(truth = test_scale$SOC_stock_spline,
+                             predict = 10**predict(best_dredge_model, test_scale,
+                                                   allow.new.levels = TRUE))
+readr::write_csv(LMM_testprednw,
+                 here("data/dataframes/PNW_SOC_LMM_noWIP_test_pred_response.csv"))
 ```
 
 #### Model assumptions check 
@@ -504,7 +510,7 @@ ggplot()+
 
 ```{r fig.show='hold', out.width="60%"}
 
-png(filename = "SOIL CARBON/All_WA/writing/Figures/Supplemental/qq_lev_full_noWIP.png", width = 12, height = 8, units = "in", res = 300)
+png(filename = "writing/Figures/Supplemental/qq_lev_full_noWIP.png" |> here(), width = 12, height = 8, units = "in", res = 300)
 
 par(mfcol = c(3,2))
 
@@ -573,7 +579,7 @@ ci_anova_df <- ci_anova_tab_func(model = best_dredge_model, data = train_scale)
 ci_anova_df
 
 
-readr::write_csv(ci_anova_df, "SOIL CARBON/All_WA/data/dataframes/anova_best_dredge_model_confint95_noWIP.csv")
+readr::write_csv(ci_anova_df, "data/dataframes/anova_best_dredge_model_confint95_noWIP.csv" |> here())
 
 ```
 
@@ -609,11 +615,11 @@ PI_trans <- PI_func(model = best_dredge_model, data = test_scale)
 PI_trans_wet <- PI_func(model = best_dredge_model, data = test_wet_scale)
 PI_trans_upl <- PI_func(model = best_dredge_model, data = test_upl_scale)
 
-saveRDS(PI_trans, file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_RMSE_StocksnoWIP_noWIP.rds")
+saveRDS(PI_trans, file = "data/dataframes/LMM_PredictInterval_RMSE_StocksnoWIP_noWIP.rds" |> here())
 saveRDS(PI_trans_wet, 
-        file = "SOIL CARBON/All_WA/data/dataframes/LMM_Wet_PredictInterval_RMSE_Stocks_noWIP.rds")
+        file = "data/dataframes/LMM_Wet_PredictInterval_RMSE_Stocks_noWIP.rds" |> here())
 saveRDS(PI_trans_upl, 
-        file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_Upl_RMSE_Stocks_noWIP.rds")
+        file = "data/dataframes/LMM_PredictInterval_Upl_RMSE_Stocks_noWIP.rds" |> here())
 
 
 ```
@@ -691,7 +697,7 @@ kf_rmse_u <- kFoldCV(K = 6,
 kf_df <- data.frame(LandscapeClass = c("Full", "Wetland", "Upland"), 
                     LMM.k2_rmse = c(kf_rmse[[2]], kf_rmse_w[[2]], kf_rmse_u[[2]]))
 kf_df
-readr::write_csv(kf_df, file = "SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_Depths_Dataframe_noWIP.csv")
+readr::write_csv(kf_df, file = "data/dataframes/KFold_RMSE_Depths_Dataframe_noWIP.csv" |> here())
 
 ```
 
@@ -733,7 +739,7 @@ mod_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
 
 mod_errdf
 
-readr::write_csv(mod_errdf, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/PNW_Stocks_model_fit_noWIP.csv")
+readr::write_csv(mod_errdf, file = "data/dataframes/PNW_Stocks_model_fit_noWIP.csv" |> here())
 ```
 ```{r}
 

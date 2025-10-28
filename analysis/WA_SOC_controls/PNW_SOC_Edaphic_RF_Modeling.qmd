@@ -193,7 +193,7 @@ saveRDS(RF_lab_rr, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_re
 ```{r}
 RF_lab_rr <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_resampling_LabData.rds")
 RF_lab_rr_acc <- RF_lab_rr$score(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
-RF_lab_rr_acc[, .(iteration, regr.rmse, regr.mse, rsq)]
+RF_lab_rr_acc[, .(iteration, regr.rmse, regr.mse, regr.rsq)]
 RF_lab_rr$aggregate(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
 autoplot(RF_lab_rr, measure = msr("regr.rsq"), type = "histogram")
 autoplot(RF_lab_rr, measure = msr("regr.rmse"), type = "histogram")
@@ -217,7 +217,7 @@ plot(RF_lab_lrn_tuned$predict_newdata(testlab_upl))
 tdflab <- data.frame(truth = RF_lab_lrn_tuned$predict_newdata(testlab)$truth,
            predict = RF_lab_lrn_tuned$predict_newdata(testlab)$response,
            WIP = testlab$WIP) #|> filter(truth < 1)
-
+write_csv(tdflab, here("data/dataframes/PNW_SOC_Edaphic_RF_test_pred_response.csv"))
 ggplot() +
   geom_point(aes(x = tdflab$truth, y = tdflab$predict, colour = tdflab$WIP)) +
   geom_abline(intercept = 0, slope = 1) +

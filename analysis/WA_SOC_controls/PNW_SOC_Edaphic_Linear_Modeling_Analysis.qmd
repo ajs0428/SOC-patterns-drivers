@@ -9,7 +9,6 @@ library(formatR)
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100,
                       message = FALSE, warning = FALSE)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
 library(rgl)
 library(openxlsx)
 library(terra)
@@ -51,6 +50,8 @@ library(mlr3spatial)
 library(iml)
 library(kernelshap)
 library(shapviz)
+library(here) 
+here()
 
 knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
@@ -71,19 +72,19 @@ r.sq <- function(y,y.fitted){
 NEED SAMPLE IDs
 
 ```{r}
-pnw_dat_lab <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv") 
+pnw_dat_lab <- read.csv("data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv" |> here()) 
 trainlab_scale<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Scale.csv")
+          file = "data/dataframes/PNW_Spline_Lab_Train_Scale.csv" |> here())
 trainlab_wet_scale<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Wet_Scale.csv")
+          file = "data/dataframes/PNW_Spline_Lab_Train_Wet_Scale.csv" |> here())
 trainlab_upl_scale<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Upl_Scale.csv")
+          file = "data/dataframes/PNW_Spline_Lab_Train_Upl_Scale.csv" |> here())
 testlab_scale<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Scale.csv")
+          file = "data/dataframes/PNW_Spline_Lab_Test_Scale.csv" |> here())
 testlab_wet_scale<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Wet_Scale.csv")
+          file = "data/dataframes/PNW_Spline_Lab_Test_Wet_Scale.csv" |> here())
 testlab_upl_scale<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Upl_Scale.csv")
+          file = "data/dataframes/PNW_Spline_Lab_Test_Upl_Scale.csv" |> here())
 
 ```
 
@@ -125,7 +126,7 @@ pH_hist <- ggplot(trainlab, aes(x = pH)) +
         panel.grid.major = element_line("gray80"),
         axis.ticks = element_blank())
 pH_hist
-save(pH_hist, file = "SOIL CARBON/All_WA/writing/Figures/Supplemental/pH_histogram.RData")
+save(pH_hist, file = "writing/Figures/Supplemental/pH_histogram.RData" |> here())
 ```
 
 ```{r}
@@ -151,7 +152,7 @@ texture_triangle_plot <- ggsoiltexture(wa_tex_plotdat) +
           panel.background = element_blank())
 
 texture_triangle_plot
-save(texture_triangle_plot, file = "SOIL CARBON/All_WA/writing/Figures/Supplemental/texture_triangle_plot.rda")
+save(texture_triangle_plot, file = "Swriting/Figures/Supplemental/texture_triangle_plot.rda"|> here())
 ```
 
 
@@ -479,14 +480,14 @@ anova(modlab1, best_dredge_model_lab)
 
 formula(best_dredge_model_lab)
 
-saveRDS(best_dredge_model_lab, file = "SOIL CARBON/All_WA/analysis/models/PNW_Model_Lab_dredge_best.rds")
+saveRDS(best_dredge_model_lab, file = "analysis/models/PNW_Model_Lab_dredge_best.rds" |> here())
 ```
 
 
 
 
 ```{r}
-png(filename = "SOIL CARBON/All_WA/writing/Figures/Supplemental/qq_lev_edaphic_full.png", width = 12, height = 8, units = "in", res = 300)
+png(filename = "writing/Figures/Supplemental/qq_lev_edaphic_full.png" |> here(), width = 12, height = 8, units = "in", res = 300)
 par(mfcol = c(2,2))
 check_assump_func <- function(model) {
   plot(model)
@@ -560,7 +561,7 @@ ci_anova_psa_tab <- ci_anova_tab_lab_func(model = modlab_dredge_3, data = trainl
 ci_anova_psa_tab
 
 
-readr::write_csv(ci_anova_psa_tab, "SOIL CARBON/All_WA/data/dataframes/LMM_Lab_confint95.csv")
+readr::write_csv(ci_anova_psa_tab, "data/dataframes/LMM_Lab_confint95.csv" |> here())
 
 ```
 
@@ -598,11 +599,11 @@ PI_trans_upl_lab <- PI_func(model = modlab_dredge_2, data = testlab_upl_scale)
 
 PI_trans_lab
 
-saveRDS(PI_trans_lab, file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_RMSE_Lab.rds")
+saveRDS(PI_trans_lab, file = "data/dataframes/LMM_PredictInterval_RMSE_Lab.rds" |> here())
 saveRDS(PI_trans_wet_lab, 
-        file = "SOIL CARBON/All_WA/data/dataframes/LMM_Wet_PredictInterval_RMSE_Lab.rds")
+        file = "data/dataframes/LMM_Wet_PredictInterval_RMSE_Lab.rds" |> here())
 saveRDS(PI_trans_upl_lab, 
-        file = "SOIL CARBON/All_WA/data/dataframes/LMM_PredictInterval_Upl_RMSE_Lab.rds")
+        file = "data/ dataframes/LMM_PredictInterval_Upl_RMSE_Lab.rds" |> here())
 
 ```
 
@@ -675,7 +676,7 @@ kf_rmse_lab_u <- kFoldCV_lab(K = 6,
 kf_df_lab <- data.frame(LandscapeClass = c("Full", "Wetland", "Upland"), 
                     LMM.k2_rmse = c(kf_rmse_lab[[2]], kf_rmse_lab_w[[2]], kf_rmse_lab_u[[2]]))
 kf_df_lab
-readr::write_csv(kf_df_lab, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_Lab_Depths_Dataframe.csv")
+readr::write_csv(kf_df_lab, file = "data/dataframes/KFold_RMSE_Lab_Depths_Dataframe.csv" |> here())
 ```
 
 
@@ -712,7 +713,7 @@ mod_errdf_lab <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
                             ) 
 mod_errdf_lab
 
-readr::write_csv(mod_errdf_lab, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/PNW_Lab_model_fit.csv")
+readr::write_csv(mod_errdf_lab, file = "data/dataframes/PNW_Lab_model_fit.csv" |> here())
 
 ```
 

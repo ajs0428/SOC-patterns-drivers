@@ -7,16 +7,15 @@ editor_options:
 
 ```{r setup, include=FALSE}
 library(formatR)
-knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100)
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", 
+                      time_it = TRUE, dpi = 100)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
 
-library(rgl)
 library(terra)
 library(lme4)
 library(MASS)
 library(lmerTest)
 library(MuMIn)
-library(sf)
 library(ggplot2)
 library(ggeffects)
 library(ggtext)
@@ -24,12 +23,11 @@ library(merTools)
 library(glmnet)
 library(stats)
 library(ggcorrplot)
+library(forcats)
 library(RColorBrewer)
 library(webshot)
 library(kableExtra)
-library(formatR)
-library(dplyr)
-library(stringr)
+library(tidyverse)
 library(flextable)
 library(ggnewscale)
 library(tidyterra)
@@ -37,18 +35,15 @@ library(ggpubr)
 library(ggspatial)
 library(patchwork)
 library(randomForest)
-#library(mlr3verse)
+library(mlr3)
+library(mlr3pipelines)
 library(pdp)
 library(kernelshap)
 library(shapviz)
 library(here)
-
-knitr::knit_hooks$set(webgl = hook_webgl)
+here()
+#knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
-
-terraOptions(
-    memfrac = 0.1
-)
 
 setGDALconfig("GDAL_PAM_ENABLED", "FALSE")
 
@@ -64,19 +59,21 @@ Data sources
 #| cache: true
 # knitr::purl("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/WA_SOC_controls/PNW_SOC_Prediction.qmd", output = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/WA_SOC_controls/PNW_SOC_Prediction.R")
 
-#source("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/WA_SOC_controls/PNW_SOC_Prediction.R")
-source("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/All_WA_Functions.R") 
+source(here("analysis/All_WA_Functions.R"))
+ 
 ```
 
 ### Models
 
 ```{r}
 
-lmm_stocks <- readRDS(("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/PNW_Model_Dredge_Spline.rds"))
-lmm_lab <- readRDS(("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/PNW_Model_Lab_dredge_best.rds"))
+lmm_stocks <- readRDS(here("analysis/models/PNW_Model_Dredge_Spline.rds"))
+lmm_stocks_noWIP <- readRDS(here("analysis/models/PNW_Model_Dredge_Spline_noWIP.rds"))
+lmm_lab <- readRDS(here("analysis/models/PNW_Model_Lab_dredge_best.rds"))
 
-QRFM_stocks <- readRDS(("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned.rds"))
-QRFM_lab <- readRDS(("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds"))
+QRFM_stocks <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
+QRFM_stocks_noWIP <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds"))
+QRFM_lab <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds"))
 
 ```
 
@@ -103,6 +100,13 @@ test.wet <- read.csv(here("data/dataframes/RFM_Test_Wet_data.csv")) |>
 test.upl <- read.csv(here("data/dataframes/RFM_Test_Upl_data.csv")) |> 
   dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
   mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)))
+RF_testpred <- read.csv(here("data/dataframes/PNW_SOC_RF_test_pred_response.csv")) |> 
+  select(-WIP) |> 
+  cbind(test)
+RF_testprednw <- read.csv(here("data/dataframes/PNW_SOC_RF_noWIP_test_pred_response.csv")) |> 
+  cbind(test)
+LMM_testprednw <- read.csv(here("data/dataframes/PNW_SOC_LMM_noWIP_test_pred_response.csv")) |> 
+  cbind(test)
 
 pnw_dat_lab <- read.csv(here("data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv")) |> 
   dplyr::select( -X)
@@ -121,6 +125,8 @@ testlab_wet<- read.csv(
 testlab_upl<- read.csv(
           file = here("data/dataframes/RFM_Test_Lab_Upl_data.csv")) |> 
   dplyr::select(-site, -X)
+RF_testlabpred <- read.csv(here("data/dataframes/PNW_SOC_Edaphic_RF_test_pred_response.csv")) |>
+  cbind(testlab)
 
 train_dat_scale <- read.csv(here("data/dataframes/PNW_Spline_Stocks_Train_Scale.csv"))
 train_dat_wet_scale <- read.csv(here("data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv"))
@@ -991,20 +997,23 @@ predict_plot <- function(model, data) {
 }
 
 lmm_lab_r2 <- format(round(r.sq(y = testlab$carbon_perc, 
-                   y.fitted = 10**predict(lmm_lab, testlab_scale, 
+                                y.fitted = 10**predict(lmm_lab, testlab_scale, 
                                           allow.new.levels = TRUE)), 2), nsmall = 2)
-qrf_lab_r2 <- format(round(r.sq(y = testlab$carbon_perc, 
-                  y.fitted = predict(QRFM_lab, testlab)), 2) , nsmall = 2)
-lmm_stocks_r2 <- format(round(r.sq(y = test_dat_scale$SOC_stock_spline, 
-                      y.fitted = 10**predict(lmm_stocks, test_dat_scale,
+qrf_lab_r2 <- format(round(r.sq(y = RF_testlabpred$truth, 
+                                y.fitted = RF_testlabpred$predict), 2) , nsmall = 2)
+lmm_stocks_r2 <- format(round(r.sq(y = test_dat_scale$SOC_stock_spline,
+                                   y.fitted = 10**predict(lmm_stocks, test_dat_scale,
                                              allow.new.levels = TRUE)), 2), nsmall = 2)
-qrf_stocks_r2 <- format(round(r.sq(y = test$SOC_stock_spline, 
-                      y.fitted = predict(QRFM_stocks, test)), 2), nsmall = 2)
+qrf_stocks_r2 <- format(round(r.sq(y = RF_testpred$truth, 
+                                   y.fitted = RF_testpred$predict), digits = 2), nsmall = 2)
+qrf_stocks_noWIP_r2 <- format(round(r.sq(y = RF_testprednw$truth,
+                                         y.fitted = RF_testprednw$predict), digits = 2), nsmall = 2)
 
 ```
 
 
 ```{r}
+#| label: pred_act_plots
 #| fig-width: 6.5
 #| fig-height: 5
 lmm_lab_plot <- predict_plot(model = lmm_lab, 
@@ -1020,6 +1029,10 @@ lmm_stocks_plot <- predict_plot(model = lmm_stocks, data = test_dat_scale) +
 qrf_stocks_plot <- predict_plot(model = QRFM_stocks, data = test_viz) +
     annotate(geom = "text", x = 1.3, y = 1.8,
              label = as.expression(bquote(R^2 == .(qrf_stocks_r2)))) 
+
+predict_plot(model = QRFM_stocks_noWIP, data = test_viz) +
+    annotate(geom = "text", x = 1.3, y = 1.8,
+             label = as.expression(bquote(R^2 == .(qrf_stocks_r2))))
 
 qrf_lab_plot <- predict_plot(model = QRFM_lab, data = testlab_viz) + 
     theme(legend.position = "none") +

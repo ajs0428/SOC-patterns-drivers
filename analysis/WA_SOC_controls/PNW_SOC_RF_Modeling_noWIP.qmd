@@ -23,7 +23,7 @@ h1, h3, h4 {
 library(formatR)
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE, results = "hide")
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+
 library(rgl)
 library(terra)
 library(terra)
@@ -53,6 +53,7 @@ library(mlr3extralearners)
 library(iml)
 library(kernelshap)
 library(shapviz)
+library(here)
 
 knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
@@ -71,17 +72,31 @@ r.sq <- function(y,y.fitted){
 
 
 ```{r}
-pnw_dat <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_data_MLR3_RFM_LMM.csv") |>
+pnw_dat <- read.csv(here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv")) |>
   dplyr::select(-site, -X) |>
   dplyr::mutate(across(where(is.character), as.factor))
-test <- read.csv("SOIL CARBON/All_WA/data/dataframes/Test_data.csv") |> 
-  dplyr::select(-site, -X) |> dplyr::mutate(across(where(is.character), as.factor))
-train <- read.csv("SOIL CARBON/All_WA/data/dataframes/Train_data.csv") |> 
-  dplyr::select(-site, -X) |> dplyr::mutate(across(where(is.character), as.factor))
-test.wet <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_Test_Wet_data.csv") |> 
-  dplyr::select(-site, -X) |> dplyr::mutate(across(where(is.character), as.factor))
-test.upl <- read.csv("SOIL CARBON/All_WA/data/dataframes/RFM_Test_Upl_data.csv") |> 
-  dplyr::select(-site, -X) |> dplyr::mutate(across(where(is.character), as.factor))
+train <- read.csv(here("data/dataframes/Train_data.csv")) |> 
+  dplyr::select(-site, -X) |> 
+  dplyr::mutate(across(where(is.character), as.factor),
+                geomorphons = factor(geomorphons, levels = levels(pnw_dat$geomorphons)),
+                nlcd_reclass = factor(nlcd_reclass, levels = levels(pnw_dat$nlcd_reclass)))
+test <- read.csv(here("data/dataframes/Test_data.csv")) |> 
+  dplyr::select(-site, -X) |> 
+  dplyr::mutate(across(where(is.character), as.factor),
+                geomorphons = factor(geomorphons, levels = levels(pnw_dat$geomorphons)),
+                nlcd_reclass = factor(nlcd_reclass, levels = levels(pnw_dat$nlcd_reclass)))
+test.wet <- read.csv(here("data/dataframes/RFM_Test_Wet_data.csv")) |> 
+  dplyr::select(-site, -X) |> 
+  dplyr::mutate(across(where(is.character), as.factor),
+                geomorphons = factor(geomorphons, levels = levels(pnw_dat$geomorphons)),
+                nlcd_reclass = factor(nlcd_reclass, levels = levels(pnw_dat$nlcd_reclass)),
+                LITH = factor(LITH, levels = levels(pnw_dat$LITH)))
+test.upl <- read.csv(here("data/dataframes/RFM_Test_Upl_data.csv")) |> 
+  dplyr::select(-site, -X) |> 
+  dplyr::mutate(across(where(is.character), as.factor),
+                geomorphons = factor(geomorphons, levels = levels(pnw_dat$geomorphons)),
+                nlcd_reclass = factor(nlcd_reclass, levels = levels(pnw_dat$nlcd_reclass)),
+                LITH = factor(LITH, levels = levels(pnw_dat$LITH)))
 
 glimpse(pnw_dat)
 glimpse(train) 
@@ -104,7 +119,7 @@ RF_task$feature_names
 
 ```{r}
 #| eval: false
-set.seed(11)
+
 # instance = fsi(
 #   task = RF_task,
 #   learner = lrn("regr.ranger", importance = "permutation"),
@@ -128,13 +143,13 @@ set.seed(11)
 # instance$result_y
 # instance$result
 # 
-# saveRDS(instance, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RecursiveFeat_Stocks_noWIP.rds")
+# saveRDS(instance, file = "analysis/models/MLR3_RecursiveFeat_Stocks_noWIP.rds" |> here())
 ```
 
 
 
 ```{r}
-#instance <- readRDS("SOIL CARBON/All_WA/analysis/models/MLR3_RecursiveFeat_Stocks_noWIP.rds")
+#instance <- readRDS("analysis/models/MLR3_RecursiveFeat_Stocks_noWIP.rds" |> here())
 #RF_task$select(instance$result_feature_set)
 RF_lrn <- lrn("regr.ranger",
               num.trees = to_tune(c(1000, 2000)),
@@ -169,13 +184,13 @@ tuner$optimize(tune_instance)
 tune_instance$result$learner_param_vals
 tuner$print()
 
-saveRDS(tune_instance, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tune_instance_noWIP.rds")
+saveRDS(tune_instance, file = "analysis/models/MLR3_RFM_Ranger_tune_instance_noWIP.rds" |> here())
 ```
 
 
 
 ```{r}
-tune_instance <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tune_instance_noWIP.rds")
+tune_instance <- readRDS(file = "analysis/models/MLR3_RFM_Ranger_tune_instance_noWIP.rds" |> here())
 RF_lrn_tuned = lrn("regr.ranger", 
                         quantile_response = 0.5,
               quantiles = c(0.025, 0.5, 0.975))
@@ -183,37 +198,37 @@ RF_lrn_tuned$predict_type = "quantiles"
 RF_lrn_tuned$param_set$values = tune_instance$result_learner_param_vals[[1]]
 RF_lrn_tuned$train(RF_task)$model
 
-saveRDS(RF_lrn_tuned, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds")
+saveRDS(RF_lrn_tuned, "analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds" |> here())
 
 ```
 
 Resampling
 ```{r}
 #| eval: false
-RF_lrn_tuned <- readRDS("SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds")
+RF_lrn_tuned <- readRDS("analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds" |> here())
 
 RF_CV <- rsmp("repeated_cv", repeats = 5, folds = 5)
 
 RF_rr <- mlr3::resample(RF_task, RF_lrn_tuned, RF_CV)
-saveRDS(RF_rr, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_resampling_noWIP.rds")
+saveRDS(RF_rr, file = "analysis/models/MLR3_RFM_Ranger_resampling_noWIP.rds" |> here())
 ```
 
 
 ```{r}
-RF_rr <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_resampling_noWIP.rds")
+RF_rr <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_resampling_noWIP.rds"))
 RF_rr_acc <- RF_rr$score(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
-RF_rr_acc[, .(iteration, regr.rmse, regr.mse, rsq)]
+RF_rr_acc[, .(iteration, regr.rmse, regr.mse, regr.rsq)]
 RF_rr$aggregate(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
 autoplot(RF_rr, measure = msr("regr.rsq"), type = "histogram")
 autoplot(RF_rr, measure = msr("regr.rmse"), type = "histogram")
 
 
-write_csv(RF_rr_acc, file = "SOIL CARBON/All_WA/data/dataframes/MLR3_RFM_Ranger_tuned_CV_results_noWIP.csv")
+write_csv(RF_rr_acc, file = "data/dataframes/MLR3_RFM_Ranger_tuned_CV_results_noWIP.csv" |> here())
 ```
 
 
 ```{r}
-RF_rr_acc <- read.csv("SOIL CARBON/All_WA/data/dataframes/MLR3_RFM_Ranger_tuned_CV_results_noWIP.csv")
+RF_rr_acc <- read.csv("data/dataframes/MLR3_RFM_Ranger_tuned_CV_results_noWIP.csv" |> here())
 
 measures <- msrs(c("regr.rmse", "regr.mse", "regr.rsq"))
 RF_lrn_tuned$predict_newdata(test)$score(measures)
@@ -225,8 +240,8 @@ plot(RF_lrn_tuned$predict_newdata(test.upl))
 
 
 tdf <- data.frame(truth = RF_lrn_tuned$predict_newdata(test)$truth,
-           predict = RF_lrn_tuned$predict_newdata(test)$response) #|> filter(truth < 1)
-
+           predict = RF_lrn_tuned$predict_newdata(test)$response)
+write_csv(tdf, here("data/dataframes/PNW_SOC_RF_noWIP_test_pred_response.csv"))
 ggplot() +
   geom_point(aes(x = tdf$truth, y = tdf$predict)) +
   geom_abline(intercept = 0, slope = 1) +
@@ -268,17 +283,17 @@ ks_wet
 ks_upl <- kernelshap(object = RF_lrn_tuned$model, X = rtbx_upl, bg_X = train_select, parallel = T)
 ks_upl
 
-saveRDS(ks, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_noWIP.rds")
+saveRDS(ks, file = "analysis/models/MLR3_RFM_Ranger_KernelShap_noWIP.rds" |> here())
 saveRDS(ks_wet, 
-        file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_noWIP.rds")
+        file = "analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_noWIP.rds" |> here())
 saveRDS(ks_upl, 
-        file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_noWIP.rds")
+        file = "analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_noWIP.rds" |> here())
 ```
 
 ```{r}
-ks <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_noWIP.rds")
-ks_wet <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_noWIP.rds")
-ks_upl <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_noWIP.rds")
+ks <- readRDS(file = "analysis/models/MLR3_RFM_Ranger_KernelShap_noWIP.rds" |> here())
+ks_wet <- readRDS(file = "analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_noWIP.rds" |> here())
+ks_upl <- readRDS(file = "analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_noWIP.rds" |> here())
 sv_importance(shapviz(ks))
 sv_importance(shapviz(ks_wet))
 sv_importance(shapviz(ks_upl))
@@ -312,7 +327,7 @@ RF_task_target <- RF_task$data(cols = RF_task$target_names)
 predictor <- iml::Predictor$new(RF_lrn_tuned,
                                 data = RF_task_feats, 
                                 y = RF_task_target)
-saveRDS(predictor, "SOIL CARBON/All_WA/analysis/models/MLR3_Predictor_noWIP.rds")
+saveRDS(predictor, "analysis/models/MLR3_Predictor_noWIP.rds" |> here())
 
 
 
@@ -323,30 +338,30 @@ ia_4 <- Interaction$new(predictor, feature = ks_vars$column[4])
 ia_5 <- Interaction$new(predictor, feature = ks_vars$column[5])
 
 saveRDS(ia_1, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_1_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Interact_1_plot_noWIP.rds" |> here())
 saveRDS(ia_2, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_2_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_2_plot_noWIP.rds" |> here())
 saveRDS(ia_3, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_3_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_3_plot_noWIP.rds" |> here())
 saveRDS(ia_4, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_4_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_4_plot_noWIP.rds" |> here())
 saveRDS(ia_5, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_5_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_5_plot_noWIP.rds" |> here())
 ```
 
 
 ```{r}
 
 ia_1 <- readRDS(
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_1_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Interact_1_plot_noWIP.rds" |> here())
 ia_2 <- readRDS(
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_2_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_2_plot_noWIP.rds" |> here())
 ia_3 <- readRDS( 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_3_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_3_plot_noWIP.rds" |> here())
 ia_4 <- readRDS(
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_4_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_4_plot_noWIP.rds" |> here())
 ia_5 <- readRDS( 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_5_plot_noWIP.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_5_plot_noWIP.rds" |> here())
 
 # ia_depth$results |> data.frame() |> dplyr::mutate(.feature = factor(.feature)) |>
 #   dplyr::mutate(.feature = fct_reorder(.feature, desc(.interaction))) |>
@@ -378,16 +393,16 @@ ia_3_plot
 ia_4_plot 
 ia_5_plot 
 
-saveRDS(ia_1_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_1_plot_noWIP.rds")
-saveRDS(ia_2_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_2_plot_noWIP.rds")
-saveRDS(ia_3_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_3_plot_noWIP.rds")
-saveRDS(ia_4_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_4_plot_noWIP.rds")
-saveRDS(ia_5_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_5_plot_noWIP.rds")
+saveRDS(ia_1_plot, file = "writing/Figures/MLR3_RFM_Interact_1_plot_noWIP.rds" |> here())
+saveRDS(ia_2_plot, file = "writing/Figures/MLR3_RFM_Interact_2_plot_noWIP.rds" |> here())
+saveRDS(ia_3_plot, file = "writing/Figures/MLR3_RFM_Interact_3_plot_noWIP.rds" |> here())
+saveRDS(ia_4_plot, file = "writing/Figures/MLR3_RFM_Interact_4_plot_noWIP.rds" |> here())
+saveRDS(ia_5_plot, file = "writing/Figures/MLR3_RFM_Interact_5_plot_noWIP.rds" |> here())
 ```
 
 
 ```{r}
-#mod_tc <-  get(load("SOIL CARBON/All_WA/analysis/models/RFM_traincontrol.RData"))
+#mod_tc <-  get(load("analysis/models/RFM_traincontrol.RData"))
 qrf.train <- RF_lrn_tuned$predict_newdata(train)$response
 
 qrf.test <- RF_lrn_tuned$predict_newdata(test)$response
@@ -426,7 +441,7 @@ qrf_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
     )
 qrf_errdf
 
-readr::write_csv(qrf_errdf, file = "SOIL CARBON/All_WA/data/dataframes/MLR3_RFM_ErrorDF_noWIP.csv")
+readr::write_csv(qrf_errdf, file = "data/dataframes/MLR3_RFM_ErrorDF_noWIP.csv" |> here())
 ```
 
 

@@ -52,6 +52,7 @@ library(mlr3extralearners)
 library(iml)
 library(kernelshap)
 library(shapviz)
+library(here)
 
 knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
@@ -250,7 +251,7 @@ plot(RF_lrn_tuned$predict_newdata(test.upl))
 tdf <- data.frame(truth = RF_lrn_tuned$predict_newdata(test)$truth,
            predict = RF_lrn_tuned$predict_newdata(test)$response,
            WIP = test$WIP) #|> filter(truth < 1)
-
+write_csv(tdf, here("data/dataframes/PNW_SOC_RF_test_pred_response.csv"))
 ggplot() +
   geom_point(aes(x = tdf$truth, y = tdf$predict, colour = tdf$WIP)) +
   geom_abline(intercept = 0, slope = 1) +
@@ -258,7 +259,7 @@ ggplot() +
   xlim(0, 4)
 
 
-caret::R2(pred = tdf$predict,obs = tdf$truth, form = "traditional")
+caret::R2(pred = tdf$predict, obs = tdf$truth, form = "traditional")
 ```
 
 
@@ -298,7 +299,7 @@ saveRDS(ks_wet,
 saveRDS(ks_upl, 
         file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Upl.rds")
 
-ks_full <- kernelshap(object = RF_lrn_full_tuned$model, X = rtbx, bg_X = train_select, parallel = T, )
+ks_full <- kernelshap(object = RF_lrn_full_tuned$model, X = rtbx, bg_X = pnw_dat_select, parallel = T)
 
 ```
 
