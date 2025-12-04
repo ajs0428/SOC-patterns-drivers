@@ -13,7 +13,11 @@ knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time
 
 library(tidyverse)
 library(mlr3)
-library(mlr3pipelines)
+library(mlr3pipelines) 
+library(mlr3tuning)
+library(mlr3learners)
+library(mlr3extralearners)
+library(mlr3viz)
 library(rgl)
 library(terra)
 library(tidyterra)
@@ -226,7 +230,7 @@ plot(hlef_stack$geomorphons)
 ```{r}
 
 #instance <- readRDS("analysis/models/MLR3_RecursiveFeat_Stocks.rds")
-features <- (names(QRFM_stocks_nw$model$variable.importance)[names(QRFM_stocks_nw$model$variable.importance) != "lower_depth"])
+features <- (names(QRFM_stocks_nw$model$model$variable.importance)[names(QRFM_stocks_nw$model$model$variable.importance) != "lower_depth"])
 features
 ```
 
@@ -295,9 +299,9 @@ terraOptions(
 #| eval: false
 
 soc_pred_func(model = QRFM_stocks_nw, 
-              pred_stack = hlef_stack_select, 
-              depth_ints = seq(25, 100, 25),
-              numcores = 4)
+              pred_stack = hlef_stack_select,
+              numcores = 4,
+              depth_ints = seq(25, 100, 25))
 soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = hoh_stack_select, 
               depth_ints = seq(25, 100, 25),
