@@ -9,12 +9,11 @@ editor_options:
 
 ```{r setup, include=FALSE}
 library(formatR)
-knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100)
-knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
+
 library(tidyverse)
-library(mlr3verse)
-library(mlr3spatial)
+library(mlr3)
+library(mlr3pipelines)
 library(rgl)
 library(terra)
 library(tidyterra)
@@ -30,8 +29,10 @@ library(webshot)
 library(kableExtra)
 library(formatR)
 library(stringr)
+library(here)
 
 
+# pak::pak(c("mlr-org/mlr3", "mlr-org/mlr3fselect"))
 knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
 
@@ -41,13 +42,25 @@ setGDALconfig("GDAL_PAM_ENABLED", "FALSE")
 Path to prediction folder
 
 ```{r}
-pred_path <- "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/"
+pred_path <- here("data/Rasters/PredictorStacks/")
 ```
+
+Datasets 
+
+```{r}
+pnw_dat <- read.csv(here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv")) |>
+  dplyr::select(-site, -X, ) |>
+  dplyr::mutate(across(where(is.character), as.factor))
+levels(pnw_dat$LITH)
+levels(pnw_dat$geomorphons)
+```
+
 
 Load in the best model 
 
 ```{r}
-QRFM_stocks <- readRDS(("SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned.rds"))
+QRFM_stocks <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
+QRFM_stocks_nw <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds"))
 ```
 
 
@@ -55,20 +68,20 @@ QRFM_stocks <- readRDS(("SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tune
 Load in the raster stacks 
 
 ```{r}
-#| eval: false
-hlef_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/HLEF_PredictorStack_Class.tif") |>
+#| eval: true
+hlef_stack <- rast(here("data/Rasters/PredictorStacks/HLEF_PredictorStack_Class.tif")) |>
     tidyterra::rename_with(~gsub("_median", "", .x, fixed = TRUE)) 
 hlef_stack$PET_MAP <- hlef_stack$PET/hlef_stack$MAP
 
-hoh_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Hoh_PredictorStack_Class.tif") |>
+hoh_stack <- rast(here("data/Rasters/PredictorStacks/Hoh_PredictorStack_Class.tif")) |>
     tidyterra::rename_with(~gsub("_median", "", .x, fixed = TRUE)) 
 hoh_stack$PET_MAP <- hoh_stack$PET/hoh_stack$MAP
 
-mas_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Mas_PredictorStack_Class.tif") |>
+mas_stack <- rast(here("data/Rasters/PredictorStacks/Mas_PredictorStack_Class.tif")) |>
     tidyterra::rename_with(~gsub("_median", "", .x, fixed = TRUE)) 
 mas_stack$PET_MAP <- mas_stack$PET/mas_stack$MAP
 
-col_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Col_PredictorStack_Class.tif") |>
+col_stack <- rast(here("data/Rasters/PredictorStacks/Col_PredictorStack_Class.tif")) |>
     tidyterra::rename_with(~gsub("_median", "", .x, fixed = TRUE)) 
 col_stack$PET_MAP <- col_stack$PET/col_stack$MAP
 
@@ -119,10 +132,10 @@ Lithology layer is having problems with `terra` so I'm loading in the vectors an
 
 ```{r}
 #| fig-show: hold
-hlef_consolidate_lith <- vect("SOIL CARBON/All_WA/data/Vectors/HLEF_lithology_consolidate.gpkg")
-hoh_consolidate_lith <- vect("SOIL CARBON/All_WA/data/Vectors/Hoh_lithology_consolidate.shp")
-mas_consolidate_lith <- vect("SOIL CARBON/All_WA/data/Vectors/Mas_lithology_consolidate.shp")
-col_consolidate_lith <- vect("SOIL CARBON/All_WA/data/Vectors/Col_lithology_consolidate.shp") 
+hlef_consolidate_lith <- vect(here("data/Vectors/HLEF_lithology_consolidate.gpkg"))
+hoh_consolidate_lith <- vect(here("data/Vectors/Hoh_lithology_consolidate.shp"))
+mas_consolidate_lith <- vect(here("data/Vectors/Mas_lithology_consolidate.shp"))
+col_consolidate_lith <- vect(here("data/Vectors/Col_lithology_consolidate.shp"))
 
 plot(hlef_stack$LITH)
 plot(hlef_consolidate_lith, "LITH")
@@ -136,25 +149,47 @@ plot(col_consolidate_lith, "LITH")
 
 
 ```{r}
+pnw_lith_lev <- data.frame(id = seq(0, length(levels(pnw_dat$LITH))-1, 1),
+                 LITH = levels(pnw_dat$LITH))
+hlef_m <- c(0, NA,
+            1, 2, 
+            2, 3,
+            3, 4,
+            4, 5) |> matrix(ncol = 2, byrow = TRUE)
+hlef_lith_rcl <- terra::classify(hlef_stack$LITH, hlef_m, include.lowest = T)
+levels(hlef_lith_rcl) <- pnw_lith_lev
+hlef_stack$LITH <- hlef_lith_rcl
 
-hlef_lith_df <- data.frame(id = seq(0, length(unique(hlef_consolidate_lith$LITH))-1, 1),
-                 LITH = c(NA, sort(unique(hlef_consolidate_lith$LITH)))
-                 )
-levels(hlef_stack$LITH) <- hlef_lith_df
-hoh_lith_df <- data.frame(id = seq(0, length(unique(hoh_consolidate_lith$LITH))-1, 1),
-                 LITH = c(sort(unique(hoh_consolidate_lith$LITH)))
-                 )
-levels(hoh_stack$LITH) <- hoh_lith_df
-mas_lith_df <- data.frame(id = seq(0, length(unique(mas_consolidate_lith$LITH))-1, 1),
-                 LITH = c(sort(unique(mas_consolidate_lith$LITH)))
-                 )
-levels(mas_stack$LITH) <- mas_lith_df
-col_lith_df <- data.frame(id = seq(0, length(unique(col_consolidate_lith$LITH))-1, 1),
-                 LITH = c(sort(unique(col_consolidate_lith$LITH)))
-                 )
-levels(col_stack$LITH) <- col_lith_df
+hoh_m <- c(0, 0,
+            1, 1, 
+            2, 4,
+           3, 5) |> matrix(ncol = 2, byrow = TRUE)
+hoh_lith_rcl <- terra::classify(hoh_stack$LITH, hoh_m, include.lowest = T)
+levels(hoh_lith_rcl) <- pnw_lith_lev
+hoh_stack$LITH <- hoh_lith_rcl
+
+mas_m <- c(0, 0,
+            1, 1, 
+            2, 2,
+            3, 4,
+            4, 5) |> matrix(ncol = 2, byrow = TRUE)
+mas_lith_rcl <- terra::classify(mas_stack$LITH, mas_m, include.lowest = T)
+levels(mas_lith_rcl) <- pnw_lith_lev
+mas_stack$LITH <- mas_lith_rcl
+
+col_m <- c(0, 0,
+            1, 1, 
+            2, 2,
+            3, 3,
+            4, 4,
+           5, 5) |> matrix(ncol = 2, byrow = TRUE)
+col_lith_rcl <- terra::classify(col_stack$LITH, col_m, include.lowest = T)
+levels(col_lith_rcl) <- pnw_lith_lev
+col_stack$LITH <- col_lith_rcl
+```
 
 
+```{r}
 plot(hlef_stack$LITH)
 plot(hlef_consolidate_lith, "LITH")
 plot(hoh_stack$LITH)
@@ -163,6 +198,24 @@ plot(mas_stack$LITH)
 plot(mas_consolidate_lith, "LITH")
 plot(col_stack$LITH)
 plot(col_consolidate_lith, "LITH")
+```
+
+#### Geomorphons levels
+
+All levels present in each study area
+
+```{r}
+pnw_geom_lev <- data.frame(id = seq(1, length(levels(pnw_dat$geomorphons)), 1),
+                 geomorphons = levels(pnw_dat$geomorphons))
+levels(hlef_stack$geomorphons) <- pnw_geom_lev
+
+levels(hoh_stack$geomorphons) <- pnw_geom_lev
+
+levels(mas_stack$geomorphons) <- pnw_geom_lev
+
+levels(col_stack$geomorphons) <- pnw_geom_lev
+
+plot(hlef_stack$geomorphons)
 ```
 
 
@@ -172,8 +225,8 @@ plot(col_consolidate_lith, "LITH")
 
 ```{r}
 
-#instance <- readRDS("SOIL CARBON/All_WA/analysis/models/MLR3_RecursiveFeat_Stocks.rds")
-features <- (names(QRFM_stocks$model$variable.importance)[names(QRFM_stocks$model$variable.importance) != "lower_depth"])
+#instance <- readRDS("analysis/models/MLR3_RecursiveFeat_Stocks.rds")
+features <- (names(QRFM_stocks_nw$model$variable.importance)[names(QRFM_stocks_nw$model$variable.importance) != "lower_depth"])
 features
 ```
 
@@ -181,7 +234,7 @@ features
 ```{r}
 
 hlef_stack_select <- hlef_stack |> tidyterra::select(all_of(features))
-# writeRaster(hlef_stack_select, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/HLEF_PredictorStack_Class_RFM_select.tif")
+# writeRaster(hlef_stack_select, "data/Rasters/PredictorStacks/HLEF_PredictorStack_Class_RFM_select.tif")
 names(hlef_stack_select) == features
 
 hoh_stack_select <- hoh_stack |> tidyterra::select(all_of(features))
@@ -195,7 +248,7 @@ names(col_stack_select) == features
 
 
 ```{r}
-soc_path <- "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/"
+soc_path <- here("data/Rasters/SOC_Predictions/")
 
 soc_pred_func <- function(model, pred_stack, depth_ints, numcores) {
   stopifnot(is.vector(depth_ints))
@@ -212,16 +265,16 @@ soc_pred_func <- function(model, pred_stack, depth_ints, numcores) {
   }
   
   rast_stack_sum <- sum(rast(rast_list))
-  writeRaster(rast_stack_sum, filename = paste0(soc_path, "PNW_", name, "_SOC_RFM_1m.tif"),
+  writeRaster(rast_stack_sum, filename = paste0(soc_path, "PNW_", name,
+                                                "_SOC_RFM_1m_noWIP.tif"),
               overwrite = TRUE)
   #return(rast_stack_sum)
 }
 
-#test <- soc_pred_func(QRFM_stocks, hlef_stack_select, 25)
+#test <- soc_pred_func(QRFM_stocks_nw, hlef_stack_select, 25)
 
 terraOptions(
-    memfrac = 0.7,
-    memmax = 1,
+    memfrac = 0.5,
     memmin = 0.1
 )
 
@@ -232,7 +285,7 @@ terraOptions(
 # mem_info(r)
 # 
 # system.time(
-# test <- soc_pred_func(model = QRFM_stocks, pred_stack = r, depth_ints = seq(25, 50, 25),
+# test <- soc_pred_func(model = QRFM_stocks_nw, pred_stack = r, depth_ints = seq(25, 50, 25),
 #                       numcores = 2)
 # )
 # plot(test)
@@ -241,22 +294,22 @@ terraOptions(
 ```{r}
 #| eval: false
 
-soc_pred_func(model = QRFM_stocks, 
+soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = hlef_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 6)
-soc_pred_func(model = QRFM_stocks, 
+              numcores = 4)
+soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = hoh_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 6)
-soc_pred_func(model = QRFM_stocks, 
+              numcores = 4)
+soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = mas_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 6)
-soc_pred_func(model = QRFM_stocks, 
+              numcores = 4)
+soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = col_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 6)
+              numcores = 4)
 ```
 
 ```{r}
@@ -278,22 +331,22 @@ plot(col_soc)
 
 ```{r}
 #| eval: false
-nlcd_cats_hlef <- read.csv("SOIL CARBON/All_WA/data/dataframes/nlcd_cats_hlef.csv") |> 
+nlcd_cats_hlef <- read.csv(here("data/dataframes/nlcd_cats_hlef.csv")) |> 
   dplyr::select(-X)
-nlcd_cats_hoh<- read.csv("SOIL CARBON/All_WA/data/dataframes/nlcd_cats_hoh.csv")|> 
+nlcd_cats_hoh<- read.csv(here("data/dataframes/nlcd_cats_hoh.csv"))|> 
   dplyr::select(-X)
-nlcd_cats_mas<- read.csv("SOIL CARBON/All_WA/data/dataframes/nlcd_cats_mas.csv")|> 
+nlcd_cats_mas<- read.csv(here("data/dataframes/nlcd_cats_mas.csv"))|> 
   dplyr::select(-X)
-nlcd_cats_col<- read.csv("SOIL CARBON/All_WA/data/dataframes/nlcd_cats_col.csv")|> 
+nlcd_cats_col<- read.csv(here("data/dataframes/nlcd_cats_col.csv"))|> 
   dplyr::select(-X)
 
-hlef_nlcd <- rast("SOIL CARBON/All_WA/data/Rasters/HLEF_nlcd_reclass.tif") 
+hlef_nlcd <- rast(here("data/Rasters/HLEF_nlcd_reclass.tif")) 
 levels(hlef_nlcd) <- nlcd_cats_hlef
-hoh_nlcd <- rast("SOIL CARBON/All_WA/data/Rasters/Hoh_nlcd_reclass.tif") 
+hoh_nlcd <- rast(here("data/Rasters/Hoh_nlcd_reclass.tif")) 
 levels(hoh_nlcd) <- nlcd_cats_hoh
-mas_nlcd <- rast("SOIL CARBON/All_WA/data/Rasters/Mashel_nlcd_reclass.tif") 
+mas_nlcd <- rast(here("data/Rasters/Mashel_nlcd_reclass.tif") )
 levels(mas_nlcd) <- nlcd_cats_mas
-col_nlcd <- rast("SOIL CARBON/All_WA/data/Rasters/Colville_nlcd_reclass.tif") 
+col_nlcd <- rast(here("data/Rasters/Colville_nlcd_reclass.tif")) 
 levels(col_nlcd) <- nlcd_cats_col
 
 
@@ -476,21 +529,21 @@ mappedSOC_1m_depths_sum_df <- soc_map_sum_classes(soc_list, wip_list)
 
 
 mappedSOC_1m_depths_sum_df
-readr::write_csv(mappedSOC_1m_depths_sum_df, "SOIL CARBON/All_WA/data/dataframes/PNW_MapSOC_wetupl_1m.csv")
+readr::write_csv(mappedSOC_1m_depths_sum_df, here("data/dataframes/PNW_MapSOC_wetupl_1m.csv"))
 ```
 
 
 
 ```{r}
 
-SOC_df <- readr::read_csv("SOIL CARBON/All_WA/data/dataframes/PNW_MapSOC_wetupl_1m.csv")
+SOC_df <- readr::read_csv(here("data/dataframes/PNW_MapSOC_wetupl_1m.csv"))
 
 SOC_df |> 
   mutate(across(contains("SOC"), ~ . * 100)) |> 
-  readr::write_csv("SOIL CARBON/All_WA/data/dataframes/PNW_MapSOC_wetupl_1m_Mgha.csv")
+  readr::write_csv(here("data/dataframes/PNW_MapSOC_wetupl_1m_Mgha.csv"))
 
 
-
+SOC_df
 ```
 
 
@@ -498,14 +551,14 @@ SOC_df |>
 
 ```{r }
 #| eval: false
-col_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/ColvilleHUC_2855.shp") 
-mas_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/Mashel_HUC12_2856.shp")
-hoh_studyarea <- vect("SOIL CARBON/All_WA/data/Vectors/HOH_POLYGON_711.shp")
-rastpath <- "SOIL CARBON/All_WA/data/Rasters/"
+col_studyarea <- vect(here("data/Vectors/ColvilleHUC_2855.shp")) 
+mas_studyarea <- vect(here("data/Vectors/Mashel_HUC12_2856.shp"))
+hoh_studyarea <- vect(here("data/Vectors/HOH_POLYGON_711.shp"))
+rastpath <- "data/Rasters/"
 
-CONUS_NWCA_Mean <- rast("NWCA Data/CONUS_Stock_Nov_20/CONUS_Full_Stock_Mean.tif")
-CONUS_NWCA_Max <- rast("NWCA Data/CONUS_Stock_Nov_20/CONUS_Full_Stock_Max.tif")
-CONUS_NWCA_Min <- rast("NWCA Data/CONUS_Stock_Nov_20/CONUS_Full_Stock_Max.tif")
+CONUS_NWCA_Mean <- rast("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/NWCA Data/CONUS_Stock_Nov_20/CONUS_Full_Stock_Mean.tif")
+CONUS_NWCA_Max <- rast("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/NWCA Data/CONUS_Stock_Nov_20/CONUS_Full_Stock_Max.tif")
+CONUS_NWCA_Min <- rast("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/NWCA Data/CONUS_Stock_Nov_20/CONUS_Full_Stock_Max.tif")
 
 NWCA_extract <- function(CONUS_NWCA_raster, studyarea, ref_raster, path, type){
   name <- paste0(str_extract(deparse(substitute(studyarea)), "hoh|mas|col"),
@@ -545,12 +598,13 @@ NWCA_df <- rbind(C_map_simp(hoh_NWCA/100),
 
 NWCA_df <- NWCA_df |> mutate(Name = c("Hoh NWCA", "Mas NWCA", "Col NWCA"))
 
-readr::write_csv(NWCA_df, "SOIL CARBON/All_WA/data/dataframes/NWCA_SOC_C_map_simp.csv")
+readr::write_csv(NWCA_df, here("data/dataframes/NWCA_SOC_C_map_simp.csv"))
 
 ```
 
 ```{r}
-nwca_soc_est <- read.csv("SOIL CARBON/All_WA/data/dataframes/NWCA_SOC_C_map_simp.csv")
+nwca_soc_est <- read.csv(here("data/dataframes/NWCA_SOC_C_map_simp.csv"))
+nwca_soc_est
 ```
 
 ### Model comparison 
@@ -561,14 +615,14 @@ nwca_soc_est <- read.csv("SOIL CARBON/All_WA/data/dataframes/NWCA_SOC_C_map_simp
 McNicol 2019 data for comparing to the HLEF
 
 ```{r}
-other_path <- "SOIL CARBON/All_WA/data/Rasters/OtherSOC_sources/"
-cr <- vect("HLEF/HLEF_Polygon_Filled.gpkg")
+other_path <- here("data/Rasters/OtherSOC_sources/")
+cr <- vect(here("data/Vectors/HLEF_Polygon_Filled.gpkg"))
 hlef_study_area <- hlef_consolidate_lith |> tidyterra::filter(!is.na(LITH)) |> 
   crop(y = cr |> project("EPSG:6394"))
-hoh_study_area <- vect("SOIL CARBON/All_WA/data/Vectors/HOH_POLYGON_711.gpkg") |> 
+hoh_study_area <- vect(here("data/Vectors/HOH_POLYGON_711.gpkg")) |> 
   project("EPSG:2855")
-mas_study_area <- vect("SOIL CARBON/All_WA/data/Vectors/Mashel_HUC12.shp") |> terra::aggregate() |> project("EPSG:2856")
-col_study_area <- vect("SOIL CARBON/All_WA/data/Vectors/ColvilleHUC_2855.shp") |> terra::aggregate()
+mas_study_area <- vect(here("data/Vectors/Mashel_HUC12.shp")) |> terra::aggregate() |> project("EPSG:2856")
+col_study_area <- vect(here("data/Vectors/ColvilleHUC_2855.shp")) |> terra::aggregate()
 
 
 other_soc_data_func <- function(other_dat, study_area_poly, study_area_wip){
@@ -608,7 +662,7 @@ mcnicol_soc_frac <- C_map_wet_fractions(mcnicol_hlef[[1]], mcnicol_hlef[[2]])
 
 mcnicol_soc_frac_form <- mcnicol_soc_frac |> mutate(StudyArea = "HLEF") |> 
   dplyr::select(StudyArea, everything())
-readr::write_csv(mcnicol_soc_frac_form, "SOIL CARBON/All_WA/data/dataframes/McNicol_2019_SOC_Frac_Estimates_HLEF.csv")
+readr::write_csv(mcnicol_soc_frac_form, "data/dataframes/McNicol_2019_SOC_Frac_Estimates_HLEF.csv")
 
 ```
 
@@ -643,7 +697,7 @@ gsoc_frac_col <- C_map_wet_fractions(gsoc_colsocwip[[1]], gsoc_colsocwip[[2]]) |
 gsoc_frac_pnw <- rbind(gsoc_frac_hlef, gsoc_frac_hoh, gsoc_frac_mas, gsoc_frac_col) |> 
   dplyr::select(StudyArea, everything())
 
-readr::write_csv(gsoc_frac_pnw, "SOIL CARBON/All_WA/data/dataframes/GSOC_Frac_Estimates_PNW.csv")
+readr::write_csv(gsoc_frac_pnw, "data/dataframes/GSOC_Frac_Estimates_PNW.csv")
 ```
 
 Dryw's data
@@ -674,7 +728,7 @@ ensemble_frac_col <- C_map_wet_fractions(ensemble_SOC_col[[1]], ensemble_SOC_col
 
 ensemble_PNW <- rbind(ensemble_frac_hlef, ensemble_frac_hoh, ensemble_frac_mas, ensemble_frac_col) |> dplyr::select(StudyArea, everything())
 
-readr::write_csv(ensemble_PNW, "SOIL CARBON/All_WA/data/dataframes/ensemble_Frac_Estimates_PNW.csv")
+readr::write_csv(ensemble_PNW, "data/dataframes/ensemble_Frac_Estimates_PNW.csv")
 ```
 
 
@@ -727,29 +781,29 @@ soc_quantpred_func <- function(model, pred_stack, depth_ints, numcores) {
 
 ```{r}
 #| eval: false
-soc_quantpred_func(model = QRFM_stocks, 
+soc_quantpred_func(model = QRFM_stocks_nw, 
               pred_stack = hlef_stack_select, 
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks, 
+soc_quantpred_func(model = QRFM_stocks_nw, 
               pred_stack = hoh_stack_select, 
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks, 
+soc_quantpred_func(model = QRFM_stocks_nw, 
               pred_stack = mas_stack_select, 
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks, 
+soc_quantpred_func(model = QRFM_stocks_nw, 
               pred_stack = col_stack_select, 
               depth_ints = seq(25, 100, 25),
               numcores = 6)
 ```
 
 ```{r}
-hlef_int_rast <- (rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/PNW_hlef_025_975_SOC_RFM_1m.tif"))
-hoh_int_rast <- (rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/PNW_hoh_025_975_SOC_RFM_1m.tif"))
-mas_int_rast <- (rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/PNW_mas_025_975_SOC_RFM_1m.tif"))
-col_int_rast <- (rast("SOIL CARBON/All_WA/data/Rasters/SOC_Predictions/PNW_col_025_975_SOC_RFM_1m.tif"))
+hlef_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_hlef_025_975_SOC_RFM_1m.tif"))
+hoh_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_hoh_025_975_SOC_RFM_1m.tif"))
+mas_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_mas_025_975_SOC_RFM_1m.tif"))
+col_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_col_025_975_SOC_RFM_1m.tif"))
 ```
 
 ```{r}
@@ -777,7 +831,7 @@ mappedSOC_025_1m_depths_sum_df <- soc_map_sum_classes(soc_025_list, wip_list)
 mappedSOC_975_1m_depths_sum_df <- soc_map_sum_classes(soc_975_list, wip_list)
 
 mappedSOC_025_1m_depths_sum_df
-readr::write_csv(mappedSOC_025_1m_depths_sum_df, "SOIL CARBON/All_WA/data/dataframes/PNW_mappedSOC_025_1m_depths_sum_df.csv")
-readr::write_csv(mappedSOC_975_1m_depths_sum_df, "SOIL CARBON/All_WA/data/dataframes/PNW_mappedSOC_975_1m_depths_sum_df.csv")
+readr::write_csv(mappedSOC_025_1m_depths_sum_df, "data/dataframes/PNW_mappedSOC_025_1m_depths_sum_df.csv")
+readr::write_csv(mappedSOC_975_1m_depths_sum_df, "data/dataframes/PNW_mappedSOC_975_1m_depths_sum_df.csv")
 ```
 

@@ -19,7 +19,7 @@ h1, h4, h3 {
 library(formatR)
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 75)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+
 library(terra)
 library(aqp)
 library(ithir)
@@ -28,6 +28,7 @@ library(dplyr)
 library(spatialEco)
 library(whitebox)
 library(stringr)
+library(here)
 
 #setGDALconfig("GDAL_PAM_ENABLED", "FALSE")
 
@@ -106,7 +107,7 @@ terrain_metrics(hoh_dem, path, "Hoh")
 
 #### Geomorphons specific classification
 ```{r}
-#| eval: false
+#| eval: true
 geomorph_names <- data.frame(
   value = seq(1,10,1),
   landform = c("Flat", "Peak", "Ridge", "Shoulder", "Spur", 
@@ -492,7 +493,7 @@ nlcd_reclass_func_hlef <- function(rast, name){
 
 
 ```{r}
- #| eval: false
+#| eval: false
 
 nlcd2011_hlef_rc <- nlcd_reclass_func_hlef(nlcd2011_hlef, "HLEF")
 nlcd2011_hoh_rc <- nlcd_reclass_func(nlcd2011_hoh, "Hoh")
@@ -665,7 +666,7 @@ topo_resample_write(topo_path = "Colville/Colville_WIP_2024/DataExport/", WIP = 
 
 stack_resampling <- function(Watershed, WIP, path) {
             
-  filelist <- list.files("SOIL CARBON/All_WA/data/Rasters", 
+  filelist <- list.files(here("data/Rasters"), 
                          pattern = Watershed, full.names = TRUE,
                          ignore.case = TRUE,
                          include.dirs = FALSE) |> 
@@ -710,7 +711,7 @@ stack_resampling <- function(Watershed, WIP, path) {
 #| eval: false
 
 
-l <- list.files("SOIL CARBON/All_WA/data/Rasters", 
+l <- list.files(here("data/Rasters"), 
                          pattern = "HLEF", full.names = TRUE,
                          ignore.case = TRUE,
                          include.dirs = FALSE) |> 
@@ -729,7 +730,7 @@ Stack all rasters within a study area by resampling to the same resolution. Most
 ```{r}
 #| eval: false
 
-predpath <- "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/"
+predpath <- here("data/Rasters/PredictorStacks/")
 hlef_stack <- stack_resampling("HLEF", hlef_wip, predpath)
 hoh_stack <- stack_resampling("Hoh", hoh_wip, predpath)
 mas_stack <- stack_resampling("Mashel", mas_wip, predpath)
@@ -742,49 +743,58 @@ Review stacks and rename some bands. Particularly WET -> WIP
 ```{r}
 #| eval: false
 
-hlef_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/HLEF_PredictorStack.tif") |>
+names_to_select <- c("CHM", "MAP", "MAT", "PET", "DTM", "geomorphons",
+                     "HLI", "LITH", "nlcd_reclass",  "NDVI_median", 
+                     "MNDWI_median", "EVI_median", "NDYI_median", "dev_1000", 
+                     "dev_300", "dev_50", "grad_1000", "grad_300", "grad_50", "WIP")
+
+hlef_stack <- rast(here("data/Rasters/PredictorStacks/HLEF_PredictorStack.tif")) |>
   tidyterra::rename(DTM = HLEF_DEM_5m,
                     #WIP = "SEAK_WIP_9-10-2021_output",
                     geomorphons = HLEF_geomorphons,
-                    CHM = veghlef210921) 
+                    CHM = veghlef210921) |> 
+  select(all_of(names_to_select))
 hlef_stack$geomorphons <- terra::subst(hlef_stack$geomorphons, 
                                        from = geomorph_names$value,
                                        to = geomorph_names_sub$value)
 levels(hlef_stack$geomorphons) <- geomorph_names_sub |> distinct()
-writeRaster(hlef_stack, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/HLEF_PredictorStack_Class.tif", overwrite = TRUE)
+writeRaster(hlef_stack, here("data/Rasters/PredictorStacks/HLEF_PredictorStack_Class.tif"), overwrite = TRUE)
 
-hoh_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Hoh_PredictorStack.tif") |>
+hoh_stack <- rast(here("data/Rasters/PredictorStacks/Hoh_PredictorStack.tif")) |>
   tidyterra::rename(DTM = hoh_dtm_resamp_7_23,
                     geomorphons = Hoh_geomorphons,
                     WIP = WET,
-                    CHM = Hoh_CanopyHeight) 
+                    CHM = Hoh_CanopyHeight) |> 
+  select(all_of(names_to_select))
 hoh_stack$geomorphons <- terra::subst(hoh_stack$geomorphons, 
                                        from = geomorph_names$value,
                                        to = geomorph_names_sub$value)
 levels(hoh_stack$geomorphons) <- geomorph_names_sub |> distinct()
-writeRaster(hoh_stack, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Hoh_PredictorStack_Class.tif", overwrite = TRUE)
+writeRaster(hoh_stack, here("data/Rasters/PredictorStacks/Hoh_PredictorStack_Class.tif"), overwrite = TRUE)
   
-mas_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Mashel_PredictorStack.tif") |> tidyterra::select(-UPL) |>
+mas_stack <- rast(here("data/Rasters/PredictorStacks/Mashel_PredictorStack.tif")) |> tidyterra::select(-UPL) |>
   tidyterra::rename(DTM = Band_1,
                     geomorphons = Mashel_geomorphons,
                     WIP = WET,
-                    CHM = lewis_2009_dsm_46)
+                    CHM = lewis_2009_dsm_46) |> 
+  select(all_of(names_to_select))
 mas_stack$geomorphons <- terra::subst(mas_stack$geomorphons, 
                                        from = geomorph_names$value,
                                        to = geomorph_names_sub$value)
 levels(mas_stack$geomorphons) <- geomorph_names_sub |> distinct()
-writeRaster(mas_stack, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Mas_PredictorStack_Class.tif", overwrite = TRUE)
+writeRaster(mas_stack, here("data/Rasters/PredictorStacks/Mas_PredictorStack_Class.tif"), overwrite = TRUE)
 
-col_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Colville_PredictorStack.tif") |> tidyterra::select(-UPL) |>
+col_stack <- rast(here("data/Rasters/PredictorStacks/Colville_PredictorStack.tif")) |> tidyterra::select(-UPL) |>
   tidyterra::rename(DTM = ColvilleDEM,
                     geomorphons = Colville_geomorphons,
                     WIP = WET,
-                    CHM = colville_2008_dsm_0)
+                    CHM = colville_2008_dsm_0) |> 
+  select(all_of(names_to_select))
 col_stack$geomorphons <- terra::subst(col_stack$geomorphons, 
                                        from = geomorph_names$value,
                                        to = geomorph_names_sub$value)
 levels(col_stack$geomorphons) <- geomorph_names_sub |> distinct()
-writeRaster(col_stack, "SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Col_PredictorStack_Class.tif", overwrite = TRUE)
+writeRaster(col_stack, herex("data/Rasters/PredictorStacks/Col_PredictorStack_Class.tif"), overwrite = TRUE)
 ```
 
 The raster stacks should have the same layers so use `names` to check
@@ -792,16 +802,12 @@ The raster stacks should have the same layers so use `names` to check
 
 ```{r}
 #| label: start here with post-processed data
-hlef_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/HLEF_PredictorStack_Class.tif")
-hoh_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Hoh_PredictorStack_Class.tif")
-mas_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Mas_PredictorStack_Class.tif")
-col_stack <- rast("SOIL CARBON/All_WA/data/Rasters/PredictorStacks/Col_PredictorStack_Class.tif")
+hlef_stack <- rast(here("data/Rasters/PredictorStacks/HLEF_PredictorStack_Class.tif"))
+hoh_stack <- rast(here("data/Rasters/PredictorStacks/Hoh_PredictorStack_Class.tif"))
+mas_stack <- rast(here("data/Rasters/PredictorStacks/Mas_PredictorStack_Class.tif"))
+col_stack <- rast(here("data/Rasters/PredictorStacks/Col_PredictorStack_Class.tif"))
 
-names(hoh_stack) == names(mas_stack) & names(hoh_stack)  == names(col_stack)
-
-# hoh_stack$GEO <- subst(hoh_stack$GEO, from = c(0,1,2,3), c("Eocene", "Miocene", "Pleistocene", "Quaternary")) 
-# mas_stack$GEO <- subst(mas_stack$GEO, from = c(0,1,2,3), c("Eocene", "Miocene", "Pleistocene", "Quaternary")) 
-# col_stack$GEO <- subst(col_stack$GEO, from = c(0,1,2,3), c("Eocene", "Pleistocene", "PreTertiary", "Quaternary")) 
+names(hlef_stack) == names(mas_stack) & names(hoh_stack)  == names(col_stack)
 
 ```
 
@@ -813,7 +819,7 @@ Soil pedon locations contain multiple observations per pedon, one for each horiz
 These data are from `PNW_SOC_spline_processing.qmd`
 
 ```{r}
-pnw_dat <- read.csv("SOIL CARBON/All_WA/data/dataframes/pnw_spl_dat_recalc_stocks_25cm.csv") |>
+pnw_dat <- read.csv(here("data/dataframes/pnw_spl_dat_recalc_stocks_25cm.csv")) |>
     dplyr::select(sample_ID, lower_depth, SOC_stock_recalc_spline, lat, lon) |> 
   rename(SOC_stock_spline = SOC_stock_recalc_spline) |> 
   mutate(site = case_when(lon < -130 ~ "HLEF",
@@ -827,7 +833,7 @@ plot(pnw_dat_pts, "site")
 ```
 
 ```{r}
-pnw_dat_lab <- read.csv("SOIL CARBON/All_WA/data/dataframes/pnw_lab_data.csv") |>
+pnw_dat_lab <- read.csv(here("data/dataframes/pnw_lab_data.csv")) |>
     dplyr::select(sample_ID, bottom, carbon_stock_g_cm2, carbon_perc,
                   pH, Sand, Silt, Clay, SiltClay,lat, lon) |>
   rename("lower_depth" = "bottom") |> 
@@ -849,42 +855,42 @@ The locations of the pedon observations are used to extract all geospatial metri
 ```{r}
 pnw_dat_pts |> filter(site == "HLEF") |> project("EPSG:6394") |> 
   terra::extract(x = hlef_stack, bind = TRUE, method = "simple") |>
-  writeVector("SOIL CARBON/All_WA/data/points/hlef_pts_6394.gpkg", overwrite = TRUE)
+  writeVector(here("data/points/hlef_pts_6394.gpkg"), overwrite = TRUE)
 pnw_dat_pts |> filter(site == "Hoh") |> project("EPSG:2855") |> 
   terra::extract(x = hoh_stack, bind = TRUE, method = "simple") |>
-  writeVector("SOIL CARBON/All_WA/data/points/hoh_pts_2855.gpkg", overwrite = TRUE)
+  writeVector(here("data/points/hoh_pts_2855.gpkg"), overwrite = TRUE)
 pnw_dat_pts |> filter(site == "Mas") |> project("EPSG:2856") |> 
   terra::extract(x = mas_stack, bind = TRUE) |>
-  writeVector("SOIL CARBON/All_WA/data/points/mas_pts_2856.gpkg", overwrite = TRUE)
+  writeVector(here("data/points/mas_pts_2856.gpkg"), overwrite = TRUE)
 pnw_dat_pts |> filter(site == "Col") |> project("EPSG:2855") |> 
   terra::extract(x = col_stack, bind = TRUE) |>
-  writeVector("SOIL CARBON/All_WA/data/points/col_pts_2855.gpkg", overwrite = TRUE)
+  writeVector(here("data/points/col_pts_2855.gpkg"), overwrite = TRUE)
 
-hlef_pts <- vect("SOIL CARBON/All_WA/data/points/hlef_pts_6394.gpkg")
-hoh_pts <- vect("SOIL CARBON/All_WA/data/points/hoh_pts_2855.gpkg") 
-mas_pts <- vect("SOIL CARBON/All_WA/data/points/mas_pts_2856.gpkg")
-col_pts <- vect("SOIL CARBON/All_WA/data/points/col_pts_2855.gpkg")
+hlef_pts <- vect(here("data/points/hlef_pts_6394.gpkg"))
+hoh_pts <- vect(here("data/points/hoh_pts_2855.gpkg"))
+mas_pts <- vect(here("data/points/mas_pts_2856.gpkg"))
+col_pts <- vect(here("data/points/col_pts_2855.gpkg"))
 ```
 
 
 ```{r}
 pnw_dat_lab_pts |> filter(site == "HLEF") |> project("EPSG:6394") |> 
   terra::extract(x = hlef_stack, bind = TRUE, method = "simple") |>
-  writeVector("SOIL CARBON/All_WA/data/points/hlef_lab_pts_6394.gpkg", overwrite = TRUE)
+  writeVector(here("data/points/hlef_lab_pts_6394.gpkg"), overwrite = TRUE)
 pnw_dat_lab_pts |> filter(site == "Hoh") |> project("EPSG:2855") |> 
   terra::extract(x = hoh_stack, bind = TRUE, method = "simple") |>
-  writeVector("SOIL CARBON/All_WA/data/points/hoh_lab_pts_2855.gpkg", overwrite = TRUE)
+  writeVector(here("data/points/hoh_lab_pts_2855.gpkg"), overwrite = TRUE)
 pnw_dat_lab_pts |> filter(site == "Mas") |> project("EPSG:2856") |> 
   terra::extract(x = mas_stack, bind = TRUE) |>
-  writeVector("SOIL CARBON/All_WA/data/points/mas_lab_pts_2856.gpkg", overwrite = TRUE)
+  writeVector(here("data/points/mas_lab_pts_2856.gpkg"), overwrite = TRUE)
 pnw_dat_lab_pts |> filter(site == "Col") |> project("EPSG:2855") |> 
   terra::extract(x = col_stack, bind = TRUE) |>
-  writeVector("SOIL CARBON/All_WA/data/points/col_lab_pts_2855.gpkg", overwrite = TRUE)
+  writeVector(here("data/points/col_lab_pts_2855.gpkg"), overwrite = TRUE)
 
-hlef_dat_lab_pts <- vect("SOIL CARBON/All_WA/data/points/hlef_lab_pts_6394.gpkg")
-hoh_lab_pts <- vect("SOIL CARBON/All_WA/data/points/hoh_lab_pts_2855.gpkg") 
-mas_lab_pts <- vect("SOIL CARBON/All_WA/data/points/mas_lab_pts_2856.gpkg")
-col_lab_pts <- vect("SOIL CARBON/All_WA/data/points/col_lab_pts_2855.gpkg")
+hlef_lab_pts <- vect(here("data/points/hlef_lab_pts_6394.gpkg"))
+hoh_lab_pts <- vect(here("data/points/hoh_lab_pts_2855.gpkg")) 
+mas_lab_pts <- vect(here("data/points/mas_lab_pts_2856.gpkg"))
+col_lab_pts <- vect(here("data/points/col_lab_pts_2855.gpkg"))
 
 ```
 
@@ -899,6 +905,9 @@ glimpse(col_pts)
 ```
 
 ```{r}
-
+glimpse(hlef_lab_pts)
+glimpse(hoh_lab_pts)
+glimpse(mas_lab_pts)
+glimpse(col_lab_pts)
 ```
 
