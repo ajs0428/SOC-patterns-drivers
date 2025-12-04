@@ -12,8 +12,8 @@ library(formatR)
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
 
 library(tidyverse)
-library(mlr3verse)
-library(mlr3spatial)
+library(mlr3)
+library(mlr3pipelines)
 library(rgl)
 library(terra)
 library(tidyterra)
@@ -32,6 +32,7 @@ library(stringr)
 library(here)
 
 
+# pak::pak(c("mlr-org/mlr3", "mlr-org/mlr3fselect"))
 knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
 
@@ -44,10 +45,22 @@ Path to prediction folder
 pred_path <- here("data/Rasters/PredictorStacks/")
 ```
 
+Datasets 
+
+```{r}
+pnw_dat <- read.csv(here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv")) |>
+  dplyr::select(-site, -X, ) |>
+  dplyr::mutate(across(where(is.character), as.factor))
+levels(pnw_dat$LITH)
+levels(pnw_dat$geomorphons)
+```
+
+
 Load in the best model 
 
 ```{r}
 QRFM_stocks <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
+QRFM_stocks_nw <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds"))
 ```
 
 
@@ -136,25 +149,47 @@ plot(col_consolidate_lith, "LITH")
 
 
 ```{r}
+pnw_lith_lev <- data.frame(id = seq(0, length(levels(pnw_dat$LITH))-1, 1),
+                 LITH = levels(pnw_dat$LITH))
+hlef_m <- c(0, NA,
+            1, 2, 
+            2, 3,
+            3, 4,
+            4, 5) |> matrix(ncol = 2, byrow = TRUE)
+hlef_lith_rcl <- terra::classify(hlef_stack$LITH, hlef_m, include.lowest = T)
+levels(hlef_lith_rcl) <- pnw_lith_lev
+hlef_stack$LITH <- hlef_lith_rcl
 
-hlef_lith_df <- data.frame(id = seq(0, length(unique(hlef_consolidate_lith$LITH))-1, 1),
-                 LITH = c(NA, sort(unique(hlef_consolidate_lith$LITH)))
-                 )
-levels(hlef_stack$LITH) <- hlef_lith_df
-hoh_lith_df <- data.frame(id = seq(0, length(unique(hoh_consolidate_lith$LITH))-1, 1),
-                 LITH = c(sort(unique(hoh_consolidate_lith$LITH)))
-                 )
-levels(hoh_stack$LITH) <- hoh_lith_df
-mas_lith_df <- data.frame(id = seq(0, length(unique(mas_consolidate_lith$LITH))-1, 1),
-                 LITH = c(sort(unique(mas_consolidate_lith$LITH)))
-                 )
-levels(mas_stack$LITH) <- mas_lith_df
-col_lith_df <- data.frame(id = seq(0, length(unique(col_consolidate_lith$LITH))-1, 1),
-                 LITH = c(sort(unique(col_consolidate_lith$LITH)))
-                 )
-levels(col_stack$LITH) <- col_lith_df
+hoh_m <- c(0, 0,
+            1, 1, 
+            2, 4,
+           3, 5) |> matrix(ncol = 2, byrow = TRUE)
+hoh_lith_rcl <- terra::classify(hoh_stack$LITH, hoh_m, include.lowest = T)
+levels(hoh_lith_rcl) <- pnw_lith_lev
+hoh_stack$LITH <- hoh_lith_rcl
+
+mas_m <- c(0, 0,
+            1, 1, 
+            2, 2,
+            3, 4,
+            4, 5) |> matrix(ncol = 2, byrow = TRUE)
+mas_lith_rcl <- terra::classify(mas_stack$LITH, mas_m, include.lowest = T)
+levels(mas_lith_rcl) <- pnw_lith_lev
+mas_stack$LITH <- mas_lith_rcl
+
+col_m <- c(0, 0,
+            1, 1, 
+            2, 2,
+            3, 3,
+            4, 4,
+           5, 5) |> matrix(ncol = 2, byrow = TRUE)
+col_lith_rcl <- terra::classify(col_stack$LITH, col_m, include.lowest = T)
+levels(col_lith_rcl) <- pnw_lith_lev
+col_stack$LITH <- col_lith_rcl
+```
 
 
+```{r}
 plot(hlef_stack$LITH)
 plot(hlef_consolidate_lith, "LITH")
 plot(hoh_stack$LITH)
@@ -165,6 +200,24 @@ plot(col_stack$LITH)
 plot(col_consolidate_lith, "LITH")
 ```
 
+#### Geomorphons levels
+
+All levels present in each study area
+
+```{r}
+pnw_geom_lev <- data.frame(id = seq(1, length(levels(pnw_dat$geomorphons)), 1),
+                 geomorphons = levels(pnw_dat$geomorphons))
+levels(hlef_stack$geomorphons) <- pnw_geom_lev
+
+levels(hoh_stack$geomorphons) <- pnw_geom_lev
+
+levels(mas_stack$geomorphons) <- pnw_geom_lev
+
+levels(col_stack$geomorphons) <- pnw_geom_lev
+
+plot(hlef_stack$geomorphons)
+```
+
 
 
 ### Generate a prediction for depths model or 1m stocks model 
@@ -173,7 +226,7 @@ plot(col_consolidate_lith, "LITH")
 ```{r}
 
 #instance <- readRDS("analysis/models/MLR3_RecursiveFeat_Stocks.rds")
-features <- (names(QRFM_stocks$model$variable.importance)[names(QRFM_stocks$model$variable.importance) != "lower_depth"])
+features <- (names(QRFM_stocks_nw$model$variable.importance)[names(QRFM_stocks_nw$model$variable.importance) != "lower_depth"])
 features
 ```
 
@@ -212,16 +265,16 @@ soc_pred_func <- function(model, pred_stack, depth_ints, numcores) {
   }
   
   rast_stack_sum <- sum(rast(rast_list))
-  writeRaster(rast_stack_sum, filename = paste0(soc_path, "PNW_", name, "_SOC_RFM_1m.tif"),
+  writeRaster(rast_stack_sum, filename = paste0(soc_path, "PNW_", name,
+                                                "_SOC_RFM_1m_noWIP.tif"),
               overwrite = TRUE)
   #return(rast_stack_sum)
 }
 
-#test <- soc_pred_func(QRFM_stocks, hlef_stack_select, 25)
+#test <- soc_pred_func(QRFM_stocks_nw, hlef_stack_select, 25)
 
 terraOptions(
-    memfrac = 0.7,
-    memmax = 1,
+    memfrac = 0.5,
     memmin = 0.1
 )
 
@@ -232,7 +285,7 @@ terraOptions(
 # mem_info(r)
 # 
 # system.time(
-# test <- soc_pred_func(model = QRFM_stocks, pred_stack = r, depth_ints = seq(25, 50, 25),
+# test <- soc_pred_func(model = QRFM_stocks_nw, pred_stack = r, depth_ints = seq(25, 50, 25),
 #                       numcores = 2)
 # )
 # plot(test)
@@ -241,22 +294,22 @@ terraOptions(
 ```{r}
 #| eval: false
 
-soc_pred_func(model = QRFM_stocks, 
+soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = hlef_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 6)
-soc_pred_func(model = QRFM_stocks, 
+              numcores = 4)
+soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = hoh_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 6)
-soc_pred_func(model = QRFM_stocks, 
+              numcores = 4)
+soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = mas_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 6)
-soc_pred_func(model = QRFM_stocks, 
+              numcores = 4)
+soc_pred_func(model = QRFM_stocks_nw, 
               pred_stack = col_stack_select, 
               depth_ints = seq(25, 100, 25),
-              numcores = 6)
+              numcores = 4)
 ```
 
 ```{r}
@@ -728,19 +781,19 @@ soc_quantpred_func <- function(model, pred_stack, depth_ints, numcores) {
 
 ```{r}
 #| eval: false
-soc_quantpred_func(model = QRFM_stocks, 
+soc_quantpred_func(model = QRFM_stocks_nw, 
               pred_stack = hlef_stack_select, 
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks, 
+soc_quantpred_func(model = QRFM_stocks_nw, 
               pred_stack = hoh_stack_select, 
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks, 
+soc_quantpred_func(model = QRFM_stocks_nw, 
               pred_stack = mas_stack_select, 
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks, 
+soc_quantpred_func(model = QRFM_stocks_nw, 
               pred_stack = col_stack_select, 
               depth_ints = seq(25, 100, 25),
               numcores = 6)
