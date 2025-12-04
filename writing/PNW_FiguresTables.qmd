@@ -1,8 +1,6 @@
 ---
 title: "Figure Formatting"
 format: html
-editor_options: 
-  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -148,6 +146,7 @@ testlab_wet_scale <- read.csv(here("data/dataframes/PNW_Spline_Lab_Test_Wet_Scal
 testlab_upl_scale <- read.csv(here("data/dataframes/PNW_Spline_Lab_Test_Upl_Scale.csv"))
 
 anova_ci_stocks <- read.csv(paste0(here("data/dataframes/anova_best_dredge_model_confint95.csv")))
+anova_ci_stocks_nw <- read.csv(paste0(here("data/dataframes/anova_best_dredge_model_confint95_noWIP.csv")))
 anova_ci_lab <- read.csv(paste0(here("data/dataframes/LMM_Lab_confint95.csv")))
 
 
@@ -170,6 +169,7 @@ qrf_errdf_lab <- read.csv(here("data/dataframes/MLR3_RFM_ErrorDF_LabData.csv"))
 ks <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_KernelShap.rds")) 
 ks_wet <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_Wet.rds")) 
 ks_upl <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_Upl.rds")) 
+ks_nw <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_noWIP.rds"))
 
 ia_1 <- readRDS(
         file = here("writing/Figures/MLR3_RFM_Interact_1_plot.rds")) 
@@ -782,8 +782,6 @@ saveRDS(PNW_Wet_Area_Table, "/Users/Anthony/OneDrive - UW/University of Washingt
 Test dataset metrics only
 
 ```{r}
-
-
 stock_mods_table <- mod_errdf |> 
     dplyr::select(LandscapeClass, LMM.LogMargR2, LMM.LogCondR2,
                   LMM.nLogPredObsR2, LMM.nlogPredObsRMSE) |> 
@@ -801,7 +799,7 @@ stock_mods_table_noWIP <- mod_errdf_noWIP |>
                   dplyr::select(LandscapeClass, RFM.R2_OOB, RFM.RMSE_OOB,
                                 RFM.R2_test, RFM.RMSE_test), 
               by = join_by(LandscapeClass)) |> 
-    dplyr::mutate(`Model Prediction` = "SOC Stock") |> 
+    dplyr::mutate(`Model Prediction` = "SOC Stock NW") |> 
     dplyr::select(`Model Prediction`, everything()) |> 
     dplyr::mutate(across(where(is.numeric), ~base::round(.x, 2)))
 
@@ -819,15 +817,15 @@ Cperc_mods_table <- mod_errdf_lab |>
     
 
 stat_table_format <- stock_mods_table |> 
-    rbind(#stock_mods_table_noWIP, 
+    rbind(stock_mods_table_noWIP, 
           Cperc_mods_table)  |>
     flextable_fun() |> 
     merge_v(j = 1) |> 
     separate_header(split = "[\\.]", fixed = F) |>
-    flextable::compose(part = "body", i=c(2:3,5:6), j = c(3:4, 7:8),
+    flextable::compose(part = "body", i=c(2:3,5:6, 8:9), j = c(3:4, 7:8),
                value = c(as_paragraph("---")  )) |>
     align(align = "center", part =  "header") |>
-    vline(part = "header",  j = 6)|>
+    vline(part = "header",  j = 6) |>
     flextable::compose(part = "header", i=1, j = 2,
                value = c(as_paragraph("Landscape \nClass")  )) |>
     flextable::compose(part = "header", i = 2, j = 3,
@@ -849,10 +847,18 @@ stat_table_format <- stock_mods_table |>
            value = c(as_paragraph("Test R", as_sup("2")))) |>
     flextable::compose(part = "header", i = 2, j = 10,
                value = c(as_paragraph("Test RMSE", (" \ng cm"), as_sup("-2")))) |>
+
+    flextable::compose(part = "body", i = 1, j = 1,
+               value = c(as_paragraph("SOC stock", 
+                                      "\ng cm",
+                                      as_sup("-2")))) |>
     flextable::compose(part = "body", i = 4, j = 1,
+               value = c(as_paragraph("SOC stock", 
+                                      as_sub("No WIP"), 
+                                      "\ng cm",
+                                      as_sup("-2")))) |>
+    flextable::compose(part = "body", i = 7, j = 1,
                value = c(as_paragraph("SOC \n%"))) |>
-  flextable::compose(part = "body", i = 1, j = 1,
-               value = c(as_paragraph("SOC stock", "\ng cm", as_sup("-2")))) |>
     fix_border_issues() 
     # vline(part = "header",  j = 9) |> 
     # delete_rows(i = c(2, 3), part = "body") |> 
@@ -1028,29 +1034,29 @@ qrf_stocks_noWIP_r2 <- format(round(r.sq(y = RF_testprednw$truth,
 #| fig-width: 6.5
 #| fig-height: 5
 lmm_lab_plot <- predict_plot(LMM_testlabpred) +
-    annotate(geom = "text", x = 6, y = 9,
+    annotate(geom = "text", x = 3, y = 8.2,
              label = as.expression(bquote(R^2 == .(lmm_lab_r2)))) +
     theme(legend.position = "none") 
 
 lmm_stocks_plot <- predict_plot(LMM_testpred) +
-    annotate(geom = "text", x = 1.3, y = 1.8,
+    annotate(geom = "text", x = 1.3, y = 1.9,
              label = as.expression(bquote(R^2 == .(lmm_stocks_r2)))) 
 lmm_stocks_nw_plot <- predict_plot(LMM_testprednw) +
-    annotate(geom = "text", x = 1.3, y = 1.8,
+    annotate(geom = "text", x = 1.3, y = 1.9,
              label = as.expression(bquote(R^2 == .(lmm_stocks_noWIP_r2)))) 
 qrf_stocks_plot <- predict_plot(RF_testpred) +
-    annotate(geom = "text", x = 1.3, y = 1.8,
+    annotate(geom = "text", x = 1.3, y = 1.9,
              label = as.expression(bquote(R^2 == .(qrf_stocks_r2)))) +
-    annotate("rect", xmin = 1.25, xmax = 1.8, ymin = 0.8, ymax = 1.55, alpha = 0.1, 
-             colour = "red")
+    annotate("rect", xmin = 1.25, xmax = 1.8, ymin = 0.7, ymax = 1.7, alpha = 0.25, 
+             fill = "red")
 qrf_stocks_nw_plot <- predict_plot(RF_testprednw) +
-    annotate(geom = "text", x = 1.3, y = 1.8,
+    annotate(geom = "text", x = 1.3, y = 1.9,
              label = as.expression(bquote(R^2 == .(qrf_stocks_noWIP_r2)))) + 
-    annotate("rect", xmin = 1.25, xmax = 1.8, ymin = 0.8, ymax = 1.55, alpha = 0.1, 
-             colour = "red")
+    annotate("rect", xmin = 1.25, xmax = 1.8, ymin = 0.7, ymax = 1.7, alpha = 0.25, 
+             fill = "red")
 qrf_lab_plot <- predict_plot(RF_testlabpred) + 
     theme(legend.position = "none") +
-    annotate(geom = "text", x = 6, y = 9,
+    annotate(geom = "text", x = 3, y = 8.2,
              label = as.expression(bquote(R^2 == .(qrf_lab_r2)))) 
 
 # wip_legend <- ggpubr::get_legend(qrf_lab_plot + theme(legend.box = "horizontal",
@@ -1067,7 +1073,7 @@ model_fit_plots <-
                           ) +
     plot_annotation(tag_levels = list(c("A ", "B", "C", "D", "E", "F")), tag_suffix = ".") &
   theme( plot.tag = element_text(size = 8, face = "bold"),
-          plot.tag.position = c(0.1, 1.03),
+          plot.tag.position = c(0.1, 1.05),
           plot.title = element_text(hjust = 0.5),
           legend.key.width = unit(0.3, "cm"))
 model_fit_plots
@@ -1160,13 +1166,7 @@ coef_fig_func <- function(anova_ci, model) {
     
 }
 
-ks <- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap.rds")
-ks_wet <- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Wet.rds")
-ks_upl <- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Upl.rds")
 
-ks_lab <- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_LabData.rds")
-ks_lab_wet <- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_LabData.rds")
-ks_lab_upl <- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_LabData.rds")
 ```
 
 
@@ -1174,8 +1174,16 @@ ks_lab_upl <- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washing
 #| fig-width: 6.5
 #| fig-height: 6
 coef_fig_lmm_stocks <- coef_fig_func(anova_ci_stocks, lmm_stocks) 
+coef_fig_lmm_stocks_nw <- coef_fig_func(anova_ci_stocks_nw, lmm_stocks_noWIP) 
 coef_fig_lmm_lab <- coef_fig_func(anova_ci_lab, lmm_lab)
+coef_fig_lmm_stocks
+coef_fig_lmm_stocks_nw
+coef_fig_lmm_lab
+```
 
+### Random Forest Shap Variable Importance
+
+```{r}
 qrf_stocks_shap <- sv_importance(shapviz(ks), kind = "both", 
                                  max_display = 8, alpha = 0.12, fill = "black") + 
     scale_colour_viridis_c(
@@ -1197,6 +1205,29 @@ qrf_stocks_shap <- sv_importance(shapviz(ks), kind = "both",
                          dev_50 = "Deviation 50m"))
     ) +
     theme_param 
+
+qrf_stocks_nw_shap <- sv_importance(shapviz(ks_nw), kind = "both", 
+                                 max_display = 8, alpha = 0.12, fill = "black") + 
+    scale_colour_viridis_c(
+      name = "Scaled\nFeature\nValue", option = "D",
+      breaks = c(0, 1), labels = c("Low: 0", "High: 1")
+    ) +
+    scale_y_discrete(labels = \(x) 
+    str_replace_all(x, c(lower_depth = "Depth",
+                         PET_MAP = "PET:MAP",
+                         CHM = "Canopy Height",
+                         LITH = "PM",
+                         DTM = "Elevation", 
+                         geomorphons = "Landform",
+                         grad_1000 = "Gradient 1000m",
+                         grad_300 = "Gradient 300m",
+                         grad_50 = "Gradient 50m",
+                         dev_1000 = "Deviation 1000m",
+                         dev_300 = "Deviation 300m",
+                         dev_50 = "Deviation 50m"))
+    ) +
+    theme_param 
+
 qrf_lab_shap <- sv_importance(shapviz(ks_lab), kind = "both", 
                               max_display = 8, alpha = 0.12, fill = "black") +
   scale_colour_viridis_c(
@@ -1217,19 +1248,22 @@ qrf_lab_shap <- sv_importance(shapviz(ks_lab), kind = "both",
                              dev_300 = "Deviation 300m",
                              dev_50 = "Deviation 50m"))
         ) + theme_param
+```
 
+### Full LMM Coefficient and SHAP plots
+```{r}
+#| fig-width: 6.5
+#| fig-height: 6
 
-
-coef_plots <- (coef_fig_lmm_stocks + ggtitle("LMM") +
-                 ylab(expression(SOC~Stock~g~cm^{2}))) +
+coef_plots <- (coef_fig_lmm_stocks + ggtitle("LMM") + ylab(expression(SOC~Stock~g~cm^{2}))) +
   (qrf_stocks_shap) + ggtitle("RFM") +
-  (coef_fig_lmm_lab+ 
-                         ylab(expression(SOC~"%"))) +
+  (coef_fig_lmm_stocks_nw + ylab(expression(SOC~Stock~g~cm^{2})) ) + qrf_stocks_nw_shap +
+  (coef_fig_lmm_lab + ylab(expression(SOC~"%"))) +
   qrf_lab_shap + 
-    plot_layout(nrow = 2, ncol = 2, axis_titles = "collect", guides = "collect")  +
-    plot_annotation(tag_levels = list(c("A.", "B.","C.", "D."))) & 
+    plot_layout(nrow = 3, ncol = 2, axis_titles = "collect", guides = "collect")  +
+    plot_annotation(tag_levels = list(c("A.", "B.","C.", "D.", "E.", "F."))) & 
     theme(plot.tag = element_text(size = 8, face = "bold"),
-          plot.tag.position = c(0.1, 0.95),
+          plot.tag.position = c(0.1, 1.02),
           plot.title = element_text(hjust = 0.5, face = "bold"),
           legend.key.width = unit(0.3, "cm")) 
 
@@ -1240,7 +1274,7 @@ saveRDS(coef_plots, file = "/Users/Anthony/OneDrive - UW/University of Washingto
 ```
 
 
-### Random Forest plots 
+
 
 ```{r}
 
@@ -1279,7 +1313,7 @@ saveRDS(coef_plots, file = "/Users/Anthony/OneDrive - UW/University of Washingto
 #   
 ```
 
-#### Variable importance 
+#### Additional Random Forest Shap plots
 
 
 ```{r}
@@ -1294,10 +1328,11 @@ ks_format_func <- function (a_ks){
 ks_vars <- ks_format_func(ks)
 ks_wet_vars <- ks_format_func(ks_wet)
 ks_upl_vars <- ks_format_func(ks_upl)
+ks_nw_vars <- ks_format_func(ks_nw)
 
 shap_est_func <- function(ks_df, var_name, stockorlab) {
     saveRDS(ks_df[ks_df$column == var_name, "abs_sum"][[1]], 
-            paste0("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/in_text_values/",
+            paste0(here("writing/in_text_values/"),
                    var_name,
                    "_shap_",
                    stockorlab,

@@ -495,7 +495,7 @@ best_dredge_model_R2list <- c(
             obs = test_upl_scale$SOC_stock_spline)
   )
 best_dredge_model_R2list
-saveRDS(best_dredge_model_R2list, file = "writing/in_text_values/best_dredge_model_R2list.rds" |> here())
+saveRDS(best_dredge_model_R2list, file = here("writing/in_text_values/best_dredge_model_R2list.rds") )
 
 
 ggplot()+

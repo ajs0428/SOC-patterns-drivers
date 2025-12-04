@@ -492,6 +492,28 @@ caret::RMSE(pred = 10**predict(best_dredge_model, test_upl_scale, allow.new.leve
             obs = test_upl_scale$SOC_stock_spline)
 r2glmm::r2beta(best_dredge_model, method = "nsj")[1,]
 
+best_dredge_model_R2list <- c(
+  "lmmMargR2" = MuMIn::r.squaredGLMM(best_dredge_model)[1],
+  "lmmCondR2" = MuMIn::r.squaredGLMM(best_dredge_model)[2],
+  "lmmTestR2" = round(r.sq(y = (test_scale$SOC_stock_spline), 
+           y.fitted = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE)), 3),
+  "lmmTestR2wet" = round(r.sq(y = (test_wet_scale$SOC_stock_spline), 
+           y.fitted = 10**predict(best_dredge_model, test_wet_scale, allow.new.levels = TRUE)), 3),
+  "lmmTestR2upl" = round(r.sq(y = (test_upl_scale$SOC_stock_spline), 
+           y.fitted = 10**predict(best_dredge_model, test_upl_scale, allow.new.levels = TRUE)), 3),
+
+  "lmmTestRMSE" = caret::RMSE(pred = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE), 
+            obs = test_scale$SOC_stock_spline),
+  "lmmTestRMSEwet" = caret::RMSE(pred = 10**predict(best_dredge_model, test_wet_scale, allow.new.levels = TRUE), 
+            obs = test_wet_scale$SOC_stock_spline),
+  "lmmTestRMSEupl" = caret::RMSE(pred = 10**predict(best_dredge_model, test_upl_scale, allow.new.levels = TRUE), 
+            obs = test_upl_scale$SOC_stock_spline)
+  )
+best_dredge_model_R2list
+saveRDS(best_dredge_model_R2list, file = here("writing/in_text_values/best_dredge_model_R2list_noWIP.rds"))
+
+
+
 ggplot()+
   geom_point(aes(y = test_scale$SOC_stock_spline,
                  x = 10**predict(best_dredge_model, test_scale, allow.new.levels = TRUE),
