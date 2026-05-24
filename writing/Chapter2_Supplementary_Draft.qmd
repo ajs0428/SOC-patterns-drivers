@@ -1,0 +1,566 @@
+---
+title: "Supplementary information for Improving soil organic carbon spatial distribution and interpretation of cross-scale drivers with probabilistic wetland representation"
+authors: 
+    - name: Anthony J Stewart
+      affiliations:
+        - ref: uw
+      corresponding: true
+      email: ajs0428@uw.edu
+      orcid: 0000-0002-9655-9938
+    - name: Meghan Halabisky
+      affiliations:
+        - ref: uw
+      corresponding: false
+      email: halabisk@uw.edu
+      orcid: 0000-0002-1174-2486
+    - name: David V. D'Amore
+      affiliations:
+        - ref: fs
+      corresponding: false
+      email: david.v.damore@usda.gov
+    - name: Diogo Spinola
+      affiliations:
+        - ref: ub
+      corresponding: false
+      email: diogo.spinola@unbc.ca
+      orcid: 0000-0003-3525-9461
+    - name: Chad Babcock
+      affiliations:
+        - ref: mn
+      corresponding: false
+      email: cbabcock@umn.edu
+      orcid: 0000-0001-9597-4462
+    - name: L. Monika Moskal
+      affiliations:
+        - ref: uw
+      corresponding: false
+      email: lmmoskal@uw.edu
+      orcid: 0000-0003-1563-6506
+    - name: David Butman
+      affiliations:
+        - ref: uw
+      corresponding: false
+      email: dbutman@uw.edu
+      orcid: 0000-0003-3520-7426
+affiliations:
+  - id: uw
+    name: School of Environmental and Forest Sciences, University of Washington, Seattle, WA
+  - id: fs
+    name: Forest Service, US Department of Agriculture, Pacific Northwest Research Station, 3625 Olympia, WA, USA 
+  - id: ub
+    name: Department of Ecosystem Science and Management, University of Northern British Columbia, 3333 University Way, Prince George, British Columbia, Canada 
+  - id: mn
+    name: Department of Forest Resources, University of Minnesota, St. Paul, 55108, MN, USA
+filters:
+  - authors-block/authors-block.lua
+format: 
+    docx: 
+        reference-doc: custom-reference-doc.docx
+        toc: false
+        toc-depth: 4
+        output-file: Chapter2_Supplementary_Draft
+        output-ext: docx
+execute: 
+  echo: false
+  warning: false
+linestretch: 2
+fig-dpi: 150
+bibliography: references_supp.bib
+link-citations: true
+csl: american-geophysical-union.csl
+crossref: 
+    tbl-prefix: "Supplementary Table "
+    tbl-title: "Supplementary Table"
+    fig-prefix: "Supplementary Figure "
+    fig-title: "Supplementary Figure "
+    title-delim: "."
+---
+
+```{r setup}
+#| include: false
+
+library(formatR)
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", warning = FALSE,
+                      message = FALSE, dpi = 100, tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE, root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+library(rgl)
+library(terra)
+library(lme4)
+library(MASS)
+library(mgcv)
+library(lmerTest)
+library(MuMIn)
+library(RLRsim)
+library(terra)
+library(spatialEco)
+library(sf)
+library(mapview)
+library(car)
+library(ggplot2)
+library(forcats)
+library(sjPlot)
+library(sjstats)
+library(DHARMa)
+library(ggeffects)
+library(merTools)
+library(glmnet)
+library(stats)
+library(ggcorrplot)
+library(RColorBrewer)
+library(cowplot)
+library(webshot)
+library(webshot2)
+library(kableExtra)
+library(pdp)
+library(vip)
+library(formatR)
+library(dplyr)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(flextable)
+library(gtsummary)
+library(stringr)
+library(effectsize)
+library(officer)
+library(patchwork)
+library(here)
+
+knitr::knit_hooks$set(webgl = hook_webgl)
+rgl::setupKnitr(autoprint = TRUE)
+
+std_border <- fp_border(color = "gray10", width = 0.1)
+thick_border <- fp_border(color = "black", width = 1.5)
+
+flextable_fun <- function(table){
+    table |> flextable() |>
+    #colformat_num(j = 7, options(digits=4) ) |>
+    flextable::font(fontname = "Aptos", part = "all") |> 
+    flextable::fontsize(size = 8, part = "body") |>
+    flextable::fontsize(size = 9, part = "header") |>
+    flextable::set_table_properties(layout = "autofit", align = "center", width = 1) |>
+    flextable::align(align = "center", part = "all") |>
+    flextable::align(align = "left", j = 1) |>
+    flextable::bg(bg = "gray90", part = "header") |> 
+    border_inner_v(part = "header", border = std_border) |> 
+    flextable::hline(part = "footer", border = thick_border) |> 
+    flextable::hline(part = "header", border = thick_border) |>
+    flextable::padding(padding.top = 1.2, padding.bottom = 1.2, part = "body") |>
+    flextable::padding(padding = 5, part = "header") |>
+    paginate(init = TRUE, hdr_ftr = TRUE) 
+}
+
+anovaR2_form <- function(df) {
+    df_form <- df |> mutate("Full. Coef 95% CI" = 
+               case_when(!is.na(X2.5._full) ~ paste0(X2.5._full, "-", X97.5._full),
+                        TRUE ~ " "),
+           "Full. R2 95% CI" = case_when(!is.na(Rsq.lower.CL_full) ~ 
+                                       paste0(Rsq.lower.CL_full, "-", Rsq.upper.CL_full),
+                                   TRUE ~ " "),
+           "Wet. Coef 95% CI" = 
+               case_when(!is.na(X2.5._wet) ~ paste0(X2.5._wet, "-", X97.5._wet),
+                        TRUE ~ " "),
+           "Wet. R2 95% CI" = case_when(!is.na(Rsq.lower.CL_wet) ~ 
+                                       paste0(Rsq.lower.CL_wet, "-", Rsq.upper.CL_wet),
+                                   TRUE ~ " "),
+            "Upl. Coef 95% CI" = case_when(!is.na(X2.5.) ~ paste0(X2.5., "-", X97.5.),
+                        TRUE ~ " "),
+           "Upl. R2 95% CI" = case_when(!is.na(Rsq.lower.CL) ~ 
+                                       paste0(Rsq.lower.CL, "-", Rsq.upper.CL),
+                                   TRUE ~ " ")
+           ) |> 
+    select(!starts_with("X")) |> 
+    select(!starts_with("Rsq.up")) |>
+    select(!starts_with("Rsq.lo")) |> 
+    relocate("Full. R2 95% CI", .after = Rsq_full) |> 
+    relocate("Wet. R2 95% CI", .after = Rsq_wet) |> 
+    relocate("Upl. R2 95% CI", .after = Rsq) |> 
+    relocate("Full. Coef 95% CI", .before = Rsq_full) |> 
+    relocate("Wet. Coef 95% CI", .before = Rsq_wet) |> 
+    relocate("Upl. Coef 95% CI", .before = Rsq) |> 
+    dplyr::rename_with(~ sub("", "Full. ", .x), ends_with("_full")) |> 
+    dplyr::rename_with(~ sub("", "Wet. ", .x), ends_with("_wet")) |>
+    dplyr::rename_with(~ sub("_full", "", .x), ends_with("_full")) |> 
+    dplyr::rename_with(~ sub("_wet", "", .x), ends_with("_wet")) |>
+    dplyr::rename("Upl. F Value" = F.value,
+                  "Upl. p Value. "= Pr..F.,
+                  "Upl. Rsq" = Rsq) |> 
+    rename_with(~ stringr::str_replace(.x, 
+                                     pattern = " F.value", 
+                                     replacement = "F Value"), 
+              matches(" F.Value")) |>
+    rename_with(~ stringr::str_replace(.x, 
+                                     pattern = " Pr..F.", 
+                                     replacement = "p Value"), 
+              matches(" Pr..F."))
+    return(df_form)
+}
+
+dir_loc <- "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/"
+source(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/All_WA_Functions.R"))
+
+```
+
+```{r}
+#| eval: false
+wa_dat <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds.csv"))
+
+wa_stocks_dat <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_preds.csv"))
+
+wa_stocks_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_wet_preds_scale.csv"))
+
+wa_stocks_upl <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_upl_preds_scale.csv"))
+
+wa_dat_scale <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled.csv"))
+
+wa_dat_scale_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Wet.csv"))
+
+wa_dat_scale_upl <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Upl.csv"))
+
+
+mod7 <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Model7d1_Spline.RData")))
+modw <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Model_Wet_Spline.RData")))
+modu <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Model_Upl_Spline.RData")))
+
+rf_model <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/ALl_WA_RandomForest.RData")))
+rf_err_df <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/RFM_ErrorDF.csv"))
+
+glm_mod <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Stocks_Model.RData")))
+
+anova_ci_7 <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova7d1_confint95.csv"))
+anova_ci_w <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_wet_confint95.csv"))
+anova_ci_u <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_upl_confint95.csv"))
+
+ci_anova_pedons <- read.csv(paste0(dir_loc,"SOIL CARBON/All_WA/data/dataframes/anova_confint95_stocks.csv"))
+ci_anova_pedons_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_wet_confint95_stocks.csv"))
+ci_anova_pedons_upl <- read.csv(paste0(dir_loc,"SOIL CARBON/All_WA/data/dataframes/anova_upl_confint95_stocks.csv"))
+
+PI_rmse_df <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/PI_RMSE_Dataframe.csv"))
+
+kf_rmse_depths <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_Depths_Dataframe.csv"))
+
+stat_table_stocks <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_model_fit.csv"))
+
+kf_rmse_stocks <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_Stocks_Dataframe.csv"))
+
+r2glmm_r2 <- r2glmm::r2beta(mod7, partial = F, method = "nsj")
+mumin_R2m <- MuMIn::r.squaredGLMM(mod7)[[1]]
+mumin_R2c <- MuMIn::r.squaredGLMM(mod7)[[2]]
+
+r2glmm_r2_w <- r2glmm::r2beta(modw, partial = F, method = "nsj")
+mumin_R2m_w <- MuMIn::r.squaredGLMM(modw)[[1]]
+mumin_R2c_w <- MuMIn::r.squaredGLMM(modw)[[2]]
+
+r2glmm_r2_u <- r2glmm::r2beta(modu, partial = F, method = "nsj")
+mumin_R2m_u <- MuMIn::r.squaredGLMM(modu)[[1]]
+mumin_R2c_u <- MuMIn::r.squaredGLMM(modu)[[2]]
+
+r2_log_predobs <-base::round(r.sq(log10(wa_dat_scale$SOC_stock_spline), fitted(mod7)), 2)
+r2_log_predobs_w <-base::round(r.sq(log10(wa_dat_scale_wet$SOC_stock_spline), fitted(modw)), 2)
+r2_log_predobs_u <-base::round(r.sq(log10(wa_dat_scale_upl$SOC_stock_spline), fitted(modu)), 2)
+
+r2_nlog_predobs <-base::round(r.sq((wa_dat_scale$SOC_stock_spline), 10**fitted(mod7)), 2)
+r2_nlog_predobs_w <-base::round(r.sq((wa_dat_scale_wet$SOC_stock_spline), 10**fitted(modw)), 2)
+r2_nlog_predobs_u <-base::round(r.sq((wa_dat_scale_upl$SOC_stock_spline), 10**fitted(modu)), 2)
+
+```
+
+```{r}
+mod7_sc <- get(load(paste0(dir_loc,"SOIL CARBON/All_WA/analysis/models/All_WA_Model7_SiltClay_pH.RData")))
+mod7_sc_w <- get(load(paste0(dir_loc,"SOIL CARBON/All_WA/analysis/models/All_WA_Model7wet_SiltClay_pH.RData")))
+mod7_sc_u <- get(load(paste0(dir_loc,"SOIL CARBON/All_WA/analysis/models/All_WA_Model7upl_SiltClay_pH.RData")))
+
+ci_anova_psa_tab <- read.csv(paste0(dir_loc,"SOIL CARBON/All_WA/data/dataframes/anova7d1_SCpH_confint95.csv"))
+ci_anova_psa_tab_w <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_wet_SCpH_confint95.csv"))
+ci_anova_psa_tab_u <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/anova_upl_SCpH_confint95.csv"))
+
+PI_trans_SCpH <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/PI_SCpH_Full_Depths_Transformed_Dataframe.csv"))
+PI_trans_SCpHw <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/PI_SCpH_wet_Full_Depths_Transformed_Dataframe.csv"))
+PI_trans_SCpHu <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/PIupl_SCpH_Full_Depths_Transformed_Dataframe.csv"))
+
+stat_table_SCpH <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/All_WA_SCpH_model_fit.csv")
+
+kf_df_psa <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_PSA_Depths_Dataframe.csv")
+```
+
+\pagebreak
+
+## Wetland Intrinsic Potential (WIP) tool
+
+Data for the WIP tool included lidar-derived digital terrain models (DTMs), digital surface models, and imagery from the National Agricultural Imagery Program (NAIP). Lidar DTMs and digital surface models were downloaded from the WA Department of Natural Resources Lidar Portal and spanned a range of dates from 2008-2016 in the CVW and 2007-2011 in the MRW in order to create a continuous surface area of the study areas. We also used the earliest available NAIP imagery from 2017. No NAIP data were available for the HLEF and we therefore utilized Sentinel 2 for vegetation indices. A Lidar DTM and digital surface models were also downloaded from the Alaska State Division of Geological and Geophysical Surveys Elevation portal and were collected in 2012.
+
+We calculated terrain indices using the Surface Metrics Toolbox developed by @halabiskyWetlandIntrinsicPotential2023 and implemented in ArcGIS Pro 3.1. The multi-scale terrain indices included gradient (slope), planform curvature, profile curvature, and deviation from the mean elevation calculated at 50 m, 300 m, and 1000 m length scales. Additional terrain metrics included Topographic Wetness Index [TWI, @bevenPhysicallyBasedVariable1979] Topographic Depth to Water, and Elevation. We also included the normalized difference vegetation index (NDVI) and the normalized difference water index (NDWI), and canopy height in addition to terrain metrics for the WIP model. NDVI and NDWI were derived from aerial imagery collected by NAIP. We then took these 18 geospatial metrics and re-sampled them to a 4 m resolution to match the former WIP model in the HRW. The default resolution for the HLEF was 5m and all HLEF data were resampled to this resolution.
+
+We derived training data for wetlands and uplands (non-wetlands) using the geospatial dataset from the National Wetland Inventory (NWI) and the Wetland Mapper Tool [@NationalWetlandsInventory]. We extracted 3000 total training points from NWI wetlands in the HLEF, MRW, and CVW study areas (6000 total points) with approximately 2/3 of the training points classified as "upland" and 1/3 classified as "wetland". The training points were then used to extract data from the geospatial metrics in each study area. A random forest model was then constructed using a 70:30 training and testing dataset partition and then used to generate a preliminary WIP model. From this preliminary model, we utilized a similar approach to @halabiskyWetlandIntrinsicPotential2023 and generated another training dataset and a validation dataset by conducting a stratified sampling of 600 points and 300 points, respectively across the gradient of the preliminary model. The points from this stratification were then verified as either wetland or upland by two analysts who conducted site visits and referenced points using aerial imagery, pre-existing NWI data, and lidar-derived hillshades.
+
+The new training and validation points were then used in another separate random forest model which generated the final mapped prediction of the WIP model. The most important variables from the Random Forest models in all four study watersheds are shown in [@fig-PNW-WIPimp-plot].
+
+\pagebreak
+
+```{r}
+#| label: fig-PNW-WIPimp-plot
+#| fig-cap: Variable importance plots from the final WIP models in all four watersheds. Only the top 5 predictors were included from each watershed. We observed multiscale terrain metrics such as Gradient, and Deviation occurring frequently. Other terrain derived metrics such as depth to water (DTW), and topographic wetness index (TWI) were included in some but not all models. But we note that Canopy Height in the HRW and the normalized difference yellow index and enhanced vegetation index in the HLEF were vegetation indices which may have helped identify peat occurance.
+
+readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/PNW_WIPimp_plot.rds")
+
+```
+
+\pagebreak
+
+## Parent Material
+
+Both Alaska and Washington State are glacially influenced and we therefore modified glacial lithological categories into two categories corresponding to stratified (Glacial Outwash) and unstratified (Glacial Till and Drift). Glacial drift is a broad term referring to all types of glacial deposits and is difficult to assess stratification without more detailed examination of geomorphologic processes beyond the use of the available maps. Therefore we chose to group Glacial Drift with Glacial Till as a broad "unstratified" category.
+
+```{r}
+#| include: true
+#| label: tbl-geolithology-classification
+#| tbl-cap: The reclassification of original detailed geology and lithology categories into broader soil parent material categories
+
+hlef_litho_source <- vect(paste0(dir_loc, "SOIL CARBON/All_WA/data/Vectors/HLEF_geolith.gpkg"))
+hoh_litho_source <- vect(paste0(dir_loc, "SOIL CARBON/All_WA/data/Vectors/Hoh_geology.shp"))
+mas_litho_source <- vect(paste0(dir_loc, "SOIL CARBON/All_WA/data/Vectors/Mashel_geology.shp"))
+col_litho_source <- vect(paste0(dir_loc, "SOIL CARBON/All_WA/data/Vectors/Colville_geology.shp"))
+
+hlef_litho <- vect(paste0(dir_loc, "SOIL CARBON/All_WA/data/Vectors/HLEF_lithology_consolidate.gpkg"))
+hoh_litho <- vect(paste0(dir_loc, 
+                         "SOIL CARBON/All_WA/data/Vectors/Hoh_lithology_consolidate.shp")) |>
+   tidyterra::select(LITH)
+mas_litho <- vect(paste0(dir_loc, 
+                         "SOIL CARBON/All_WA/data/Vectors/Mas_lithology_consolidate.shp")) |>
+   tidyterra::select(LITH) 
+col_litho <- vect(paste0(dir_loc, 
+                         "SOIL CARBON/All_WA/data/Vectors/Col_lithology_consolidate.shp")) |>
+   tidyterra::select(LITH)
+
+hlef_og_lith <- data.frame(site = "HLEF", LITHOLOGY = unique(hlef_litho_source$HLEF_LITH))
+hoh_og_lith <- data.frame(site = "HRW", LITHOLOGY = unique(hoh_litho_source$LITHOLOGY))
+mas_og_lith <- data.frame(site = "MRW", LITHOLOGY = unique(mas_litho_source$LITHOLOGY))
+col_og_lith <- data.frame(site = "CVW", LITHOLOGY =unique(col_litho_source$LITHOLOGY))
+
+
+lith_og_df <- rbind(hlef_og_lith, hoh_og_lith, mas_og_lith, col_og_lith)
+
+lith_og_new_df <- lith_og_df |> 
+    dplyr::mutate(LITH = case_when(str_detect(LITHOLOGY, "Glacier") ~ "NA",
+                                   str_detect(LITHOLOGY, "Metavolcanic|Tcp|TKts") ~ "igneous",
+                                   str_detect(LITHOLOGY, "Tonalite") ~ "metamorphic",
+                                   str_detect(LITHOLOGY, 
+                                              "till|drift|glacial deposits|glaciolacustrine") ~ "glacial till and drift",
+                                     str_detect(LITHOLOGY, "outwash") ~ "glacial outwash",
+                                     str_detect(LITHOLOGY, "tectonic|alluvium|water|mass-wasting|dune") ~ "unconsolidated",
+                                     str_detect(LITHOLOGY, "sedimentary|sandstone") ~ "sedimentary",
+                                     str_detect(LITHOLOGY, "tuff|volcanic|andesite|basalt") ~ "igneous",
+                                     str_detect(LITHOLOGY, "amphibolite|marble|gneiss|quartz|mafic|migmatite|schist|dacite|metacarbonate|monzo") ~ "metamorphic",
+                                    .default = LITHOLOGY)) |> 
+    mutate(site = fct_relevel(site, c("HLEF","HRW", "MRW", "CVW"))) |> 
+    dplyr::group_by(site) |>
+    arrange(desc(LITH), .by_group = TRUE) |> 
+    rename("Site" = site,
+           "Original Lithology" = "LITHOLOGY",
+           "Reclassified Lithology" = "LITH")
+    
+
+#lith_df <- lith_og_df |> left_join(y = lith_new_df, by = join_by(site))
+
+lith_og_new_df |> na.omit() |> 
+    flextable_fun() |> merge_v(j = c(1, 3)) |> 
+    hline() |> fix_border_issues()
+```
+
+\pagebreak
+
+## Soil particle size and pH
+
+```{r}
+#| label: fig-texture-triangle
+#| fig-height: 4.5
+#| fig-width: 7.5
+#| fig-cap: A. Soil texture triangle showing the sand, silt, and clay composition of all soil samples and B. A histogram of pH values in the mineral soil subset dataset.
+#| fig-align: center
+#| warning: false
+#| message: false
+
+texture_triangle_plot <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/texture_triangle_plot.rda"))
+
+soil_pH <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/pH_histogram.RData"))
+
+(texture_triangle_plot) +
+    soil_pH + 
+    plot_annotation(tag_levels = "A") +
+    plot_layout(ncol = 2, widths = c(0.8, 1)) &
+    theme(legend.title = element_text(face = "bold"),
+          legend.position = "bottom",
+          legend.text = element_text(size = 8, angle = 45), 
+          panel.background = element_blank())
+
+```
+
+### LMM assumptions check
+
+![Normal Quantile-Quantile plot used to evaluate if the distribution of the residuals and sample observations are similar for the LMM for SOC Stock. We note there are some observations that deviate from the 1:1 line but deemed it overall sufficient to proceed with the model.](Figures/Supplemental/qq_lev_full.png){#fig-q-q-lmm-stock fig-align="center"}
+
+![Normal Quantile-Quantile plot used to evaluate if the distribution of the residuals and sample observations are similar for the LMM for SOC %. Fewer observations deviated from the 1:1 line than the SOC stock and were deemed sufficient to proceed with the model.](Figures/Supplemental/qq_lev_edaphic_full.png){#fig-q-q-lmm-perc fig-align="center"}
+
+```{r}
+#| label: fig-randomeffect-dist
+#| fig-align: center
+#| fig-height: 7
+#| fig-width: 7
+#| fig-dpi: 300
+#| fig-cap: Distributions for each level of the sample ID random effect which represents the location of each pedon that groups observations of SOC stock made at different depths. Ideally, the model residuals are evenly distributed around 0.
+#| warning: false
+#| message: false
+#| include: false
+#| 
+
+get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/model_resid_fit_plot.Rdata"))
+```
+
+\pagebreak
+
+```{r}
+#| include: true
+#| label: tbl-WIP-NWI-Areas
+#| tbl-cap: Wetland extent estimates from the Wetland Intrinsic Potential (WIP) Tool and the National Wetland Inventory (NWI). Note that the NWI estimates contain buffered streamlines from the National Hydrography Dataset. WIP wetland extents have removed surface water and NWI estimates have removed estuarine wetlands. A large polygon which was part of the Hoh River in the HRW was removed due to being surface water. Percent differences are calculated as the (WIP-NWI)/NWI. 
+#| tbl-colwidths: auto
+
+PNW_Wet_Area_Table <- readRDS(file = here("writing/Tables/PNW_Wet_Area_Table.rds"))
+PNW_Wet_Area_Table
+
+```
+
+\pagebreak
+
+## Spatial autocorrelation
+
+```{r}
+#| label: fig-semivariograms
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 3.5
+#| fig-dpi: 300
+#| fig-cap: Semivariograms showing the semivariance of location pairs across all study watersheds, the HRW, the MRW, and the CVW. We interpreted these semivariograms as showing little to no spatial structure within the dataset.
+#| warning: false
+#| message: false
+#| include: true
+
+semivariograms <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/Semivariograms.RData"))
+
+semivariograms & theme(
+          axis.text = element_text(size = 4),
+          axis.title = element_text(size = 6),
+          axis.ticks = element_blank(),
+          panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
+          panel.background = element_blank())
+
+```
+
+### Mineral Soil Carbon Concentration
+
+```{r}
+#| include: true
+#| label: tbl-mean-SOC-perc-table
+#| tbl-cap: "SOC stock mean and variation across depth intervals within each watershed study area"
+#| tbl-colwidths: auto
+percSOC_table <- readRDS(here("writing/Tables/SOC_percent_bySite.rds"))
+percSOC_table
+```
+
+### Partial Correlation Analysis
+
+```{r}
+#| label: tbl-ppcor
+#| tbl-cap: Partial correlations between important predictors and SOC Stocks and mineral SOC % between wetlands and uplands using the Wetland Intrinsic Potential threshold of 50%, above which are considered wetlands. Full datasets were used for calculating partial correlations and SOC Stock and mineral SOC % values were untransformed. 
+#| include: true
+#| message: false
+#| results: asis
+
+
+all_lab_ppor_ft <- readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/all_lab_ppor_ft.rds")
+all_ppor_ft <- readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/all_ppor_ft.rds")
+
+all_ppor_ft
+all_lab_ppor_ft
+```
+
+Further investigation into the top predictors for SOC stock using partial correlations to isolate predictors showed differences between wetlands and uplands for Depth, MAT, and WIP [@tbl-ppcor]. Depth and WIP had stronger negative and positive correlations, respectively, with upland SOC stocks compared to wetlands. Wetlands had a stronger negative correlation with MAT compared to uplands. Smaller correlation difference between wetlands and uplands were noted in PET:MAP and Canopy Height.
+
+Partial correlation strength for mineral SOC % differed between wetlands and uplands for PET:MAP, pH, and Clay [@tbl-ppcor]. Wetland mineral SOC % had a much smaller and almost 0 correlation with PET:MAP in contrast to a larger negative correlation in upland mineral SOC %. Wetland mineral SOC % also had a larger negative correlation with pH and a larger positive correlation with Clay compared to upland mineral SOC %. Depth appeared to have a marginal difference between wetlands and uplands.
+
+### <!--# RFM Interaction Plots  -->
+
+<!--# We also investigated the large interaction terms in the RFM for both SOC stocks and SOC % using accumulated local effects (ALE) plots for WIP and pH, respectively. Each of these two predictors was plotted against the next two highest interactions in a two way interaction plot. The interaction between WIP and PET:MAP in the ALE plot showed marginal patterns of variation with high ALE when WIP was high and PET:MAP was small or when PET:MAP was moderate and WIP was moderate. WIP and Landform did show more variation on either end of the WIP gradient where landforms appeared to differentiate between each other. For SOC % pH and PET:MAP showed high ALE zones when pH was low and PET:MAP was low (Supplementary Figure X).  -->
+
+```{r}
+#| label: fig-shap-pdp
+#| fig-width: 6.5
+#| fig-height: 5
+#| fig-dpi: 300
+#| fig-cap: Partial dependence plots using predictor SHAP (SHapley Additive exPlanations) values plotted against the actual values of the predictor and colored by the next highest SHAP predictor. 
+#| include: false
+readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/shap_interact_pdp.rds")
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+#| include: false
+ale_rf_stocks <- readRDS(paste0(dir_loc,"SOIL CARBON/All_WA/writing/Figures/ALE_RF_Stocks_Plot.rds"))
+ale_rf_stocks
+
+
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4
+#| include: false
+ale_rf_lab <- readRDS(paste0(dir_loc,"SOIL CARBON/All_WA/writing/Figures/ALE_RF_Lab_Plot.rds"))
+ale_rf_lab
+
+```
+
+```{r}
+#| label: fig-lmm-interact
+#| message: false
+#| fig-width: 10
+#| fig-height: 4
+#| out-width: 6.5in
+#| fig-dpi: 300
+#| fig-cap: Variable interactions defined in the linear mixed models (LMMs). A. The wetland intrisic potential (WIP) and Depth interaction in the LMM for SOC stock. B. The interaction between pH and PET:MAP in the LMM for mineral SOC %. The figure uses data points from the training dataset and contains the scaled predictors for both WIP, Depth, pH and PET:MAP. SOC stock (g cm^-2^) and mineral SOC % are also log~10~ transformed as was in the original LMM.
+
+lmm_interact_plots <- readRDS(here("writing/Figures/lmm_interact_plots.rds"))
+lmm_interact_plots
+```
+
+```{r}
+#| label: fig-interact-plot
+#| message: false
+#| fig-dpi: 300
+#| fig-width: 6.5
+#| out-width: 6in
+#| fig-cap: Interaction values for the largest three predictors by SHAP value in the RFM for SOC stock and mineral SOC %. Interaction values are derived by the H-Statistic.
+
+
+ia_both_plots <- readRDS(here("writing/Figures/MLR3_RFM_Interact_BothStocksPerc_plot.rds"))
+ia_both_plots
+```
+
+\pagebreak
+
+## Mapped uncertainty
+
+```{r}
+#| label: tbl-mapped-uncertainty
+#| tbl-cap: 95% Prediction interval ranges for mapped SOC stocks. Prediction intervals were calculated using the quantile random forest prediction for the 2.5th and 97.5th quantiles. 
+#| include: true
+
+
+uncertainty_table_mapped_SOC <- readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/PNW_Uncertainty_Mapped_SOC.rds")
+
+uncertainty_table_mapped_SOC
+```
+
+### References
+
+::: {#refs}
+:::

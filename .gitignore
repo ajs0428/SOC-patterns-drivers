@@ -1,4 +1,9 @@
 *
 !PNW*.qmd
 !*/
+!writing/*.qmd
+!writing/*.R
 .Rproj.user
+writing/Chapter2_Manuscript_Draft_NoWetMap.qmd
+writing/textgraveyard.qmd
+
