@@ -18,7 +18,6 @@ library(mlr3tuning)
 library(mlr3learners)
 library(mlr3extralearners)
 library(mlr3viz)
-library(rgl)
 library(terra)
 library(tidyterra)
 library(lme4)
@@ -37,7 +36,7 @@ library(here)
 
 
 # pak::pak(c("mlr-org/mlr3", "mlr-org/mlr3fselect"))
-knitr::knit_hooks$set(webgl = hook_webgl)
+knitr::knit_hooks$set(webgl = "hook_webgl")
 rgl::setupKnitr(autoprint = TRUE)
 
 setGDALconfig("GDAL_PAM_ENABLED", "FALSE")
@@ -250,9 +249,17 @@ names(col_stack_select) == features
 
 ```
 
+Tiling?
+```{r}
+#| eval: false
+tilePath <- here("data/Rasters/Tiles")
+hlef_tiles <- makeTiles(hlef_stack_select, c(1000, 1000), 
+                       filename = file.path(tilePath, "hlef_tile_.tif"))
+```
+
 
 ```{r}
-soc_path <- here("data/Rasters/SOC_Predictions/")
+soc_path <- here("data/Rasters/SOC_Predictions/SOC_Predictions_Depth/")
 
 soc_pred_func <- function(model, pred_stack, depth_ints, numcores) {
   stopifnot(is.vector(depth_ints))
@@ -261,24 +268,31 @@ soc_pred_func <- function(model, pred_stack, depth_ints, numcores) {
   model$quantile_response = 0.5
   name <- str_extract(deparse(substitute(pred_stack)), "hlef|hoh|mas|col")
   
-  rast_list <- list()
   for(i in 1:length(depth_ints)) {
-    rast_list[[i]] <- predict(pred_stack, model, 
+    predict(pred_stack, model, 
                 const = data.frame(lower_depth = depth_ints[i]), 
-                na.rm = TRUE, cores = numcores, wopt=list(steps=10))
+                na.rm = TRUE, cores = numcores, 
+                filename = paste0(soc_path, "PNW_", name,"_", depth_ints[[i]],
+                                  "cm_SOC_RFM_noWIP.tif"),
+                overwrite = TRUE,
+                wopt=list(steps=25))
+    gc()
   }
-  
-  rast_stack_sum <- sum(rast(rast_list))
-  writeRaster(rast_stack_sum, filename = paste0(soc_path, "PNW_", name,
-                                                "_SOC_RFM_1m_noWIP.tif"),
-              overwrite = TRUE)
+  gc()
+  # rast_stack_sum <- sum(rast(rast_list))
+  # 
+  # writeRaster(rast_stack_sum, filename = paste0(soc_path, "PNW_", name,
+  #                                               "_SOC_RFM_1m_noWIP.tif"),
+  #             overwrite = TRUE)
+
   #return(rast_stack_sum)
 }
 
 #test <- soc_pred_func(QRFM_stocks_nw, hlef_stack_select, 25)
 
 terraOptions(
-    memfrac = 0.5,
+    memfrac = 0.5, 
+    memmax = 2,
     memmin = 0.1
 )
 
@@ -295,35 +309,44 @@ terraOptions(
 # plot(test)
 ```
 
+
+
 ```{r}
 #| eval: false
 
-soc_pred_func(model = QRFM_stocks_nw, 
-              pred_stack = hlef_stack_select,
-              numcores = 4,
-              depth_ints = seq(25, 100, 25))
-soc_pred_func(model = QRFM_stocks_nw, 
-              pred_stack = hoh_stack_select, 
-              depth_ints = seq(25, 100, 25),
-              numcores = 4)
-soc_pred_func(model = QRFM_stocks_nw, 
-              pred_stack = mas_stack_select, 
-              depth_ints = seq(25, 100, 25),
-              numcores = 4)
-soc_pred_func(model = QRFM_stocks_nw, 
-              pred_stack = col_stack_select, 
-              depth_ints = seq(25, 100, 25),
-              numcores = 4)
+# soc_pred_func(model = QRFM_stocks_nw,
+#               pred_stack = hlef_stack_select,
+#               numcores = 4,
+#               depth_ints = seq(25, 100, 25))
+# soc_pred_func(model = QRFM_stocks_nw, 
+#               pred_stack = hoh_stack_select, 
+#               depth_ints = seq(25, 100, 25),
+#               numcores = 3)
+# soc_pred_func(model = QRFM_stocks_nw, 
+#               pred_stack = mas_stack_select, 
+#               depth_ints = seq(25, 100, 25),
+#               numcores = 2)
+# soc_pred_func(model = QRFM_stocks_nw, 
+#               pred_stack = col_stack_select, 
+#               depth_ints = seq(25, 100, 25),
+#               numcores = 2)
 ```
 
 ```{r}
-hlef_soc <- rast(paste0(soc_path, "PNW_", "hlef", "_SOC_RFM_1m.tif"))
+hlef_soc <- rast(list.files(soc_path, pattern = "hlef", full.names = TRUE)) |> 
+  sum() 
+
+hoh_soc <- rast(list.files(soc_path, pattern = "hoh", full.names = TRUE)) |> 
+  sum() 
+
+mas_soc <- rast(list.files(soc_path, pattern = "mas", full.names = TRUE)) |> 
+  sum() 
+
+col_soc <- rast(list.files(soc_path, pattern = "col", full.names = TRUE)) |> 
+  sum() 
 plot(hlef_soc)
-hoh_soc <- rast(paste0(soc_path, "PNW_", "hoh", "_SOC_RFM_1m.tif"))
 plot(hoh_soc)
-mas_soc <- rast(paste0(soc_path, "PNW_", "mas", "_SOC_RFM_1m.tif"))
 plot(mas_soc)
-col_soc <- rast(paste0(soc_path, "PNW_", "col", "_SOC_RFM_1m.tif"))
 plot(col_soc)
 ```
 
@@ -370,7 +393,7 @@ water_urban_masking <- function(rast_to_mask, mndwi, urban) {
   masked_soc <- mask(rast_to_mask, mndwi > mndwi_mask_value, 
                        maskvalues = TRUE, updatevalue = NA) |> 
     mask(mask = urban, maskvalues = urban_num, updatevalue = NA)
-  writeRaster(masked_soc,  filename = paste0(soc_path, deparse(substitute(rast_to_mask)), "_water_urban_mask", ".tif"), overwrite = TRUE)
+  writeRaster(masked_soc,  filename = paste0(soc_path, deparse(substitute(rast_to_mask)), "_water_urban_mask", "no_wip.tif"), overwrite = TRUE)
   
   #return(masked_soc) 
 }
@@ -387,10 +410,10 @@ water_urban_masking(col_soc, col_stack$MNDWI, col_nlcd)
 ```
 
 ```{r}
-hlef_soc_mask <- rast(paste0(soc_path,"hlef_soc", "_water_urban_mask", ".tif"))
-hoh_soc_mask <- rast(paste0( soc_path,"hoh_soc", "_water_urban_mask", ".tif"))
-mas_soc_mask <- rast(paste0( soc_path,"mas_soc", "_water_urban_mask", ".tif"))
-col_soc_mask <- rast(paste0( soc_path,"col_soc", "_water_urban_mask", ".tif"))
+hlef_soc_mask <- rast(paste0(soc_path,"hlef_soc", "_water_urban_mask", "no_wip.tif"))
+hoh_soc_mask <- rast(paste0( soc_path,"hoh_soc", "_water_urban_mask", "no_wip.tif"))
+mas_soc_mask <- rast(paste0( soc_path,"mas_soc", "_water_urban_mask", "no_wip.tif"))
+col_soc_mask <- rast(paste0( soc_path,"col_soc", "_water_urban_mask", "no_wip.tif"))
 
 plot(hlef_soc_mask)
 plot(hoh_soc_mask) 
@@ -533,18 +556,18 @@ mappedSOC_1m_depths_sum_df <- soc_map_sum_classes(soc_list, wip_list)
 
 
 mappedSOC_1m_depths_sum_df
-readr::write_csv(mappedSOC_1m_depths_sum_df, here("data/dataframes/PNW_MapSOC_wetupl_1m.csv"))
+readr::write_csv(mappedSOC_1m_depths_sum_df, here("data/dataframes/PNW_MapSOC_wetupl_1m_no_wip_no_wip.csv"))
 ```
 
 
 
 ```{r}
 
-SOC_df <- readr::read_csv(here("data/dataframes/PNW_MapSOC_wetupl_1m.csv"))
+SOC_df <- readr::read_csv(here("data/dataframes/PNW_MapSOC_wetupl_1m_nowip.csv"))
 
 SOC_df |> 
   mutate(across(contains("SOC"), ~ . * 100)) |> 
-  readr::write_csv(here("data/dataframes/PNW_MapSOC_wetupl_1m_Mgha.csv"))
+  readr::write_csv(here("data/dataframes/PNW_MapSOC_wetupl_1m_Mgha_no_wip.csv"))
 
 
 SOC_df
@@ -767,7 +790,7 @@ soc_quantpred_func <- function(model, pred_stack, depth_ints, numcores) {
   names(rast_high_stack_sum) <- "soc_975"
   rast_95 <- c(rast_low_stack_sum, rast_high_stack_sum)
   writeRaster(rast_95, 
-              filename = paste0(soc_path, "PNW_", name, "_025_975_SOC_RFM_1m.tif"),
+              filename = paste0(soc_path, "PNW_", name, "_025_975_SOC_RFM_1m_nowip.tif"),
                overwrite = TRUE)
   
   #return(rast_95)
@@ -804,10 +827,10 @@ soc_quantpred_func(model = QRFM_stocks_nw,
 ```
 
 ```{r}
-hlef_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_hlef_025_975_SOC_RFM_1m.tif"))
-hoh_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_hoh_025_975_SOC_RFM_1m.tif"))
-mas_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_mas_025_975_SOC_RFM_1m.tif"))
-col_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_col_025_975_SOC_RFM_1m.tif"))
+hlef_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_hlef_025_975_SOC_RFM_1m_nowip.tif"))
+hoh_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_hoh_025_975_SOC_RFM_1m_nowip.tif"))
+mas_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_mas_025_975_SOC_RFM_1m_nowip.tif"))
+col_int_rast <- (rast("data/Rasters/SOC_Predictions/PNW_col_025_975_SOC_RFM_1m_nowip.tif"))
 ```
 
 ```{r}
@@ -835,7 +858,7 @@ mappedSOC_025_1m_depths_sum_df <- soc_map_sum_classes(soc_025_list, wip_list)
 mappedSOC_975_1m_depths_sum_df <- soc_map_sum_classes(soc_975_list, wip_list)
 
 mappedSOC_025_1m_depths_sum_df
-readr::write_csv(mappedSOC_025_1m_depths_sum_df, "data/dataframes/PNW_mappedSOC_025_1m_depths_sum_df.csv")
-readr::write_csv(mappedSOC_975_1m_depths_sum_df, "data/dataframes/PNW_mappedSOC_975_1m_depths_sum_df.csv")
+readr::write_csv(mappedSOC_025_1m_depths_sum_df, "data/dataframes/PNW_mappedSOC_025_1m_depths_sum_df_no_wip.csv")
+readr::write_csv(mappedSOC_975_1m_depths_sum_df, "data/dataframes/PNW_mappedSOC_975_1m_depths_sum_df_no_wip.csv")
 ```
 

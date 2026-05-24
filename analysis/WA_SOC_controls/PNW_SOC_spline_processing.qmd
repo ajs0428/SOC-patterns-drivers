@@ -19,7 +19,7 @@ h1, h3 {
 library(formatR)
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 75)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+
 library(terra)
 library(aqp)
 library(ithir)
@@ -66,7 +66,7 @@ HLEF_2022
 
 ```{r}
 #| eval: false
-HLEF_USFS <- openxlsx::read.xlsx("HLEF/USFS_Box/HLEF_USFS_Upl.xlsx", 
+HLEF_USFS <- openxlsx::read.xlsx("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/HLEF/USFS_Box/HLEF_USFS_Upl.xlsx", 
                                  sheet = "Sheet3", startRow = 1, detectDates = TRUE) |> 
   rename(sample_ID = "sample_ID",
          lat = latitude,
@@ -100,7 +100,7 @@ HLEF_Full <- rbind(HLEF_2022, HLEF_USFS)
 
 ```{r}
 #| eval: false
-wa_dat <- read.csv("SOIL CARBON/All_WA/data/dataframes/All_WA_horizons.csv") |> 
+wa_dat <- read.csv(here("data/dataframes/All_WA_horizons.csv")) |> 
   dplyr::select(-redox, -field_texture_binned, -field_texture) |>
   mutate(carbon_stock_g_cm2 = ((carbon_perc/100)*BD_g_cm3*thickness_cm)*(1-rock_perc/100))
 glimpse(wa_dat)
@@ -136,7 +136,7 @@ wa_dat_lab <- wa_dat |>
          SiltClay = Silt+Clay)
 glimpse(wa_dat_lab)
 
-readr::write_csv(wa_dat_lab, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/All_WA_horizons_pH_PSA_lab.csv")
+readr::write_csv(wa_dat_lab, file = here("data/dataframes/All_WA_horizons_pH_PSA_lab.csv"))
 ```
 
 Next we calculate top, center, and bottoms of the soil horizons
@@ -168,8 +168,8 @@ pnw_dat_horC <- wa_dat |>
                   carbon_perc, carbon_stock_g_cm2, BD_g_cm3)  |> 
   rbind(HLEF_stocks) 
 glimpse(pnw_dat_horC)
-readr::write_csv(pnw_dat_horC, "SOIL CARBON/All_WA/data/dataframes/pnw_stocks_data.csv")
-pnw_dat_horC |> group_by(sample_ID) |> summarise(lat = first(lat), lon = first(lon)) |> readr::write_csv("SOIL CARBON/All_WA/data/dataframes/pnw_stocks_latlon_only.csv")
+readr::write_csv(pnw_dat_horC, here("data/dataframes/pnw_stocks_data.csv"))
+pnw_dat_horC |> group_by(sample_ID) |> summarise(lat = first(lat), lon = first(lon)) |> readr::write_csv(here("data/dataframes/pnw_stocks_latlon_only.csv"))
 ```
 
 
@@ -194,7 +194,7 @@ pnw_dat_horC_lab <- wa_dat_lab |>
   rbind(HLEF_lab) #|> filter(bottom <= 200) 
 glimpse(pnw_dat_horC_lab)
 
-readr::write_csv(pnw_dat_horC_lab, "SOIL CARBON/All_WA/data/dataframes/pnw_lab_data.csv")
+readr::write_csv(pnw_dat_horC_lab, here("data/dataframes/pnw_lab_data.csv"))
 
 ```
 
@@ -323,11 +323,11 @@ glimpse(pnw_spl_dat_recalc_stocks)
 
 ```{r }
 write.csv(pnw_spl_dat_spline_join |> select(-spline_var), 
-          file = "SOIL CARBON/All_WA/data/dataframes/pnw_spl_datperc_0_15_30_60_100_150_200.csv")
+          file = here("data/dataframes/pnw_spl_datperc_0_15_30_60_100_150_200.csv"))
 write.csv(pnw_spl_dat_spline_join |> select(-carbon_perc, -spline_var),
-          file = "SOIL CARBON/All_WA/data/dataframes/pnw_spl_dat_15_30_60_100_150_200.csv")
+          file = here("data/dataframes/pnw_spl_dat_15_30_60_100_150_200.csv"))
 write.csv(pnw_spl_dat_recalc_stocks |> select(-spline_var),
-          file = "SOIL CARBON/All_WA/data/dataframes/pnw_spl_dat_recalc_stocks_25cm.csv")
+          file = here("data/dataframes/pnw_spl_dat_recalc_stocks_25cm.csv"))
 
 
 ```

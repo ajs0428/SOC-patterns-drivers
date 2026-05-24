@@ -8,7 +8,7 @@ format: html
 library(formatR)
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+
 library(tidyverse)
 library(terra)
 library(mlr3verse)
@@ -23,10 +23,10 @@ set.seed(11)
 
 
 ```{r}
-hlef_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/hlef_pts_6394.gpkg"))
-hoh_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/hoh_pts_2855.gpkg")) #|> 
-mas_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/mas_pts_2856.gpkg")) #|> 
-col_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/col_pts_2855.gpkg")) #|> 
+hlef_dat <- data.frame(vect(here("data/points/hlef_pts_6394.gpkg")))
+hoh_dat <- data.frame(vect(here("data/points/hoh_pts_2855.gpkg"))) #|> 
+mas_dat <- data.frame(vect(here("data/points/mas_pts_2856.gpkg"))) #|> 
+col_dat <- data.frame(vect(here("data/points/col_pts_2855.gpkg"))) #|> 
 
 
 pnw_dat <- rbind(hoh_dat, mas_dat, col_dat) |> 
@@ -45,7 +45,7 @@ pnw_dat <- rbind(hoh_dat, mas_dat, col_dat) |>
                          grad_1000, grad_300, grad_50)
 pnw_dat
 
-readr::write_csv(pnw_dat, "SOIL CARBON/All_WA/data/dataframes/PNW_data_MLR3_RFM_LMM.csv")
+readr::write_csv(pnw_dat, here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv"))
 
 ```
 
@@ -53,10 +53,10 @@ readr::write_csv(pnw_dat, "SOIL CARBON/All_WA/data/dataframes/PNW_data_MLR3_RFM_
 ### Laboratory points with edaphic factors and carbon%
 
 ```{r}
-hlef_lab_dat <- data.frame(vect("SOIL CARBON/All_WA/data/points/hlef_lab_pts_6394.gpkg"))
-hoh_lab_pts <- data.frame(vect("SOIL CARBON/All_WA/data/points/hoh_lab_pts_2855.gpkg"))
-mas_lab_pts <- data.frame(vect("SOIL CARBON/All_WA/data/points/mas_lab_pts_2856.gpkg"))
-col_lab_pts <- data.frame(vect("SOIL CARBON/All_WA/data/points/col_lab_pts_2855.gpkg"))
+hlef_lab_dat <- data.frame(vect(here("data/points/hlef_lab_pts_6394.gpkg")))
+hoh_lab_pts <- data.frame(vect(here("data/points/hoh_lab_pts_2855.gpkg")))
+mas_lab_pts <- data.frame(vect(here("data/points/mas_lab_pts_2856.gpkg")))
+col_lab_pts <- data.frame(vect(here("data/points/col_lab_pts_2855.gpkg")))
 
 pnw_dat_lab <- rbind(hoh_lab_pts, mas_lab_pts, col_lab_pts) |> 
     select(names(hlef_lab_dat)) |> 
@@ -75,7 +75,7 @@ pnw_dat_lab <- rbind(hoh_lab_pts, mas_lab_pts, col_lab_pts) |>
                          grad_1000, grad_300, grad_50)
 pnw_dat_lab 
 
-readr::write_csv(pnw_dat_lab, "SOIL CARBON/All_WA/data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv")
+readr::write_csv(pnw_dat_lab, here("data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv"))
 ```
 
 ### Split data into training and testing
@@ -103,11 +103,11 @@ nrow(test)
 train |> group_by(site) |> summarise(n = n())
 test |> group_by(site) |> summarise(n = n())
 
-write.csv(pnw_dat, "SOIL CARBON/All_WA/data/dataframes/PNW_data_MLR3_RFM_LMM.csv")
-write.csv(test, "SOIL CARBON/All_WA/data/dataframes/Test_data.csv")
-write.csv(train, "SOIL CARBON/All_WA/data/dataframes/Train_data.csv")
-write.csv(test.wet, "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Wet_data.csv")
-write.csv(test.upl, "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Upl_data.csv")
+write.csv(pnw_dat, here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv"))
+write.csv(test, here("data/dataframes/Test_data.csv"))
+write.csv(train, here("data/dataframes/Train_data.csv"))
+write.csv(test.wet, here("data/dataframes/RFM_Test_Wet_data.csv"))
+write.csv(test.upl, here("data/dataframes/RFM_Test_Upl_data.csv"))
 ```
 
 
@@ -126,11 +126,11 @@ testlab.upl <- pnw_dat_lab[-split_lab$train,] |> filter(WIP < 0.5)
 nrow(trainlab) 
 nrow(testlab)
 
-write.csv(pnw_dat_lab, "SOIL CARBON/All_WA/data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv")
-write.csv(testlab, "SOIL CARBON/All_WA/data/dataframes/Test_Lab_data.csv")
-write.csv(trainlab, "SOIL CARBON/All_WA/data/dataframes/Train_Lab_data.csv")
-write.csv(testlab.wet, "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Lab_Wet_data.csv")
-write.csv(testlab.upl, "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Lab_Upl_data.csv")
+write.csv(pnw_dat_lab, here("data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv"))
+write.csv(testlab, here("data/dataframes/Test_Lab_data.csv"))
+write.csv(trainlab, here("data/dataframes/Train_Lab_data.csv"))
+write.csv(testlab.wet, here("data/dataframes/RFM_Test_Lab_Wet_data.csv"))
+write.csv(testlab.upl, here("data/dataframes/RFM_Test_Lab_Upl_data.csv"))
 ```
 
 
@@ -196,17 +196,17 @@ test_upl_scale <- scale_fun(traindf = train, scaledf = test,
                             target = "SOC_stock_spline", wip = "upl")
 
 write_csv(train_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Stocks_Train_Scale.csv"))
 write_csv(train_wet_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv"))
 write_csv(train_upl_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Train_Upl_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Stocks_Train_Upl_Scale.csv"))
 write_csv(test_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Stocks_Test_Scale.csv"))
 write_csv(test_wet_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Wet_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Stocks_Test_Wet_Scale.csv"))
 write_csv(test_upl_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Stocks_Test_Upl_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Stocks_Test_Upl_Scale.csv"))
 ```
 
 
@@ -226,17 +226,17 @@ testlab_upl_scale <- scale_fun(traindf = trainlab, scaledf = testlab,
                                target = "carbon_perc", wip = "upl")
 
 write_csv(trainlab_scale , 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Lab_Train_Scale.csv"))
 write_csv(trainlab_wet_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Wet_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Lab_Train_Wet_Scale.csv"))
 write_csv(trainlab_upl_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Train_Upl_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Lab_Train_Upl_Scale.csv"))
 write_csv(testlab_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Lab_Test_Scale.csv"))
 write_csv(testlab_wet_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Wet_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Lab_Test_Wet_Scale.csv"))
 write_csv(testlab_upl_scale, 
-          file = "SOIL CARBON/All_WA/data/dataframes/PNW_Spline_Lab_Test_Upl_Scale.csv")
+          file = here("data/dataframes/PNW_Spline_Lab_Test_Upl_Scale.csv"))
 
 ```
 
