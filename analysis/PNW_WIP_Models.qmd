@@ -9,11 +9,14 @@ format: html
 library(formatR)
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
+# knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
 
 library(terra)
 library(tidyverse)
 library(randomForest)
+library(here)
+
+here()
 ```
 
 
@@ -59,19 +62,19 @@ Data and model import
 - HRW is already published twice Stewart et al., 2024 and Halabisky et al., 2023
 ```{r}
 
-HLEF_ConfMat <- readRDS(("HLEF/HLEF WIP/WIP_Export/HLEF_RF_Model_Final_ConfMat_stats.rds"))
-HLEF_Model <- get(load("HLEF/HLEF WIP/WIP_Export/HLE_RF_Model_Final.RData"))
+HLEF_ConfMat <- readRDS(here("analysis/models/HLEF_RF_Model_Final_ConfMat_stats.rds"))
+HLEF_Model <- get(load(here("analysis/models/HLE_RF_Model_Final.RData")))
 
 HRW_ConfMat_only <- HLEF_ConfMat$table
 HRW_ConfMat_only[1,] <- c(190, 14)
 HRW_ConfMat_only[2,] <- c(10, 85)
-HRW_Model <- get(load("WIP/Hoh_data/Results/Hoh_2022_fullmodel_v08.RFmodel"))$model
+HRW_Model <- get(load(here("analysis/models/Hoh_2022_fullmodel_v08.RFmodel")))$model
 
-MRW_ConfMat <- get(load("Mashel/Mashel_WIP_2024/Model_Export/MAS_RF_Model_Final_ConfMat_stats.rda"))
-MRW_Model <- get(load("Mashel/Mashel_WIP_2024/Model_Export/MAS_RF_Model_Final.RData"))
+MRW_ConfMat <- get(load(here("analysis/models/MAS_RF_Model_Final_ConfMat_stats.rda")))
+MRW_Model <- get(load(here("analysis/models/MAS_RF_Model_Final.RData")))
 
-CVW_ConfMat <- get(load("Colville/Colville_WIP_2024/Model_Export/COL_RF_Model_Final_ConfMat_stats.rda"))
-CVW_Model <- get(load("Colville/Colville_WIP_2024/Model_Export/COL_RF_Model_Final.RData"))
+CVW_ConfMat <- get(load(here("analysis/models/COL_RF_Model_Final_ConfMat_stats.rda")))
+CVW_Model <- get(load(here("analysis/models/COL_RF_Model_Final.RData")))
 
 ```
 
@@ -93,7 +96,7 @@ All_WIP_Acc_DF <- data.frame(StudyArea = c("HLEF", "HRW", "MRW", "CVW"),
 
 All_WIP_Acc_DF
 
-readr::write_csv(All_WIP_Acc_DF, "SOIL CARBON/All_WA/data/dataframes/All_WIP_Acc_DF.csv")
+readr::write_csv(All_WIP_Acc_DF, here("data/dataframes/All_WIP_Acc_DF.csv"))
 ```
 
 Variable Importance
@@ -113,9 +116,25 @@ CVW_VarImp <- as_tibble(importance(CVW_Model), rownames = "Predictor") |> select
 
 allsite_WIPimp <- rbind(HLEF_VarImp, HRW_VarImp, MRW_VarImp, CVW_VarImp) 
 
-readr::write_csv(allsite_WIPimp, file = "SOIL CARBON/All_WA/data/dataframes/PNW_WIP_VarImp.csv")
+readr::write_csv(allsite_WIPimp, file = here("data/dataframes/PNW_WIP_VarImp.csv"))
 
 
+```
+```{r}
+wipPredictors <- as_tibble(importance(HLEF_Model), rownames = "Predictor") |> 
+    select(Predictor) |> 
+    mutate(StudyArea = "HLEF") |> 
+    bind_rows(as_tibble(importance(HRW_Model), rownames = "Predictor") |> 
+                 select(Predictor) |> 
+                 mutate(StudyArea = "HRW")) |> 
+    bind_rows(as_tibble(importance(MRW_Model), rownames = "Predictor") |> 
+                 select(Predictor) |> 
+                 mutate(StudyArea = "MRW")) |> 
+     bind_rows(as_tibble(importance(CVW_Model), rownames = "Predictor") |> 
+                 select(Predictor) |> 
+                 mutate(StudyArea = "CVW")) 
+
+readr::write_csv(wipPredictors, here("data/dataframes/PNW_WIP_Predictors.csv"))    
 ```
 
 

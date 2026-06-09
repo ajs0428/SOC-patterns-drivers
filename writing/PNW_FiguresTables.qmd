@@ -79,6 +79,7 @@ QRFM_lab <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds"))
 
 ```{r}
 All_WIP_Acc_DF <- read.csv(here("data/dataframes/All_WIP_Acc_DF.csv"))
+wipPredictors <- read.csv(here("data/dataframes/PNW_WIP_Predictors.csv"))
 allsite_WIPimp <- read.csv(here("data/dataframes/PNW_WIP_VarImp.csv"))
 
 pnw_dat <- read.csv(here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv"))
@@ -314,6 +315,39 @@ All_WIP_Acc_DF |>
                 "Wetland\nOmission Error" = OmissionWet,
                 "Wetland\nCommission Error" = ComissionWet) |> 
   flextable_fun()
+```
+
+WIP Predictors
+
+```{r}
+wipPredictors_table <- wipPredictors |> 
+  dplyr::rename("Study Area" = StudyArea) |> 
+  mutate(Predictor = case_when(str_detect(Predictor, "dev_") ~ str_replace(Predictor, "dev_", "Deviation "),
+                               str_detect(Predictor, "grad_") ~ str_replace(Predictor, "grad_", "Gradient "), 
+                               str_detect(Predictor, "plan_") ~ str_replace(Predictor, "plan_", "Planform Curvature  "),
+                               str_detect(Predictor, "prof_") ~ str_replace(Predictor, "prof_", "Profile Curvature "),
+                               str_detect(Predictor, "twi_") ~ str_replace(Predictor, "twi_", "TWI "),
+                               str_detect(Predictor, "HLEF_CHM_") ~ "Canopy Height ",
+                               str_detect(Predictor, "HLEF_DEM|DEM") ~ "Elevation  ",
+                               str_detect(Predictor, "HLEF_Intensity") ~ str_replace(Predictor, "HLEF_Intensity", "Lidar Intensity  "),
+                               str_detect(Predictor, "depthToAny") ~ "Depth to Restrictive Layer",
+                               str_detect(Predictor, "Ksat_") ~ "Soil Ksat",
+                               str_detect(Predictor, "Hoh_TreeHeight") ~ "Canopy Height",
+                               str_detect(Predictor, "NAIP_2017_Hoh_NDVI") ~ "NDVI",
+                               str_detect(Predictor, "Band_1") ~ "NDWI",
+                               str_detect(Predictor, "Hoh_DTW_allrivers|DTW") ~ "Depth to Water",
+                               str_detect(Predictor, "Hoh_all_DTM_NAD83_TWI_4m_v4|TWI") ~ "Topographic Wetness Index",
+                               str_detect(Predictor, "CHM") ~ "Canopy Height",
+                               str_detect(Predictor, "0\ ") ~ str_replace(Predictor, "0\ ", "0m"),
+         .default = Predictor)) |> 
+  mutate(Predictor = str_replace(Predictor, "(\\d+)$", "\\1m")) |> 
+  mutate(Predictor = str_replace(Predictor, "Hoh_all_DTM_NAD83_TWI_4m_v4|TWI", "Topographic Wetness Index")) |>
+  flextable_fun() |> 
+  flextable::hline(i = c(24, 43, 61, 78)) |>
+  flextable::merge_v(j = 2)
+wipPredictors_table
+
+saveRDS(wipPredictors_table, "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/wipPredictors_table.rds")
 ```
 
 
