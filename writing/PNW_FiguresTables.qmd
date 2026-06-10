@@ -892,7 +892,7 @@ stat_table_format <- stock_mods_table |>
                                       "\ng cm",
                                       as_sup("-2")))) |>
     flextable::compose(part = "body", i = 7, j = 1,
-               value = c(as_paragraph("SOC \n%"))) |>
+               value = c(as_paragraph("Mineral SOC \n%"))) |>
     fix_border_issues() 
     # vline(part = "header",  j = 9) |> 
     # delete_rows(i = c(2, 3), part = "body") |> 
@@ -903,8 +903,8 @@ stat_table_format <- stock_mods_table |>
 
 stat_table_format
 
-saveRDS(stat_table_format, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/Model_stats_table.rds")
-readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/Model_stats_table.rds")
+saveRDS(stat_table_format, file = here("writing/Tables/Model_stats_table.rds"))
+readRDS(file = here("writing/Tables/Model_stats_table.rds"))
 ```
 
 
