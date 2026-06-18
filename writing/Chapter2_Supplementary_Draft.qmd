@@ -1,5 +1,15 @@
 ---
-title: "Supplementary information for Improving soil organic carbon spatial distribution and interpretation of cross-scale drivers with probabilistic wetland representation"
+title: "Supplementary information Probabilistic wetland maps for mapping soil carbon stock distribution across the Pacific Northwest"
+bibliography: references_supp.bib
+fig-dpi: 150
+format:
+  docx:
+    reference-doc: custom-reference-doc.docx
+    toc: false
+    toc-depth: 4
+    output-file: Chapter2_Supplementary_Draft
+    output-ext: docx
+
 authors: 
     - name: Anthony J Stewart
       affiliations:
@@ -18,6 +28,7 @@ authors:
         - ref: fs
       corresponding: false
       email: david.v.damore@usda.gov
+      orcid: 0000-0002-5481-8428
     - name: Diogo Spinola
       affiliations:
         - ref: ub
@@ -53,27 +64,13 @@ affiliations:
     name: Department of Forest Resources, University of Minnesota, St. Paul, 55108, MN, USA
 filters:
   - authors-block/authors-block.lua
-format: 
-    docx: 
-        reference-doc: custom-reference-doc.docx
-        toc: false
-        toc-depth: 4
-        output-file: Chapter2_Supplementary_Draft
-        output-ext: docx
-execute: 
-  echo: false
-  warning: false
-linestretch: 2
-fig-dpi: 150
-bibliography: references_supp.bib
-link-citations: true
-csl: american-geophysical-union.csl
-crossref: 
-    tbl-prefix: "Supplementary Table "
-    tbl-title: "Supplementary Table"
-    fig-prefix: "Supplementary Figure "
-    fig-title: "Supplementary Figure "
-    title-delim: "."
+
+crossref:
+  tbl-prefix: "Supplementary Table "
+  tbl-title: "Supplementary Table"
+  fig-prefix: "Supplementary Figure "
+  fig-title: "Supplementary Figure "
+  title-delim: "."
 ---
 
 ```{r setup}
@@ -201,7 +198,8 @@ source(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/All_WA_Functions.R"))
 ```
 
 ```{r}
-#| eval: false
+#| eval: true
+#| include: false
 wa_dat <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds.csv"))
 
 wa_stocks_dat <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_1m_stocks_preds.csv"))
@@ -215,6 +213,10 @@ wa_dat_scale <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All
 wa_dat_scale_wet <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Wet.csv"))
 
 wa_dat_scale_upl <- read.csv(paste0(dir_loc, "SOIL CARBON/All_WA/data/dataframes/All_WA_SOC_ExtractPreds_Scaled_Upl.csv"))
+
+pnw_dat <- read.csv(here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv"))
+pnw_dat_lab <- read.csv(here("data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv")) |> 
+    dplyr::select( -X)
 
 
 mod7 <- get(load(paste0(dir_loc, "SOIL CARBON/All_WA/analysis/models/All_WA_Model7d1_Spline.RData")))
@@ -292,7 +294,7 @@ We calculated terrain indices using the Surface Metrics Toolbox developed by @ha
 
 We derived training data for wetlands and uplands (non-wetlands) using the geospatial dataset from the National Wetland Inventory (NWI) and the Wetland Mapper Tool [@NationalWetlandsInventory]. We extracted 3000 total training points from NWI wetlands in the HLEF, MRW, and CVW study areas (6000 total points) with approximately 2/3 of the training points classified as "upland" and 1/3 classified as "wetland". The training points were then used to extract data from the geospatial metrics in each study area. A random forest model was then constructed using a 70:30 training and testing dataset partition and then used to generate a preliminary WIP model. From this preliminary model, we utilized a similar approach to @halabiskyWetlandIntrinsicPotential2023 and generated another training dataset and a validation dataset by conducting a stratified sampling of 600 points and 300 points, respectively across the gradient of the preliminary model. The points from this stratification were then verified as either wetland or upland by two analysts who conducted site visits and referenced points using aerial imagery, pre-existing NWI data, and lidar-derived hillshades.
 
-The new training and validation points were then used in another separate random forest model which generated the final mapped prediction of the WIP model. The most important variables from the Random Forest models in all four study watersheds are shown in [@fig-PNW-WIPimp-plot].
+The new training and validation points were then used in another separate random forest model which generated the final mapped prediction of the WIP model. The most important variables derived from the mean decrease accuracy, a default method from the Random Forest models in all four study watersheds are shown in @fig-PNW-WIPimp-plot. Mean decrease accuracy was chosen over mean decrease gini due to the permutation calculation that is less sensitive and biased towards categorical and continuous predictors, respectively.
 
 \pagebreak
 
@@ -309,7 +311,7 @@ readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling
 
 ```{r}
 #| label: fig-PNW-WIPimp-plot
-#| fig-cap: Variable importance plots from the final WIP models in all four watersheds. Only the top 5 predictors were included from each watershed. We observed multiscale terrain metrics such as Gradient, and Deviation occurring frequently. Other terrain derived metrics such as depth to water (DTW), and topographic wetness index (TWI) were included in some but not all models. But we note that Canopy Height in the HRW and the normalized difference yellow index and enhanced vegetation index in the HLEF were vegetation indices which may have helped identify peat occurance.
+#| fig-cap: Variable importance plots derived by using mean decrease accuracy for the final WIP models in all four watersheds. Only the top 5 predictors were included from each watershed. We observed multiscale terrain metrics such as Gradient, and Deviation occurring frequently. Other terrain derived metrics such as depth to water (DTW), and topographic wetness index (TWI) were included in some but not all models. But we note that Canopy Height in the HRW and the normalized difference yellow index and enhanced vegetation index in the HLEF were vegetation indices which may have helped identify peat occurance.
 
 readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/PNW_WIPimp_plot.rds")
 
@@ -319,7 +321,7 @@ readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling
 
 ## Parent Material
 
-Both Alaska and Washington State are glacially influenced and we therefore modified glacial lithological categories into two categories corresponding to stratified (Glacial Outwash) and unstratified (Glacial Till and Drift). Glacial drift is a broad term referring to all types of glacial deposits and is difficult to assess stratification without more detailed examination of geomorphologic processes beyond the use of the available maps. Therefore we chose to group Glacial Drift with Glacial Till as a broad "unstratified" category.
+We used surficial geology and lithology to represent the parent material for soil development across our four study areas. Surficial geology and lithology categories are broad and diverse with details on both the composition and origin of the material. We chose to use broad categories of lithology: unconsolidated, metamorphic, igneous, sedimentary, and quaternary, as well as incorporating glacial categories: glacial till and drift and glacial outwash. Both Alaska and Washington State are glacially influenced and we therefore modified glacial lithological categories into two categories corresponding to stratified (Glacial Outwash) and unstratified (Glacial Till and Drift). Glacial drift is a broad term referring to all types of glacial deposits and is difficult to assess stratification without more detailed examination of geomorphologic processes beyond the use of the available maps. Therefore we chose to group Glacial Drift with Glacial Till as a broad "unstratified" category. The unconsolidated category delineations from the surficial geology maps also helped identify active floodplains where soil rarely accumulates due to scouring but also where wetlands are often mapped. These areas helped the model identify riverine wetlands as low-carbon wetlands.
 
 ```{r}
 #| include: true
@@ -352,6 +354,7 @@ lith_og_df <- rbind(hlef_og_lith, hoh_og_lith, mas_og_lith, col_og_lith)
 
 lith_og_new_df <- lith_og_df |> 
     dplyr::mutate(LITH = case_when(str_detect(LITHOLOGY, "Glacier") ~ "NA",
+                                   str_detect(LITHOLOGY, "Slate") ~ "sedimentary",
                                    str_detect(LITHOLOGY, "Metavolcanic|Tcp|TKts") ~ "igneous",
                                    str_detect(LITHOLOGY, "Tonalite") ~ "metamorphic",
                                    str_detect(LITHOLOGY, 
@@ -396,6 +399,7 @@ soil_pH <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data 
 
 (texture_triangle_plot) +
     soil_pH + 
+    scale_x_continuous(labels = function(x) round((x*sd(pnw_dat_lab$pH)) + mean(pnw_dat_lab$pH), 1)) +
     plot_annotation(tag_levels = "A") +
     plot_layout(ncol = 2, widths = c(0.8, 1)) &
     theme(legend.title = element_text(face = "bold"),
