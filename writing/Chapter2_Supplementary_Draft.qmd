@@ -1,12 +1,12 @@
 ---
-title: "Supplementary information Probabilistic wetland maps for mapping soil carbon stock distribution across the Pacific Northwest"
+title: Supplementary information for Probabilistic wetland maps for mapping soil carbon stock distribution across the Pacific Northwest
 bibliography: references_supp.bib
 fig-dpi: 150
 format:
   docx:
     reference-doc: custom-reference-doc.docx
-    toc: false
-    toc-depth: 4
+    toc: true
+    toc-depth: 2
     output-file: Chapter2_Supplementary_Draft
     output-ext: docx
 
@@ -284,13 +284,17 @@ stat_table_SCpH <- read.csv("/Users/Anthony/OneDrive - UW/University of Washingt
 kf_df_psa <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/KFold_RMSE_PSA_Depths_Dataframe.csv")
 ```
 
-\pagebreak
+\newpage
+
+## Introduction
+
+This supporting information contains material related to analysis in the main text including creating the Wetland Intrinsic Potential (WIP) tool outputs, processing surficial geology data layers, soil pH and particle size, model assumptions and spatial autocorrelation, and estimates from additional statistical analysis. We provide summaries of mineral soil organic carbon concentration ( SOC %) across study areas and by wetland vs. upland. We also provide additional analysis with partial correlations which investigate predictor effects on SOC stock and mineral SOC % with other predictors held constant. Interaction effects for both the linear mixed (LM) model and random forest (RF) models are shown. Finally, we show mapped uncertainty for SOC stocks across the four study areas.
 
 ## Wetland Intrinsic Potential (WIP) tool
 
 Data for the WIP tool included lidar-derived digital terrain models (DTMs), digital surface models, and imagery from the National Agricultural Imagery Program (NAIP). Lidar DTMs and digital surface models were downloaded from the WA Department of Natural Resources Lidar Portal and spanned a range of dates from 2008-2016 in the CVW and 2007-2011 in the MRW in order to create a continuous surface area of the study areas. We also used the earliest available NAIP imagery from 2017. No NAIP data were available for the HLEF and we therefore utilized Sentinel 2 for vegetation indices. A Lidar DTM and digital surface models were also downloaded from the Alaska State Division of Geological and Geophysical Surveys Elevation portal and were collected in 2012.
 
-We calculated terrain indices using the Surface Metrics Toolbox developed by @halabiskyWetlandIntrinsicPotential2023 and implemented in ArcGIS Pro 3.1. The multi-scale terrain indices included gradient (slope), planform curvature, profile curvature, and deviation from the mean elevation calculated at 50 m, 300 m, and 1000 m length scales. Additional terrain metrics included Topographic Wetness Index [TWI, @bevenPhysicallyBasedVariable1979] Topographic Depth to Water, and Elevation. We also included the normalized difference vegetation index (NDVI) and the normalized difference water index (NDWI), and canopy height in addition to terrain metrics for the WIP model. NDVI and NDWI were derived from aerial imagery collected by NAIP. Altogether there were between 17-24 geospatial metrics used in separate WIP models across the four study areas [@tbl-wip-predictors]. The HLEF included additional metrics due to limited aerial imagery bands and additional effort towards including peatlands. These metrics included lidar intensity and scale calculations for TWI with additional Sentinel-2 indices from a 5-year median growing season from 2017-2022: normalized difference yellow index (NDYI), enhanced vegetation index (EVI), and the modified normalized diffference water index (MNDWI). We then took these geospatial metrics and re-sampled them to a 4 m resolution to match the former WIP model in the HRW. The default resolution for the HLEF was 5m and all HLEF data were resampled to this resolution.
+We calculated terrain indices using the Surface Metrics Toolbox developed by @halabiskyWetlandIntrinsicPotential2023 and implemented in ArcGIS Pro 3.1. The multi-scale terrain indices included gradient (slope), planform curvature, profile curvature, and deviation from the mean elevation calculated at 50 m, 300 m, and 1000 m length scales. Additional terrain metrics included Topographic Wetness Index [TWI, @bevenPhysicallyBasedVariable1979] Topographic Depth to Water, and Elevation. We also included the normalized difference vegetation index (NDVI) and the normalized difference water index (NDWI), and canopy height in addition to terrain metrics for the WIP model. NDVI and NDWI were derived from aerial imagery collected by NAIP. Altogether there were between 17-24 geospatial metrics used in separate WIP models across the four study areas [@tbl-wip-predictors]. The HLEF included additional metrics due to limited aerial imagery bands and additional effort towards including peatlands. These metrics included lidar intensity and scale calculations for TWI with additional Sentinel-2 indices from a 5-year median growing season from 2017-2022: normalized difference yellow index (NDYI), enhanced vegetation index (EVI), and the modified normalized difference water index (MNDWI). We then took these geospatial metrics and re-sampled them to a 4 m resolution to match the former WIP model in the HRW. The default resolution for the HLEF was 5m and all HLEF data were resampled to this resolution.
 
 We derived training data for wetlands and uplands (non-wetlands) using the geospatial dataset from the National Wetland Inventory (NWI) and the Wetland Mapper Tool [@NationalWetlandsInventory]. We extracted 3000 total training points from NWI wetlands in the HLEF, MRW, and CVW study areas (6000 total points) with approximately 2/3 of the training points classified as "upland" and 1/3 classified as "wetland". The training points were then used to extract data from the geospatial metrics in each study area. A random forest model was then constructed using a 70:30 training and testing dataset partition and then used to generate a preliminary WIP model. From this preliminary model, we utilized a similar approach to @halabiskyWetlandIntrinsicPotential2023 and generated another training dataset and a validation dataset by conducting a stratified sampling of 600 points and 300 points, respectively across the gradient of the preliminary model. The points from this stratification were then verified as either wetland or upland by two analysts who conducted site visits and referenced points using aerial imagery, pre-existing NWI data, and lidar-derived hillshades.
 
@@ -311,10 +315,16 @@ readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling
 
 ```{r}
 #| label: fig-PNW-WIPimp-plot
+#| height: 5
+#| width: 7
+#| outwidth: 5.5in
 #| fig-cap: Variable importance plots derived by using mean decrease accuracy for the final WIP models in all four watersheds. Only the top 5 predictors were included from each watershed. We observed multiscale terrain metrics such as Gradient, and Deviation occurring frequently. Other terrain derived metrics such as depth to water (DTW), and topographic wetness index (TWI) were included in some but not all models. But we note that Canopy Height in the HRW and the normalized difference yellow index and enhanced vegetation index in the HLEF were vegetation indices which may have helped identify peat occurance.
 
-readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/PNW_WIPimp_plot.rds")
+PNW_WIPimp_plot <- readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/PNW_WIPimp_plot.rds")
 
+ggplot2::ggsave(plot = PNW_WIPimp_plot, filename = "~/Documents/Writing and Drafting/All Study Area SOC/Submission/JGRB/Revision/Figures/PNW_WIPimp_plot.png", dpi = 300, height = 5, width = 7, units = "in", bg = "white")
+
+PNW_WIPimp_plot
 ```
 
 \pagebreak
@@ -397,7 +407,7 @@ texture_triangle_plot <- get(load("/Users/Anthony/OneDrive - UW/University of Wa
 
 soil_pH <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/pH_histogram.RData"))
 
-(texture_triangle_plot) +
+texture_ph_plot <- (texture_triangle_plot) +
     soil_pH + 
     scale_x_continuous(labels = function(x) round((x*sd(pnw_dat_lab$pH)) + mean(pnw_dat_lab$pH), 1)) +
     plot_annotation(tag_levels = "A") +
@@ -407,13 +417,29 @@ soil_pH <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data 
           legend.text = element_text(size = 8, angle = 45), 
           panel.background = element_blank())
 
+ggplot2::ggsave(plot = texture_ph_plot, filename = "~/Documents/Writing and Drafting/All Study Area SOC/Submission/JGRB/Revision/Figures/PNW_texture_ph_plot.png", dpi = 300, height = 4.5, width = 7.5, units = "in", bg = "white")
+
+texture_ph_plot
 ```
 
-### LMM assumptions check
+## LMM assumptions check
 
 ![Normal Quantile-Quantile plot used to evaluate if the distribution of the residuals and sample observations are similar for the LMM for SOC Stock. We note there are some observations that deviate from the 1:1 line but deemed it overall sufficient to proceed with the model.](Figures/Supplemental/qq_lev_full.png){#fig-q-q-lmm-stock fig-align="center"}
 
+```{bash}
+#| include: false
+
+cp ~/OneDrive\ -\ UW/University\ of\ Washington/Data\ and\ Modeling/SOIL\ CARBON/All_WA/writing/Figures/Supplemental/qq_lev_full.png ~/Documents/Writing\ and\ Drafting/All\ Study\ Area\ SOC/Submission/JGRB/Revision/Figures/PNW_qq_lev_full.png
+
+```
+
 ![Normal Quantile-Quantile plot used to evaluate if the distribution of the residuals and sample observations are similar for the LMM for SOC %. Fewer observations deviated from the 1:1 line than the SOC stock and were deemed sufficient to proceed with the model.](Figures/Supplemental/qq_lev_edaphic_full.png){#fig-q-q-lmm-perc fig-align="center"}
+
+```{bash}
+#| include: false
+
+cp ~/OneDrive\ -\ UW/University\ of\ Washington/Data\ and\ Modeling/SOIL\ CARBON/All_WA/writing/Figures/Supplemental/qq_lev_edaphic_full.png ~/Documents/Writing\ and\ Drafting/All\ Study\ Area\ SOC/Submission/JGRB/Revision/Figures/PNW_qq_lev_edaphic_full.png
+```
 
 ```{r}
 #| label: fig-randomeffect-dist
@@ -427,7 +453,8 @@ soil_pH <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data 
 #| include: false
 #| 
 
-get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/model_resid_fit_plot.Rdata"))
+model_resid_fit_plot.Rdata <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/model_resid_fit_plot.Rdata"))
+model_resid_fit_plot.Rdata
 ```
 
 \pagebreak
@@ -460,27 +487,31 @@ PNW_Wet_Area_Table
 
 semivariograms <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/Semivariograms.RData"))
 
-semivariograms & theme(
+semivariograms_plot <- semivariograms & theme(
           axis.text = element_text(size = 4),
           axis.title = element_text(size = 6),
           axis.ticks = element_blank(),
           panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
           panel.background = element_blank())
 
+ggplot2::ggsave(plot = semivariograms_plot, filename = "~/Documents/Writing and Drafting/All Study Area SOC/Submission/JGRB/Revision/Figures/PNW_semivariograms_plot.png", dpi = 300, height = 4.5, width = 3.5, units = "in", bg = "white")
+
+semivariograms_plot
+
 ```
 
-### Mineral Soil Carbon Concentration
+## Mineral SOC concentration (%) across study areas
 
 ```{r}
 #| include: true
 #| label: tbl-mean-SOC-perc-table
-#| tbl-cap: "SOC stock mean and variation across depth intervals within each watershed study area"
+#| tbl-cap: "Mineral SOC % mean and variation across depth intervals within each watershed study area"
 #| tbl-colwidths: auto
 percSOC_table <- readRDS(here("writing/Tables/SOC_percent_bySite.rds"))
 percSOC_table
 ```
 
-### Partial Correlation Analysis
+## Partial Correlation Analysis
 
 ```{r}
 #| label: tbl-ppcor
@@ -501,7 +532,7 @@ Further investigation into the top predictors for SOC stock using partial correl
 
 Partial correlation strength for mineral SOC % differed between wetlands and uplands for PET:MAP, pH, and Clay [@tbl-ppcor]. Wetland mineral SOC % had a much smaller and almost 0 correlation with PET:MAP in contrast to a larger negative correlation in upland mineral SOC %. Wetland mineral SOC % also had a larger negative correlation with pH and a larger positive correlation with Clay compared to upland mineral SOC %. Depth appeared to have a marginal difference between wetlands and uplands.
 
-### <!--# RFM Interaction Plots  -->
+## Interactions in models
 
 <!--# We also investigated the large interaction terms in the RFM for both SOC stocks and SOC % using accumulated local effects (ALE) plots for WIP and pH, respectively. Each of these two predictors was plotted against the next two highest interactions in a two way interaction plot. The interaction between WIP and PET:MAP in the ALE plot showed marginal patterns of variation with high ALE when WIP was high and PET:MAP was small or when PET:MAP was moderate and WIP was moderate. WIP and Landform did show more variation on either end of the WIP gradient where landforms appeared to differentiate between each other. For SOC % pH and PET:MAP showed high ALE zones when pH was low and PET:MAP was low (Supplementary Figure X).  -->
 
@@ -544,6 +575,7 @@ ale_rf_lab
 #| fig-cap: Variable interactions defined in the linear mixed models (LMMs). A. The wetland intrisic potential (WIP) and Depth interaction in the LMM for SOC stock. B. The interaction between pH and PET:MAP in the LMM for mineral SOC %. The figure uses data points from the training dataset and contains the scaled predictors for both WIP, Depth, pH and PET:MAP. SOC stock (g cm^-2^) and mineral SOC % are also log~10~ transformed as was in the original LMM.
 
 lmm_interact_plots <- readRDS(here("writing/Figures/lmm_interact_plots.rds"))
+ggplot2::ggsave(plot = lmm_interact_plots, filename = "~/Documents/Writing and Drafting/All Study Area SOC/Submission/JGRB/Revision/Figures/PNW_lmm_interact_plots.png", dpi = 300, height = 4, width = 10, units = "in", bg = "white")
 lmm_interact_plots
 ```
 
@@ -552,17 +584,19 @@ lmm_interact_plots
 #| message: false
 #| fig-dpi: 300
 #| fig-width: 6.5
+#| height: 4
 #| out-width: 6in
 #| fig-cap: Interaction values for the largest three predictors by SHAP value in the RFM for SOC stock and mineral SOC %. Interaction values are derived by the H-Statistic.
 
 
 ia_both_plots <- readRDS(here("writing/Figures/MLR3_RFM_Interact_BothStocksPerc_plot.rds"))
+ggplot2::ggsave(plot = ia_both_plots, filename = "~/Documents/Writing and Drafting/All Study Area SOC/Submission/JGRB/Revision/Figures/PNW_ia_both_plots.png", dpi = 300, height = 4, width = 6.5, units = "in", bg = "white")
 ia_both_plots
 ```
 
 \pagebreak
 
-## Mapped uncertainty
+## Mapped uncertainty for SOC stocks
 
 ```{r}
 #| label: tbl-mapped-uncertainty
@@ -575,7 +609,7 @@ uncertainty_table_mapped_SOC <- readRDS("/Users/Anthony/OneDrive - UW/University
 uncertainty_table_mapped_SOC
 ```
 
-### References
+## \`References
 
 ::: {#refs}
 :::

@@ -847,6 +847,35 @@ readr::write_csv(kf_df, file = "data/dataframes/KFold_RMSE_Depths_Dataframe.csv"
 
 
 ```{r}
+tw_noscale <- read.csv(here("data/dataframes/Train_data.csv")) |> 
+  dplyr::select(-X) |> dplyr::mutate(across(where(is.character), as.factor))
+tw <- read.csv(
+          "data/dataframes/PNW_Spline_Stocks_Train_Scale.csv" |> here())
+tw$WIP_filter <- tw_noscale$WIP
+dat_aug <- tw |>
+  mutate(
+    pred_marg = 10**(predict(best_dredge_model, re.form = NA)),    # fixed effects only
+    pred_cond = 10**(predict(best_dredge_model, re.form = NULL) )   # fixed + random
+  )
+
+r2_subset_wet <- dat_aug |>
+  filter(WIP_filter >= 0.5) |>
+  summarise(
+    r2_marginal    = 1 - sum((SOC_stock_spline - pred_marg)^2) / sum((SOC_stock_spline - mean(SOC_stock_spline))^2),
+    r2_conditional = 1 - sum((SOC_stock_spline - pred_cond)^2) / sum((SOC_stock_spline - mean(SOC_stock_spline))^2)
+  )
+
+r2_subset_upl <- dat_aug |>
+  filter(WIP_filter < 0.5) |>
+  summarise(
+    r2_marginal    = 1 - sum((SOC_stock_spline - pred_marg)^2) / sum((SOC_stock_spline - mean(SOC_stock_spline))^2),
+    r2_conditional = 1 - sum((SOC_stock_spline - pred_cond)^2) / sum((SOC_stock_spline - mean(SOC_stock_spline))^2)
+  )
+```
+
+
+
+```{r}
 r2_po <- round(r.sq(y = (test_scale$SOC_stock_spline), 
                          y.fitted =  10**predict(best_dredge_model, 
                                                  test_scale, allow.new.levels = TRUE)), 3)
@@ -880,8 +909,8 @@ readr::write_csv(LMM_testpred,
                  here("data/dataframes/PNW_SOC_LMM_test_pred_response.csv")) 
 
 mod_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
-                                "LMM.LogMargR2" = c(mumin_R2m, -999, -999),
-                                "LMM.LogCondR2" = c(mumin_R2c, -999, -999),
+                                "LMM.LogMargR2" = c(mumin_R2m, r2_subset_wet$r2_marginal, r2_subset_wet$r2_conditional),
+                                "LMM.LogCondR2" = c(mumin_R2c, r2_subset_upl$r2_marginal, r2_subset_upl$r2_conditional),
                                 "LMM.nLogPredObsR2" = c(r2_po, r2_po_w, r2_po_u),
                                 "LMM.nlogPredObsRMSE" = c(rmse_po, rmse_po_w, rmse_po_u)
                               ) 

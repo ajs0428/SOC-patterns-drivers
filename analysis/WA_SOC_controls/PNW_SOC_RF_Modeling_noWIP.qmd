@@ -24,11 +24,10 @@ library(formatR)
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE, results = "hide", tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
 
 library(car)
-library(tidyverse)
-library(ggeffects)
+library(dplyr)
+library(tidyr)
+library(stringr)
 library(stats)
-library(ggcorrplot)
-library(cowplot)
 library(pdp)
 library(vip)
 library(formatR)
@@ -155,12 +154,6 @@ RF_lrn_nw <- lrn("regr.ranger",
               quantile_response = 0.5,
               quantiles = c(0.025, 0.5, 0.975))
 RF_lrn_nw$predict_type = "quantiles"
-# GBM_lrn <- lrn("regr.gbm",
-#                n.trees = to_tune(c(300, 500, 1000)),
-#                interaction.depth = to_tune(c(1,3,5)),
-#                bag.fraction = to_tune(c(0.5, 0.75, 0.9)),
-#                shrinkage = to_tune(c(	0.0001, 0.001, 0.01, 0.1))
-#                )
 
 
 tune_instance_nw <- ti(task = RF_task_nw,
@@ -185,21 +178,33 @@ saveRDS(tune_instance_nw, file = here("analysis/models/MLR3_RFM_Ranger_tune_inst
 
 
 ```{r}
+#| eval: false
 tune_instance_nw <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_tune_instance_nw_noWIP.rds"))
 RF_lrn_nw_tuned = lrn("regr.ranger", 
                         quantile_response = 0.5,
               quantiles = c(0.025, 0.5, 0.975))
 RF_lrn_nw_tuned$predict_type = "quantiles"
 RF_lrn_nw_tuned$param_set$values = tune_instance_nw$result_learner_param_vals[[1]]
+RF_lrn_nw_tuned$param_set$values$num.threads <- 1
+set.seed(11)
 RF_lrn_nw_tuned$train(RF_task_nw)$model
 
-saveRDS(RF_lrn_nw_tuned, "analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds" |> here())
+saveRDS(RF_lrn_nw_tuned, here("analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds"))
+
 
 ```
+
+```{r}
+RF_lrn_nw_tuned <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds"))
+RF_lrn_nw_tuned$model
+```
+
 
 Resampling
 ```{r}
 #| eval: false
+
+set.seed(11)
 RF_lrn_nw_tuned <- readRDS("analysis/models/MLR3_RFM_Ranger_tuned_noWIP.rds" |> here())
 
 RF_CV_nw <- rsmp("repeated_cv", repeats = 10, folds = 10)
@@ -397,7 +402,31 @@ saveRDS(ia_nw_5_plot, file = "writing/Figures/MLR3_RFM_Interact_5_plot_noWIP.rds
 
 
 ```{r}
-#mod_tc <-  get(load("analysis/models/RFM_traincontrol.RData"))
+m_nw <- RF_lrn_nw_tuned$model 
+p_nw <- m_nw$model$predictions
+t_nw <- RF_task_nw$truth()
+w_nw <- RF_task_nw$data(cols = "WIP")$WIP
+
+oob_tbl_nw <- tibble(truth = t_nw, pred = p_nw, wip = w_nw)
+
+oob_metrics_subset_wet_nw <- oob_tbl_nw |>
+  filter(wip >= 0.5) |>
+  summarise(
+    rmse = sqrt(mean((truth - pred)^2)),
+    r2   = 1 - sum((truth - pred)^2) / sum((truth - mean(truth))^2)
+  )  |> 
+  mutate(LandscapeClass = "WET")
+oob_metrics_subset_upl_nw <- oob_tbl_nw |>
+  filter(wip < 0.5) |>
+  summarise(
+    rmse = sqrt(mean((truth - pred)^2)),
+    r2   = 1 - sum((truth - pred)^2) / sum((truth - mean(truth))^2)
+  ) |> 
+  mutate(LandscapeClass = "UPL")
+
+oob_err_wetupl_nw <- bind_rows(oob_metrics_subset_wet_nw, oob_metrics_subset_upl_nw) |> 
+  dplyr::select(LandscapeClass, everything())
+
 qrf.train_nw <- RF_lrn_nw_tuned$predict_newdata(train)$response
 
 qrf.test_nw <- RF_lrn_nw_tuned$predict_newdata(test)$response
@@ -415,14 +444,14 @@ r.sq(y.fitted = qrf.test_nw, y = test$SOC_stock_spline)
 ```{r}
 qrf_errdf_nw <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"), 
     "RFM.R2_OOB" = c(
-      RF_lrn_nw_tuned$train(RF_task_nw)$model$model$r.squared,#RF_rr_nw$aggregate(msrs(c("regr.rsq")))[[1]],
-      -999,
-      -999
+      RF_lrn_nw_tuned$model$model$r.squared,
+      oob_err_wetupl_nw$r2[[1]],
+      oob_err_wetupl_nw$r2[[2]]
       ),
     "RFM.RMSE_OOB" = c(
-      sqrt(RF_lrn_nw_tuned$train(RF_task_nw)$model$model$prediction.error), #RF_rr_nw$aggregate(msrs(c("regr.rmse")))[[1]],
-      -999,
-      -999
+      sqrt(RF_lrn_nw_tuned$model$model$prediction.error),
+      oob_err_wetupl_nw$rmse[[1]],
+      oob_err_wetupl_nw$rmse[[2]]
       ),
     "RFM.R2_test" = c(r.sq(y.fitted = qrf.test_nw, y = (test$SOC_stock_spline)),
                       r.sq(y.fitted = qrf.wet.test_nw, y = (test.wet$SOC_stock_spline)),
@@ -434,7 +463,7 @@ qrf_errdf_nw <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
                       caret::postResample(pred = qrf.upl.test_nw, 
                                           obs = (test.upl$SOC_stock_spline))[[1]])
     )
-qrf_errdf_nw
+qrf_errdf_nw |> flextable::flextable()
 
 readr::write_csv(qrf_errdf_nw, file = "data/dataframes/MLR3_RFM_ErrorDF_noWIP.csv" |> here())
 ```

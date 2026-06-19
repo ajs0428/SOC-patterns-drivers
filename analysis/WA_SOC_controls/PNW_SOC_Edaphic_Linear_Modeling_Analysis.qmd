@@ -679,6 +679,33 @@ kf_df_lab
 readr::write_csv(kf_df_lab, file = "data/dataframes/KFold_RMSE_Lab_Depths_Dataframe.csv" |> here())
 ```
 
+```{r}
+tw_noscale <- read.csv(
+          file = here("data/dataframes/Train_Lab_data.csv")) |> 
+  dplyr::select(-X)
+tw <- trainlab_scale
+tw$WIP_filter <- tw_noscale$WIP
+dat_aug <- tw |>
+  mutate(
+    pred_marg = 10**(predict(modlab_dredge_1, re.form = NA)),    # fixed effects only
+    pred_cond = 10**(predict(modlab_dredge_1, re.form = NULL) )   # fixed + random
+  )
+
+r2_subset_wet <- dat_aug |>
+  filter(WIP_filter >= 0.5) |>
+  summarise(
+    r2_marginal    = 1 - sum((carbon_perc - pred_marg)^2) / sum((carbon_perc - mean(carbon_perc))^2),
+    r2_conditional = 1 - sum((carbon_perc - pred_cond)^2) / sum((carbon_perc - mean(carbon_perc))^2)
+  )
+
+r2_subset_upl <- dat_aug |>
+  filter(WIP_filter < 0.5) |>
+  summarise(
+    r2_marginal    = 1 - sum((carbon_perc - pred_marg)^2) / sum((carbon_perc - mean(carbon_perc))^2),
+    r2_conditional = 1 - sum((carbon_perc - pred_cond)^2) / sum((carbon_perc - mean(carbon_perc))^2)
+  )
+```
+
 
 ```{r}
 r2_po_lab <- round(r.sq(y = (testlab_scale$carbon_perc), 
@@ -712,8 +739,8 @@ readr::write_csv(LMM_testlabpred,
                  here("data/dataframes/PNW_SOC_Edaphic_LMM_test_pred_response.csv")) 
 
 mod_errdf_lab <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
-                            "LMM.LogMargR2" = c(mumin_R2m_lab, -999, -999),
-                            "LMM.LogCondR2" = c(mumin_R2c_lab, -999, -999),
+                            "LMM.LogMargR2" = c(mumin_R2m_lab, r2_subset_wet$r2_marginal, r2_subset_wet$r2_conditional),
+                            "LMM.LogCondR2" = c(mumin_R2c_lab, r2_subset_upl$r2_marginal, r2_subset_upl$r2_conditional),
                             "LMM.nLogPredObsR2" = c(r2_po_lab, r2_po_lab_w, r2_po_lab_u),
                             "LMM.nlogPredObsRMSE" = c(rmse_po_lab, rmse_po_lab_w, rmse_po_lab_u)
                             ) 

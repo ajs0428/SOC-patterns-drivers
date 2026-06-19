@@ -723,6 +723,33 @@ readr::write_csv(kf_df, file = "data/dataframes/KFold_RMSE_Depths_Dataframe_noWI
 
 ```
 
+```{r}
+tw_noscale <- read.csv(here("data/dataframes/Train_data.csv")) |> 
+  dplyr::select(-X) |> dplyr::mutate(across(where(is.character), as.factor))
+tw_nw <- read.csv(
+          "data/dataframes/PNW_Spline_Stocks_Train_Scale.csv" |> here())
+tw_nw$WIP_filter <- tw_noscale$WIP
+dat_aug_nw <- tw_nw |>
+  mutate(
+    pred_marg = 10**(predict(best_dredge_model, re.form = NA)),    # fixed effects only
+    pred_cond = 10**(predict(best_dredge_model, re.form = NULL) )   # fixed + random
+  )
+
+r2_subset_wet_nw <- dat_aug_nw |>
+  filter(WIP_filter >= 0.5) |>
+  summarise(
+    r2_marginal    = 1 - sum((SOC_stock_spline - pred_marg)^2) / sum((SOC_stock_spline - mean(SOC_stock_spline))^2),
+    r2_conditional = 1 - sum((SOC_stock_spline - pred_cond)^2) / sum((SOC_stock_spline - mean(SOC_stock_spline))^2)
+  )
+
+r2_subset_upl_nw <- dat_aug_nw |>
+  filter(WIP_filter < 0.5) |>
+  summarise(
+    r2_marginal    = 1 - sum((SOC_stock_spline - pred_marg)^2) / sum((SOC_stock_spline - mean(SOC_stock_spline))^2),
+    r2_conditional = 1 - sum((SOC_stock_spline - pred_cond)^2) / sum((SOC_stock_spline - mean(SOC_stock_spline))^2)
+  )
+```
+
 
 ```{r}
 r2_po <- round(r.sq(y = (test_scale$SOC_stock_spline), 
@@ -753,8 +780,8 @@ mumin_R2c <- MuMIn::r.squaredGLMM(best_dredge_model)[[2]]
 
 
 mod_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
-                                "LMM.LogMargR2" = c(mumin_R2m, -999, -999),
-                                "LMM.LogCondR2" = c(mumin_R2c, -999, -999),
+                                "LMM.LogMargR2" = c(mumin_R2m, r2_subset_wet_nw$r2_marginal, r2_subset_upl_nw$r2_marginal),
+                                "LMM.LogCondR2" = c(mumin_R2c, r2_subset_wet_nw$r2_conditional, r2_subset_upl_nw$r2_marginal),
                                 "LMM.nLogPredObsR2" = c(r2_po, r2_po_w, r2_po_u),
                                 "LMM.nlogPredObsRMSE" = c(rmse_po, rmse_po_w, rmse_po_u)
                               ) 

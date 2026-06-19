@@ -126,11 +126,7 @@ testlab_wet<- read.csv(
 testlab_upl<- read.csv(
           file = here("data/dataframes/RFM_Test_Lab_Upl_data.csv")) |> 
   dplyr::select(-X)
-RF_testlabpred <- read.csv(here("data/dataframes/PNW_SOC_Edaphic_RF_test_pred_response.csv")) |>
-  select(-WIP) |> 
-  cbind(testlab)
-LMM_testlabpred <- read.csv(here("data/dataframes/PNW_SOC_Edaphic_LMM_test_pred_response.csv")) |>
-  cbind(testlab)
+
 
 train_dat_scale <- read.csv(here("data/dataframes/PNW_Spline_Stocks_Train_Scale.csv"))
 train_dat_wet_scale <- read.csv(here("data/dataframes/PNW_Spline_Stocks_Train_Wet_Scale.csv"))
@@ -388,11 +384,11 @@ pred_ft_data <- tibble(
                            .default = "SOC stock and Mineral SOC %")) |> 
   dplyr::arrange(desc(Model), Source)
 
-pred_h_i <- which(ft_data$Model != lead(ft_data$Model))
+pred_h_i <- which(pred_ft_data$Model != lead(pred_ft_data$Model))
 pred_ft <- pred_ft_data |> 
   flextable_fun() |>
   flextable::merge_v(j = 4) |> 
-  hline(i = h_i)
+  hline(i = pred_h_i)
 pred_ft
 
 saveRDS(pred_ft, file = here("writing/Tables/socPredictors_table.rds"))
@@ -524,7 +520,7 @@ percSOC_table <- pnw_dat_lab |> mutate(depth_zone = case_when(lower_depth <= 25 
     ) |>
   mk_par(
     part = "header", j = 3,
-    value = as_paragraph("Mean\nSOC %")
+    value = as_paragraph("Mean\n Mineral SOC %")
     ) |>
   # mk_par(
   #   part = "header", j = 4,
@@ -532,7 +528,7 @@ percSOC_table <- pnw_dat_lab |> mutate(depth_zone = case_when(lower_depth <= 25 
   #   ) |>
   mk_par(
     part = "header", j = 4,
-    value = as_paragraph("Std. Error \nSOC %")
+    value = as_paragraph("Std. Error \n Mineral SOC %")
   ) |>
     hline(part = "body", i = 2, j = 2:5) |>
     hline(part = "body", i = 4, j = 2:5) |>
@@ -673,11 +669,11 @@ all_lab_ppor_ft <- all_lab_ppor |>
   flextable_fun() |> 
   mk_par(
     part = "header", j = 2,
-    value = as_paragraph("SOC %", "\nWetland (WIP ≥ 50%)")
+    value = as_paragraph("Mineral SOC %", "\nWetland (WIP ≥ 50%)")
     ) |> 
   mk_par(
     part = "header", j = 3,
-    value = as_paragraph("SOC %", "\nUpland (WIP < 50%)")
+    value = as_paragraph("Mineral SOC %", "\nUpland (WIP < 50%)")
     ) 
 all_ppor_ft <- all_ppor |> 
   mutate_tab() |> 
@@ -901,8 +897,8 @@ stat_table_format <- stock_mods_table |>
     flextable_fun() |> 
     merge_v(j = 1) |> 
     separate_header(split = "[\\.]", fixed = F) |>
-    flextable::compose(part = "body", i=c(2:3,5:6, 8:9), j = c(3:4, 7:8),
-               value = c(as_paragraph("---")  )) |>
+    # flextable::compose(part = "body", i=c(2:3,5:6, 8:9), j = c(3:4, 7:8),
+    #            value = c(as_paragraph("---")  )) |>
     align(align = "center", part =  "header") |>
     vline(part = "header",  j = 6) |>
     flextable::compose(part = "header", i=1, j = 2,
@@ -938,6 +934,7 @@ stat_table_format <- stock_mods_table |>
                                       as_sup("-2")))) |>
     flextable::compose(part = "body", i = 7, j = 1,
                value = c(as_paragraph("Mineral SOC \n%"))) |>
+    hline(i = c(3, 6), j = 2:10) |> 
     fix_border_issues() 
     # vline(part = "header",  j = 9) |> 
     # delete_rows(i = c(2, 3), part = "body") |> 
@@ -951,3 +948,4 @@ stat_table_format
 saveRDS(stat_table_format, file = here("writing/Tables/Model_stats_table.rds"))
 readRDS(file = here("writing/Tables/Model_stats_table.rds"))
 ```
+

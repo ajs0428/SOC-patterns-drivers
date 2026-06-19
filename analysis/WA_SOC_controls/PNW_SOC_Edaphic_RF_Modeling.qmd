@@ -23,24 +23,15 @@ h1, h3, h4 {
 library(formatR)
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE, results = "hide")
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
-knitr::opts_knit$set(root.dir = '/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/')
-library(rgl)
-library(terra)
-library(terra)
-library(sf)
-library(mapview)
+
 library(car)
 library(tidyverse)
-library(ggeffects)
 library(stats)
-library(ggcorrplot)
-library(RColorBrewer)
 library(cowplot)
 library(kableExtra)
 library(pdp)
 library(vip)
 library(formatR)
-library(ggpubr)
 library(grid)
 library(gridExtra)
 library(ppcor)
@@ -52,8 +43,9 @@ library(mlr3spatial)
 library(iml)
 library(kernelshap)
 library(shapviz)
+library(here)
+here()
 
-knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
 ```
 
@@ -69,19 +61,19 @@ r.sq <- function(y,y.fitted){
 
 
 ```{r}
-pnw_dat_lab <- read.csv("SOIL CARBON/All_WA/data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv") |> 
+pnw_dat_lab <- read.csv(here("data/dataframes/PNW_Lab_data_MLR3_RFM_LMM.csv")) |> 
   dplyr::select(-site, -X)
 trainlab<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/Train_Lab_data.csv")|> 
+          file = here("data/dataframes/Train_Lab_data.csv")) |> 
   dplyr::select(-site, -X)
 testlab<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/Test_Lab_data.csv")|> 
+          file = here("data/dataframes/Test_Lab_data.csv")) |> 
   dplyr::select(-site, -X)
 testlab_wet<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Lab_Wet_data.csv")|> 
+          file = here("data/dataframes/RFM_Test_Lab_Wet_data.csv")) |> 
   dplyr::select(-site, -X)
 testlab_upl<- read.csv(
-          file = "SOIL CARBON/All_WA/data/dataframes/RFM_Test_Lab_Upl_data.csv")|> 
+          file = here("data/dataframes/RFM_Test_Lab_Upl_data.csv"))|> 
   dplyr::select(-site, -X)
 
 ```
@@ -90,6 +82,7 @@ testlab_upl<- read.csv(
 ## MLR3 Package 
 
 ```{r}
+set.seed(11)
 RF_lab_task <- as_task_regr(trainlab, target = "carbon_perc", id = "rfm_lab")
 RF_lab_task$set_col_roles( "sample_ID", "group")
 RF_lab_task$feature_names
@@ -100,37 +93,38 @@ RF_lab_task$feature_names
 
 
 ```{r}
-#| eval: true
-# set.seed(11)
-# instance_lab = fsi(
-#   task = RF_lab_task,
-#   learner = lrn("regr.ranger", importance = "permutation"),
-#   resampling = rsmp("repeated_cv", folds = 5, repeats = 10),
-#   measures = msr("regr.rmse"),
-#   terminator = trm("none"),
-#   store_models = TRUE
-# )
-# instance_lab
-# 
-# fselector = fs("rfe",  
-#                n_features = floor(0.75*ncol(trainlab)), 
-#                feature_number = 2, 
-#                aggregation = "rank")
-# fselector$optimize(instance_lab)
-# 
-# instance_lab$archive$best()
-# 
-# instance_lab$result_feature_set
-# instance_lab$result_y
-# instance_lab$result
-# 
-# saveRDS(instance_lab , file = "SOIL CARBON/All_WA/analysis/models/MLR3_RecursiveFeat_Lab.rds")
+#| eval: false
+
+instance_lab = fsi(
+  task = RF_lab_task,
+  learner = lrn("regr.ranger", importance = "permutation"),
+  resampling = rsmp("repeated_cv", folds = 5, repeats = 10),
+  measures = msr("regr.rmse"),
+  terminator = trm("none"),
+  store_models = TRUE
+)
+instance_lab
+
+fselector = fs("rfe",
+               n_features = floor(0.5*ncol(trainlab)),
+               feature_number = 2,
+               aggregation = "rank")
+set.seed(11)
+fselector$optimize(instance_lab)
+
+instance_lab$archive$best()
+
+instance_lab$result_feature_set
+instance_lab$result_y
+instance_lab$result
+
+saveRDS(instance_lab , file = here("analysis/models/MLR3_RecursiveFeat_Lab.rds"))
 ```
 
 
 ```{r}
-#instance <- readRDS("SOIL CARBON/All_WA/analysis/models/MLR3_RecursiveFeat_Lab.rds")
-RF_lab_task$select(RF_lab_task$feature_names)
+instance_lab <- readRDS("analysis/models/MLR3_RecursiveFeat_Lab.rds")
+RF_lab_task$select(instance_lab$result_feature_set)
 RF_lab_lrn <- lrn("regr.ranger",
               num.trees = to_tune(c(1000, 2000)),
               mtry = to_tune(c(4, 8, length(RF_lab_task$feature_names))), 
@@ -154,44 +148,53 @@ tune_instance_lab <- ti(task = RF_lab_task,
 #| eval: false
 tuner_lab = mlr3tuning::tnr("grid_search", resolution = 10, batch_size = 5)
 tuner_lab$param_set
+set.seed(11)
 tuner_lab$optimize(tune_instance_lab)
 tune_instance_lab$result$learner_param_vals
 tuner_lab$print()
 
-saveRDS(tune_instance_lab, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tune_instance_LabData.rds")
+saveRDS(tune_instance_lab, file = here("analysis/models/MLR3_RFM_Ranger_tune_instance_LabData.rds"))
 ```
 
 
 
 ```{r}
-tune_instance_lab <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tune_instance_LabData.rds")
-RF_lab_lrn_tuned = lrn("regr.ranger", 
+#| eval: false
+tune_instance_lab <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_tune_instance_LabData.rds"))
+RF_lab_lrn_tuned = lrn("regr.ranger",
                         quantile_response = 0.5,
                         quantiles = c(0.025, 0.5, 0.975))
 RF_lab_lrn_tuned$predict_type = "quantiles"
 RF_lab_lrn_tuned$param_set$values = tune_instance_lab$result_learner_param_vals[[1]]
-RF_lab_lrn_tuned$train(RF_lab_task)$model
+RF_lab_lrn_tuned$param_set$values$num.threads <- 1
+set.seed(11)
+RF_lab_lrn_tuned$train(RF_lab_task)
 
-RF_lab_lrn_tuned_whole <- RF_lab_lrn_tuned$train(RF_lab_task)
+saveRDS(RF_lab_lrn_tuned, here("analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds"))
+RF_lab_lrn_tuned$model
+```
 
-saveRDS(RF_lab_lrn_tuned_whole, "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds")
-RF_lab_lrn_tuned$model$r.squared
+
+```{r}
+RF_lab_lrn_tuned <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds"))
+RF_lab_lrn_tuned$model
 ```
 
 Resampling
 ```{r}
-#| eval: true
-RF_lab_lrn_tuned <- readRDS("SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds")
+#| eval: false
+RF_lab_lrn_tuned <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds"))
 
-RF_lab_CV <- rsmp("repeated_cv", repeats = 5, folds = 10)
+set.seed(11)
+RF_lab_CV <- rsmp("repeated_cv", repeats = 10, folds = 10)
 
 RF_lab_rr <- mlr3::resample(RF_lab_task, RF_lab_lrn_tuned, RF_lab_CV)
-saveRDS(RF_lab_rr, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_resampling_LabData.rds")
+saveRDS(RF_lab_rr, file = here("analysis/models/MLR3_RFM_Ranger_resampling_LabData.rds"))
 ```
 
 
 ```{r}
-RF_lab_rr <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_resampling_LabData.rds")
+RF_lab_rr <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_resampling_LabData.rds"))
 RF_lab_rr_acc <- RF_lab_rr$score(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
 RF_lab_rr_acc[, .(iteration, regr.rmse, regr.mse, regr.rsq)]
 RF_lab_rr$aggregate(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
@@ -199,12 +202,12 @@ autoplot(RF_lab_rr, measure = msr("regr.rsq"), type = "histogram")
 autoplot(RF_lab_rr, measure = msr("regr.rmse"), type = "histogram")
 
 
-write_csv(RF_lab_rr_acc, file = "SOIL CARBON/All_WA/data/dataframes/MLR3_RFM_Ranger_tuned_CV_results_LabData.csv")
+write_csv(RF_lab_rr_acc, file = here("data/dataframes/MLR3_RFM_Ranger_tuned_CV_results_LabData.csv"))
 ```
 
 
 ```{r}
-RF_lab_rr_acc <- read.csv("SOIL CARBON/All_WA/data/dataframes/MLR3_RFM_Ranger_tuned_CV_results_LabData.csv")
+RF_lab_rr_acc <- read.csv(here("data/dataframes/MLR3_RFM_Ranger_tuned_CV_results_LabData.csv"))
 
 measures <- msrs(c("regr.rmse", "regr.mse", "regr.rsq"))
 RF_lab_lrn_tuned$predict_newdata(testlab)$score(measures)
@@ -233,9 +236,9 @@ ggplot() +
 #| eval: true
 RF_lab_task_feats <- RF_lab_task$data(cols = RF_lab_task$feature_names)
 RF_lab_task_target <- RF_lab_task$data(cols = RF_lab_task$target_names)
-
+RF_lab_task_feats |> names()
 predictor_lab <- iml::Predictor$new(RF_lab_lrn_tuned, data = RF_lab_task_feats, y = RF_lab_task_target)
-saveRDS(predictor_lab, "SOIL CARBON/All_WA/analysis/models/MLR3_Predictor_Lab.rds")
+saveRDS(predictor_lab, here("analysis/models/MLR3_Predictor_Lab.rds"))
 
 ```
 
@@ -244,7 +247,7 @@ saveRDS(predictor_lab, "SOIL CARBON/All_WA/analysis/models/MLR3_Predictor_Lab.rd
 
 
 ```{r}
-#| eval: true
+#| eval: false
 
 # pnw_dat_lab_wet <- pnw_dat_lab |> filter(WIP >= 0.50)
 # pnw_dat_lab_upl <- pnw_dat_lab |> filter(WIP < 0.50)
@@ -266,30 +269,30 @@ rtbx_lab <- pnw_dat_lab_select[sample(nrow(pnw_dat_lab_select), size = 200), ]
 rtbx_lab_wet <- pnw_dat_lab_select_wet[sample(nrow(pnw_dat_lab_select_wet), size = 100),]
 rtbx_lab_upl <- pnw_dat_lab_select_upl[sample(nrow(pnw_dat_lab_select_upl), size = 100),]
 
-ks_lab <- kernelshap(object = RF_lab_lrn_tuned$model, 
+ks_lab <- kernelshap(object = RF_lab_lrn_tuned$model$model, 
                      X = rtbx_lab, bg_X = trainlab, parallel = T )
 ks_lab
 
-ks_lab_wet <- kernelshap(object = RF_lab_lrn_tuned$model, 
+ks_lab_wet <- kernelshap(object = RF_lab_lrn_tuned$model$model, 
                          X = rtbx_lab_wet, bg_X = trainlab, parallel = T)
 ks_lab_wet
 
-ks_lab_upl <- kernelshap(object = RF_lab_lrn_tuned$model, 
+ks_lab_upl <- kernelshap(object = RF_lab_lrn_tuned$model$model, 
                          X = rtbx_lab_upl, bg_X = trainlab, parallel = T)
 ks_lab_upl
 
-saveRDS(ks_lab, file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_LabData.rds")
+saveRDS(ks_lab, file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_LabData.rds"))
 saveRDS(ks_lab_wet, 
-        file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_LabData.rds")
+        file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_LabData.rds"))
 saveRDS(ks_lab_upl, 
-        file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_LabData.rds")
+        file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_LabData.rds"))
 ```
 
 ```{r}
-predictor_lab <- readRDS("SOIL CARBON/All_WA/analysis/models/MLR3_Predictor_Lab.rds")
-ks_lab <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_LabData.rds")
-ks_lab_wet <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_LabData.rds")
-ks_lab_upl <- readRDS(file = "SOIL CARBON/All_WA/analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_LabData.rds")
+predictor_lab <- readRDS(here("analysis/models/MLR3_Predictor_Lab.rds"))
+ks_lab <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_LabData.rds"))
+ks_lab_wet <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_Wet_LabData.rds"))
+ks_lab_upl <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_KernelShap_Upl_LabData.rds"))
 sv_importance(shapviz(ks_lab))
 sv_importance(shapviz(ks_lab_wet))
 sv_importance(shapviz(ks_lab_upl))
@@ -314,7 +317,7 @@ sv_dependence(shapviz(ks_lab_upl), v = c(ks_lab_upl_vars$column[1], ks_lab_upl_v
 
 
 ```{r}
-#| eval: true
+#| eval: false
 ia_lab_1 <- Interaction$new(predictor_lab, feature = ks_lab_vars$column[1])
 ia_lab_2 <- Interaction$new(predictor_lab, feature = ks_lab_vars$column[2])
 ia_lab_3 <- Interaction$new(predictor_lab, feature = ks_lab_vars$column[3])
@@ -322,30 +325,30 @@ ia_lab_4 <- Interaction$new(predictor_lab, feature = ks_lab_vars$column[4])
 ia_lab_5 <- Interaction$new(predictor_lab, feature = ks_lab_vars$column[5])
 
 saveRDS(ia_lab_1, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_Lab_1_plot.rds")
+        file = "writing/Figures/MLR3_RFM_Interact_Lab_1_plot.rds")
 saveRDS(ia_lab_2, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_Lab_2_plot.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_Lab_2_plot.rds")
 saveRDS(ia_lab_3, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_Lab_3_plot.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_Lab_3_plot.rds")
 saveRDS(ia_lab_4, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_Lab_4_plot.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_Lab_4_plot.rds")
 saveRDS(ia_lab_5, 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_Lab_5_plot.rds")
+        file = "writing/Figures/MLR3_RFM_Ranger_Interact_Lab_5_plot.rds")
 ```
 
 
 ```{r}
 
 ia_lab_1 <- readRDS(
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_Lab_1_plot.rds")
+        file = here("writing/Figures/MLR3_RFM_Interact_Lab_1_plot.rds"))
 ia_lab_2 <- readRDS(
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_Lab_2_plot.rds")
+        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_Lab_2_plot.rds"))
 ia_lab_3 <- readRDS( 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_Lab_3_plot.rds")
+        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_Lab_3_plot.rds"))
 ia_lab_4 <- readRDS(
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_Lab_4_plot.rds")
+        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_Lab_4_plot.rds"))
 ia_lab_5 <- readRDS( 
-        file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Ranger_Interact_Lab_5_plot.rds")
+        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_Lab_5_plot.rds"))
 
 # ia_lab_depth$results |> data.frame() |> dplyr::mutate(.feature = factor(.feature)) |>
 #   dplyr::mutate(.feature = fct_reorder(.feature, desc(.interaction))) |>
@@ -377,15 +380,40 @@ ia_lab_3_plot
 ia_lab_4_plot 
 ia_lab_5_plot 
 
-saveRDS(ia_lab_1_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_Lab_1_plot.rds")
-saveRDS(ia_lab_2_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_Lab_2_plot.rds")
-saveRDS(ia_lab_3_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_Lab_3_plot.rds")
-saveRDS(ia_lab_4_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_Lab_4_plot.rds")
-saveRDS(ia_lab_5_plot, file = "SOIL CARBON/All_WA/writing/Figures/MLR3_RFM_Interact_Lab_5_plot.rds")
+saveRDS(ia_lab_1_plot, file = here("writing/Figures/MLR3_RFM_Interact_Lab_1_plot.rds"))
+saveRDS(ia_lab_2_plot, file = here("writing/Figures/MLR3_RFM_Interact_Lab_2_plot.rds"))
+saveRDS(ia_lab_3_plot, file = here("writing/Figures/MLR3_RFM_Interact_Lab_3_plot.rds"))
+saveRDS(ia_lab_4_plot, file = here("writing/Figures/MLR3_RFM_Interact_Lab_4_plot.rds"))
+saveRDS(ia_lab_5_plot, file = here("writing/Figures/MLR3_RFM_Interact_Lab_5_plot.rds"))
 ```
 
 
 ```{r}
+m_lab <- RF_lab_lrn_tuned$model 
+p_lab <- m_lab$model$predictions
+t_lab <- RF_lab_task$truth()
+w_lab <- RF_lab_task$data(cols = "WIP")$WIP
+
+oob_tbl_lab <- tibble(truth = t_lab, pred = p_lab, wip = w_lab)
+
+oob_metrics_subset_lab_wet <- oob_tbl_lab |>
+  filter(wip >= 0.5) |>
+  summarise(
+    rmse = sqrt(mean((truth - pred)^2)),
+    r2   = 1 - sum((truth - pred)^2) / sum((truth - mean(truth))^2)
+  )  |> 
+  mutate(LandscapeClass = "WET")
+oob_metrics_subset_lab_upl <- oob_tbl_lab |>
+  filter(wip < 0.5) |>
+  summarise(
+    rmse = sqrt(mean((truth - pred)^2)),
+    r2   = 1 - sum((truth - pred)^2) / sum((truth - mean(truth))^2)
+  ) |> 
+  mutate(LandscapeClass = "UPL")
+
+oob_err_lab_wetupl <- bind_rows(oob_metrics_subset_lab_wet, oob_metrics_subset_lab_upl) |> 
+  dplyr::select(LandscapeClass, everything())
+
 qrf.trainlab <- RF_lab_lrn_tuned$predict_newdata(trainlab)$response
 
 qrf.testlab <- RF_lab_lrn_tuned$predict_newdata(testlab)$response
@@ -400,17 +428,18 @@ r.sq(y.fitted = qrf.testlab, y = testlab$carbon_perc)
 ```
 
 
+
 ```{r}
 qrf_errdf_lab <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"), 
     "RFM.R2_OOB" = c(
-      RF_lab_lrn_tuned$train(RF_lab_task)$model$r.squared,#RF_lab_rr$aggregate(msrs(c("regr.rsq")))[[1]],
-      -999,
-      -999
+      RF_lab_lrn_tuned$model$model$r.squared,#RF_lab_rr$aggregate(msrs(c("regr.rsq")))[[1]],
+      oob_err_lab_wetupl[oob_err_lab_wetupl$LandscapeClass == "WET", 3][[1]],
+      oob_err_lab_wetupl[oob_err_lab_wetupl$LandscapeClass == "UPL", 3][[1]]
       ),
     "RFM.RMSE_OOB" = c(
-      sqrt(RF_lab_lrn_tuned$train(RF_lab_task)$model$prediction.error),#RF_lab_rr$aggregate(msrs(c("regr.rmse")))[[1]],
-      -999,
-      -999
+      sqrt(RF_lab_lrn_tuned$model$model$prediction.error),#RF_lab_rr$aggregate(msrs(c("regr.rmse")))[[1]],
+      oob_err_lab_wetupl[oob_err_lab_wetupl$LandscapeClass == "WET", 2][[1]],
+      oob_err_lab_wetupl[oob_err_lab_wetupl$LandscapeClass == "UPL", 2][[1]]
       ),
     "RFM.R2_test" = c(r.sq(y.fitted = qrf.testlab, y = (testlab$carbon_perc)),
                       r.sq(y.fitted = qrf.wet.testlab, y = (testlab_wet$carbon_perc)),
@@ -424,7 +453,7 @@ qrf_errdf_lab <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
     )
 qrf_errdf_lab
 
-readr::write_csv(qrf_errdf_lab, file = "SOIL CARBON/All_WA/data/dataframes/MLR3_RFM_ErrorDF_LabData.csv")
+readr::write_csv(qrf_errdf_lab, file = here("data/dataframes/MLR3_RFM_ErrorDF_LabData.csv"))
 ```
 
 ```{r}

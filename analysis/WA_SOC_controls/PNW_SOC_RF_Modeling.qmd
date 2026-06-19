@@ -23,11 +23,10 @@ h1, h3, h4 {
 library(formatR)
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE, results = "hide", tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
 library(car)
-library(tidyverse)
-library(ggeffects)
+library(dplyr)
+library(tidyr)
+library(stringr)
 library(stats)
-library(ggcorrplot)
-library(cowplot)
 library(pdp)
 library(vip)
 library(formatR)
@@ -143,7 +142,7 @@ saveRDS(instance, file = here("analysis/models/MLR3_RecursiveFeat_Stocks.rds"))
 ```{r}
 instance <- readRDS(here("analysis/models/MLR3_RecursiveFeat_Stocks.rds"))
 RF_task$select(instance$result_feature_set)
-RF_lrn <- lrn("regr.ranger",
+RF_lrn <- lrn("regr.ranger", 
               num.trees = to_tune(c(1000, 2000)),
               mtry = to_tune(c(2, 4, 8, length(RF_task$feature_names))), 
               max.depth = to_tune(c(4,8,16,24)),
@@ -182,16 +181,19 @@ saveRDS(tune_instance, file = here("analysis/models/MLR3_RFM_Ranger_tune_instanc
 
 
 ```{r}
+#| eval: false 
+
 tune_instance <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_tune_instance.rds"))
-RF_lrn_tuned = lrn("regr.ranger", 
+RF_lrn_tuned = lrn("regr.ranger", keep.inbag = FALSE,
                         quantile_response = 0.5,
               quantiles = c(0.025, 0.5, 0.975))
 RF_lrn_tuned$predict_type = "quantiles"
 RF_lrn_tuned$param_set$values = tune_instance$result_learner_param_vals[[1]]
+RF_lrn_tuned$param_set$values$num.threads <- 1   # <- threads fixed
+set.seed(11)                                      # <- seed right before the fit
 RF_lrn_tuned$train(RF_task)$model
 
-RF_lrn_tuned_whole <- RF_lrn_tuned$train(RF_task)
-saveRDS(RF_lrn_tuned_whole, here("analysis/models/MLR3_RFM_Ranger_tuned.rds")) # This is the final model
+saveRDS(RF_lrn_tuned, here("analysis/models/MLR3_RFM_Ranger_tuned.rds")) # This is the final model
 
 
 # RF_lrn_full_tuned = lrn("regr.ranger", 
@@ -206,9 +208,18 @@ saveRDS(RF_lrn_tuned_whole, here("analysis/models/MLR3_RFM_Ranger_tuned.rds")) #
 
 ```
 
+```{r}
+RF_lrn_tuned <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
+RF_lrn_tuned$model
+```
+
+
 Resampling
 ```{r}
 #| eval: false
+#| output: hold
+
+set.seed(11)
 RF_lrn_tuned <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
 
 RF_CV <- rsmp("repeated_cv", repeats = 10, folds = 10)
@@ -219,6 +230,7 @@ saveRDS(RF_rr, file = here("analysis/models/MLR3_RFM_Ranger_resampling.rds"))
 
 
 ```{r}
+set.seed(11)
 RF_rr <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_resampling.rds"))
 RF_rr_acc <- RF_rr$score(msrs(c("regr.rmse", "regr.mse", "regr.rsq")))
 RF_rr_acc[, .(iteration, regr.rmse, regr.mse, regr.rsq)]
@@ -417,7 +429,32 @@ saveRDS(ia_5_plot, file = here("writing/Figures/MLR3_RFM_Interact_5_plot.rds"))
 
 
 ```{r}
-#mod_tc <-  get(load("analysis/models/RFM_traincontrol.RData"))
+m <- RF_lrn_tuned$model 
+p <- m$model$predictions
+t <- RF_task$truth()
+w <- RF_task$data(cols = "WIP")$WIP
+
+oob_tbl <- tibble(truth = t, pred = p, wip = w)
+
+oob_metrics_subset_wet <- oob_tbl |>
+  filter(wip >= 0.5) |>
+  summarise(
+    rmse = sqrt(mean((truth - pred)^2)),
+    r2   = 1 - sum((truth - pred)^2) / sum((truth - mean(truth))^2)
+  )  |> 
+  mutate(LandscapeClass = "WET")
+oob_metrics_subset_upl <- oob_tbl |>
+  filter(wip < 0.5) |>
+  summarise(
+    rmse = sqrt(mean((truth - pred)^2)),
+    r2   = 1 - sum((truth - pred)^2) / sum((truth - mean(truth))^2)
+  ) |> 
+  mutate(LandscapeClass = "UPL")
+
+oob_err_wetupl <- bind_rows(oob_metrics_subset_wet, oob_metrics_subset_upl) |> 
+  dplyr::select(LandscapeClass, everything())
+
+
 qrf.train <- RF_lrn_tuned$predict_newdata(train)$response
 
 qrf.test <- RF_lrn_tuned$predict_newdata(test)$response
@@ -435,14 +472,14 @@ r.sq(y.fitted = qrf.test, y = test$SOC_stock_spline)
 ```{r}
 qrf_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"), 
     "RFM.R2_OOB" = c(
-      RF_lrn_tuned$train(RF_task)$model$model$r.squared,#RF_rr$aggregate(msrs(c("regr.rsq")))[[1]],
-      -999,
-      -999
+      RF_lrn_tuned$model$model$r.squared,
+      oob_err_wetupl$r2[[1]],
+      oob_err_wetupl$r2[[2]]
       ),
     "RFM.RMSE_OOB" = c(
-      sqrt(RF_lrn_tuned$train(RF_task)$model$model$prediction.error),
-      -999,
-      -999
+      sqrt(RF_lrn_tuned$model$model$prediction.error),
+      oob_err_wetupl$rmse[[1]],
+      oob_err_wetupl$rmse[[2]]
       ),
     "RFM.R2_test" = c(r.sq(y.fitted = qrf.test, y = (test$SOC_stock_spline)),
                       r.sq(y.fitted = qrf.wet.test, y = (test.wet$SOC_stock_spline)),

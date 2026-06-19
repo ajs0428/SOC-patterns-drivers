@@ -14,6 +14,7 @@ library(terra)
 library(mlr3verse)
 library(mlr3spatial)
 library(tidyr)
+library(here)
 
 set.seed(11)
 ```
@@ -112,6 +113,7 @@ write.csv(test.upl, here("data/dataframes/RFM_Test_Upl_data.csv"))
 
 
 ```{r}
+set.seed(11)
 lab_tsk <- as_task_regr(pnw_dat_lab, target = "carbon_perc", id = "lab")
 lab_tsk$col_roles$group = "sample_ID"
 split_lab <- partition(lab_tsk, ratio = 0.85)
@@ -139,7 +141,7 @@ write.csv(testlab.upl, here("data/dataframes/RFM_Test_Lab_Upl_data.csv"))
 
 ```{r}
 scale_fun <- function(traindf, scaledf, target, wip) {
-    
+    set.seed(11)
     train_means <- traindf |> summarise(across(
         dplyr::where(is.numeric) & !all_of(target),
                   ~ dplyr::case_when(TRUE ~ mean(.))))
@@ -247,7 +249,6 @@ hist(test$SOC_stock_spline)
 hist(train$SOC_stock_spline)
 
 train |> group_by(geomorphons) |> 
-  #filter(WIP > 0.5) |> 
   summarise(mean=mean(SOC_stock_spline)) |> 
   ggplot(aes(x = geomorphons, y = mean)) + geom_col()
 
