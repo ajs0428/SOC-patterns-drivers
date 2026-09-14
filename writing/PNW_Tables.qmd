@@ -78,6 +78,9 @@ QRFM_lab <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned_LabData.rds"))
 ### Dataframes
 
 ```{r}
+#| cache: true
+
+
 All_WIP_Acc_DF <- read.csv(here("data/dataframes/All_WIP_Acc_DF.csv"))
 wipPredictors <- read.csv(here("data/dataframes/PNW_WIP_Predictors.csv"))
 allsite_WIPimp <- read.csv(here("data/dataframes/PNW_WIP_VarImp.csv"))
@@ -208,7 +211,11 @@ ia_lab_5$results <- ia_lab_5$results |> dplyr::arrange(desc(.interaction)) |> sl
 Map tables
 
 ```{r}
-PNW_SOC_df <- read.csv(here("data/dataframes/PNW_MapSOC_wetupl_1m_Mgha.csv"))
+#| cache: true
+
+
+PNW_SOC_df <- read.csv(here("data/dataframes/PNW_MapSOC_wetupl_1m_no_wip_no_wip.csv")) |> 
+  mutate(across(where(is.numeric) & !dplyr::contains("Total_area"), \(x) x * 100))
 
 nwca_soc_est <- read.csv(here("data/dataframes/NWCA_SOC_C_map_simp.csv")) |> 
   mutate(StudyArea = str_extract(Name, "Hoh|Mas|Col"),
@@ -232,6 +239,9 @@ ensemble_SOC <- read.csv(here("data/dataframes/ensemble_Frac_Estimates_PNW.csv")
 Functions for changing tables
 
 ```{r}
+#| cache: true
+
+
 std_border <- officer::fp_border(color = "gray10", width = 0.1)
 thick_border <- officer::fp_border(color = "black", width = 1.5)
 flextable_fun <- function(table){
@@ -316,6 +326,9 @@ All_WIP_Acc_DF |>
 WIP Predictors
 
 ```{r}
+#| cache: true
+
+
 wipPredictors_table <- wipPredictors |> 
   dplyr::rename("Study Area" = StudyArea) |> 
   mutate(Predictor = case_when(str_detect(Predictor, "dev_") ~ str_replace(Predictor, "dev_", "Deviation "),
@@ -349,6 +362,8 @@ saveRDS(wipPredictors_table, "/Users/Anthony/OneDrive - UW/University of Washing
 SOC predictors 
 
 ```{r}
+#| cache: true
+
 descriptions <- c(
   Depth      = "Lower depth of sample (cm)",
   WIP              = "Wetland intrinsic potential (probability)",
@@ -396,6 +411,8 @@ saveRDS(pred_ft, file = here("writing/Tables/socPredictors_table.rds"))
 
 
 ```{r}
+#| cache: true
+
 all_sites_depth_stocks <- pnw_dat |> #group_by(lower_depth) |> 
     summarise(site = "All", 
               lower_depth = 0,
@@ -477,6 +494,8 @@ saveRDS(mean_stdev_stocks_table, file = "/Users/Anthony/OneDrive - UW/University
 SOC % by site and depth(?)
 
 ```{r}
+#| cache: true
+
 percSOC_table <- pnw_dat_lab |> mutate(depth_zone = case_when(lower_depth <= 25 ~ "0-25",
                                              lower_depth > 25 & lower_depth <=50 ~ "25-50",
                                              lower_depth > 50 & lower_depth <=75 ~ "50-75",
@@ -625,6 +644,8 @@ saveRDS(wa_stocks_dat_table, file = "/Users/Anthony/OneDrive - UW/University of 
 Parial correlation table
 
 ```{r}
+#| cache: true
+
 library(ppcor)
 
 pnw_lab_wet_ppcor <- pnw_dat_lab |> filter(WIP >= 0.50) |> 
@@ -663,6 +684,8 @@ all_ppor <- wet_ppcor |> rename(SOC_stock_spline_wet = SOC_stock_spline) |> left
 ```
 
 ```{r results='asis'}
+#| cache: true
+
 all_lab_ppor_ft <- all_lab_ppor |> 
   mutate_tab() |>  
   mutate(dplyr::mutate(across(where(is.numeric), ~base::round(.x, 2)))) |> 
@@ -695,6 +718,8 @@ saveRDS(all_ppor_ft, "/Users/Anthony/OneDrive - UW/University of Washington/Data
 Map table stats
 
 ```{r}
+#| cache: true
+
 PNW_Mapped_SOC <- PNW_SOC_df |> 
   #bind_rows(gsoc_frac_pnw) |> 
   bind_rows(ensemble_SOC) |> 
@@ -762,6 +787,8 @@ saveRDS(PNW_Mapped_SOC, "/Users/Anthony/OneDrive - UW/University of Washington/D
 Uncertainty prediction intervals from RFM
 
 ```{r}
+#| cache: true
+
 mappedSOC_025_1m_depths_sum_df <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/PNW_mappedSOC_025_1m_depths_sum_df.csv") |>  mutate(across(contains("SOC"), ~ . * 100))
 mappedSOC_975_1m_depths_sum_df <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/PNW_mappedSOC_975_1m_depths_sum_df.csv") |>  mutate(across(contains("SOC"), ~ . * 100)) 
 
@@ -817,6 +844,8 @@ saveRDS(uncertainty_table_mapped_SOC, "/Users/Anthony/OneDrive - UW/University o
 NWI wetland areas - use wetland area estimates from the mapped data tables
 
 ```{r}
+#| cache: true
+
 NWI_areas_df <- read.csv("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/data/dataframes/PNW_NWI_wetland_areas.csv")
 
 PNW_Wet_Area <- PNW_SOC_df |> dplyr::filter(Name == "list_wet") |> dplyr::select(StudyArea, Total_area) |> 
@@ -854,6 +883,8 @@ saveRDS(PNW_Wet_Area_Table, "/Users/Anthony/OneDrive - UW/University of Washingt
 Test dataset metrics only
 
 ```{r}
+#| cache: true
+
 stock_mods_table <- mod_errdf |> 
     dplyr::select(LandscapeClass, LMM.LogMargR2, LMM.LogCondR2,
                   LMM.nLogPredObsR2, LMM.nlogPredObsRMSE) |> 
@@ -889,6 +920,8 @@ Cperc_mods_table <- mod_errdf_lab |>
 
 
 ```{r}
+#| cache: true
+
 stat_table_format <- stock_mods_table |> 
     rbind(stock_mods_table_noWIP, 
           Cperc_mods_table)  |>

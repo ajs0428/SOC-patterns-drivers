@@ -22,9 +22,12 @@ h1, h3, h4 {
 ```{r setup, include=FALSE}
 library(formatR)
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, message = FALSE, warning = FALSE, results = "hide", tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
+library(here)
+here::here()
 library(car)
 library(dplyr)
 library(tidyr)
+library(readr)
 library(stringr)
 library(stats)
 library(pdp)
@@ -46,8 +49,7 @@ library(mlr3fselect)
 library(iml)
 library(kernelshap)
 library(shapviz)
-library(here)
-here()
+
 knitr::knit_hooks$set(webgl = "hook_webgl")
 rgl::setupKnitr(autoprint = TRUE)
 
@@ -65,19 +67,19 @@ r.sq <- function(y,y.fitted){
 
 
 ```{r}
-pnw_dat <- read.csv(here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv")) |>
+pnw_dat <- read.csv(here::here("data/dataframes/PNW_data_MLR3_RFM_LMM.csv")) |>
   dplyr::select(-site, -X, ) |>
   dplyr::mutate(across(where(is.character), as.factor))
-train <- read.csv(here("data/dataframes/Train_data.csv")) |> 
+train <- read.csv(here::here("data/dataframes/Train_data.csv")) |> 
   dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor))
-test <- read.csv(here("data/dataframes/Test_data.csv")) |> 
+test <- read.csv(here::here("data/dataframes/Test_data.csv")) |> 
   dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
   mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)))
-test.wet <- read.csv(here("data/dataframes/RFM_Test_Wet_data.csv")) |> 
+test.wet <- read.csv(here::here("data/dataframes/RFM_Test_Wet_data.csv")) |> 
   dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
   mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)),
          LITH = factor(LITH, levels = levels(train$LITH)))
-test.upl <- read.csv(here("data/dataframes/RFM_Test_Upl_data.csv")) |> 
+test.upl <- read.csv(here::here("data/dataframes/RFM_Test_Upl_data.csv")) |> 
   dplyr::select(-site, -X, ) |> dplyr::mutate(across(where(is.character), as.factor)) |> 
   mutate(geomorphons = factor(geomorphons, levels = levels(train$geomorphons)),
          LITH = factor(LITH, levels = levels(train$LITH)))
@@ -140,7 +142,7 @@ saveRDS(instance, file = here("analysis/models/MLR3_RecursiveFeat_Stocks.rds"))
 
 
 ```{r}
-instance <- readRDS(here("analysis/models/MLR3_RecursiveFeat_Stocks.rds"))
+instance <- readRDS(here::here("analysis/models/MLR3_RecursiveFeat_Stocks.rds"))
 RF_task$select(instance$result_feature_set)
 RF_lrn <- lrn("regr.ranger", 
               num.trees = to_tune(c(1000, 2000)),
@@ -184,12 +186,13 @@ saveRDS(tune_instance, file = here("analysis/models/MLR3_RFM_Ranger_tune_instanc
 #| eval: false 
 
 tune_instance <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_tune_instance.rds"))
-RF_lrn_tuned = lrn("regr.ranger", keep.inbag = FALSE,
-                        quantile_response = 0.5,
-              quantiles = c(0.025, 0.5, 0.975))
-RF_lrn_tuned$predict_type = "quantiles"
+RF_lrn_tuned = lrn("regr.ranger")
 RF_lrn_tuned$param_set$values = tune_instance$result_learner_param_vals[[1]]
-RF_lrn_tuned$param_set$values$num.threads <- 1   # <- threads fixed
+RF_lrn_tuned$param_set$values$num.threads <- 1    # <- threads fixed
+RF_lrn_tuned$param_set$values$keep.inbag <- TRUE  # <- REQUIRED for ranger quantile regression; set AFTER the param-set overwrite so it survives
+RF_lrn_tuned$predict_type      = "quantiles"
+RF_lrn_tuned$quantiles         <- c(0.025, 0.5, 0.975)  # in current mlr3learners these are R6 fields, NOT lrn() args
+RF_lrn_tuned$quantile_response <- 0.5
 set.seed(11)                                      # <- seed right before the fit
 RF_lrn_tuned$train(RF_task)$model
 
@@ -209,7 +212,7 @@ saveRDS(RF_lrn_tuned, here("analysis/models/MLR3_RFM_Ranger_tuned.rds")) # This 
 ```
 
 ```{r}
-RF_lrn_tuned <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
+RF_lrn_tuned <- readRDS(here::here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
 RF_lrn_tuned$model
 ```
 
@@ -220,7 +223,7 @@ Resampling
 #| output: hold
 
 set.seed(11)
-RF_lrn_tuned <- readRDS(here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
+RF_lrn_tuned <- readRDS(here::here("analysis/models/MLR3_RFM_Ranger_tuned.rds"))
 
 RF_CV <- rsmp("repeated_cv", repeats = 10, folds = 10)
 
@@ -244,7 +247,7 @@ write_csv(RF_rr_acc, file = here("data/dataframes/MLR3_RFM_Ranger_tuned_CV_resul
 
 
 ```{r}
-RF_rr_acc <- read.csv(here("data/dataframes/MLR3_RFM_Ranger_tuned_CV_results.csv"))
+RF_rr_acc <- read.csv(here::here("data/dataframes/MLR3_RFM_Ranger_tuned_CV_results.csv"))
 
 measures <- msrs(c("regr.rmse", "regr.mse", "regr.rsq"))
 RF_lrn_tuned$predict_newdata(test)$score(measures)
@@ -354,7 +357,7 @@ RF_task_target <- RF_task$data(cols = RF_task$target_names)
 predictor <- iml::Predictor$new(RF_lrn_tuned,
                                 data = RF_task_feats, 
                                 y = RF_task_target)
-saveRDS(predictor, here("analysis/models/MLR3_Predictor.rds"))
+saveRDS(predictor, here::here("analysis/models/MLR3_Predictor.rds"))
 
 
 
@@ -365,30 +368,30 @@ ia_4 <- Interaction$new(predictor, feature = ks_vars$column[4])
 ia_5 <- Interaction$new(predictor, feature = ks_vars$column[5])
 
 saveRDS(ia_1, 
-        file = here("writing/Figures/MLR3_RFM_Interact_1_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Interact_1_plot.rds"))
 saveRDS(ia_2, 
-        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_2_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Ranger_Interact_2_plot.rds"))
 saveRDS(ia_3, 
-        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_3_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Ranger_Interact_3_plot.rds"))
 saveRDS(ia_4, 
-        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_4_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Ranger_Interact_4_plot.rds"))
 saveRDS(ia_5, 
-        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_5_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Ranger_Interact_5_plot.rds"))
 ```
 
 
 ```{r}
 
 ia_1 <- readRDS(
-        file = here("writing/Figures/MLR3_RFM_Interact_1_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Interact_1_plot.rds"))
 ia_2 <- readRDS(
-        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_2_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Ranger_Interact_2_plot.rds"))
 ia_3 <- readRDS( 
-        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_3_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Ranger_Interact_3_plot.rds"))
 ia_4 <- readRDS(
-        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_4_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Ranger_Interact_4_plot.rds"))
 ia_5 <- readRDS( 
-        file = here("writing/Figures/MLR3_RFM_Ranger_Interact_5_plot.rds"))
+        file = here::here("writing/Figures/MLR3_RFM_Ranger_Interact_5_plot.rds"))
 
 # ia_depth$results |> data.frame() |> dplyr::mutate(.feature = factor(.feature)) |>
 #   dplyr::mutate(.feature = fct_reorder(.feature, desc(.interaction))) |>
@@ -420,11 +423,11 @@ ia_3_plot
 ia_4_plot 
 ia_5_plot 
 
-saveRDS(ia_1_plot, file = here("writing/Figures/MLR3_RFM_Interact_1_plot.rds"))
-saveRDS(ia_2_plot, file = here("writing/Figures/MLR3_RFM_Interact_2_plot.rds"))
-saveRDS(ia_3_plot, file = here("writing/Figures/MLR3_RFM_Interact_3_plot.rds"))
-saveRDS(ia_4_plot, file = here("writing/Figures/MLR3_RFM_Interact_4_plot.rds"))
-saveRDS(ia_5_plot, file = here("writing/Figures/MLR3_RFM_Interact_5_plot.rds"))
+saveRDS(ia_1_plot, file = here::here("writing/Figures/MLR3_RFM_Interact_1_plot.rds"))
+saveRDS(ia_2_plot, file = here::here("writing/Figures/MLR3_RFM_Interact_2_plot.rds"))
+saveRDS(ia_3_plot, file = here::here("writing/Figures/MLR3_RFM_Interact_3_plot.rds"))
+saveRDS(ia_4_plot, file = here::here("writing/Figures/MLR3_RFM_Interact_4_plot.rds"))
+saveRDS(ia_5_plot, file = here::here("writing/Figures/MLR3_RFM_Interact_5_plot.rds"))
 ```
 
 
@@ -493,7 +496,7 @@ qrf_errdf <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
     )
 qrf_errdf |> flextable::flextable()
 
-readr::write_csv(qrf_errdf, file = here("data/dataframes/MLR3_RFM_ErrorDF.csv"))
+readr::write_csv(qrf_errdf, file = here::here("data/dataframes/MLR3_RFM_ErrorDF.csv"))
 ```
 
 

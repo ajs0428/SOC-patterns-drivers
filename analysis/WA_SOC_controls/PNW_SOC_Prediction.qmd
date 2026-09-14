@@ -11,6 +11,7 @@ editor_options:
 library(formatR)
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", fig.show = "hold", time_it = TRUE, dpi = 100, tidy.opts = list(width.cutoff = 60), tidy = T, collapse = TRUE)
 
+library(here)
 library(tidyverse)
 library(mlr3)
 library(mlr3pipelines) 
@@ -20,6 +21,7 @@ library(mlr3extralearners)
 library(mlr3viz)
 library(terra)
 library(tidyterra)
+library(ranger)
 library(lme4)
 library(MASS)
 library(terra)
@@ -32,9 +34,13 @@ library(webshot)
 library(kableExtra)
 library(formatR)
 library(stringr)
-library(here)
+here()
 
-
+terraOptions(
+    memfrac = 0.6, 
+    memmax = 4,
+    memmin = 1
+)
 # pak::pak(c("mlr-org/mlr3", "mlr-org/mlr3fselect"))
 knitr::knit_hooks$set(webgl = "hook_webgl")
 rgl::setupKnitr(autoprint = TRUE)
@@ -229,25 +235,49 @@ plot(hlef_stack$geomorphons)
 ```{r}
 
 #instance <- readRDS("analysis/models/MLR3_RecursiveFeat_Stocks.rds")
-features <- (names(QRFM_stocks_nw$model$model$variable.importance)[names(QRFM_stocks_nw$model$model$variable.importance) != "lower_depth"])
+features <- (names(QRFM_stocks$model$model$variable.importance)[names(QRFM_stocks$model$model$variable.importance) != "lower_depth"])
 features
 ```
 
 
 ```{r}
+#| eval: false
 
 hlef_stack_select <- hlef_stack |> tidyterra::select(all_of(features))
-# writeRaster(hlef_stack_select, "data/Rasters/PredictorStacks/HLEF_PredictorStack_Class_RFM_select.tif")
-names(hlef_stack_select) == features
+writeRaster(hlef_stack_select,
+            "data/Rasters/PredictorStacks/HLEF_PredictorStack_Class_RFM_select.tif", 
+            overwrite = TRUE)
 
 hoh_stack_select <- hoh_stack |> tidyterra::select(all_of(features))
-names(hoh_stack_select) == features
+writeRaster(hoh_stack_select, 
+            "data/Rasters/PredictorStacks/Hoh_PredictorStack_Class_RFM_select.tif", 
+            overwrite = TRUE)
 mas_stack_select <- mas_stack |> tidyterra::select(all_of(features))
-names(mas_stack_select) == features
+writeRaster(mas_stack_select,
+            "data/Rasters/PredictorStacks/Mas_PredictorStack_Class_RFM_select.tif", 
+            overwrite = TRUE)
+
 col_stack_select <- col_stack |> tidyterra::select(all_of(features))
+writeRaster(col_stack_select,
+            "data/Rasters/PredictorStacks/Col_PredictorStack_Class_RFM_select.tif", 
+            overwrite = TRUE)
+
+
+```
+
+```{r}
+hlef_stack_select <- rast(here("data/Rasters/PredictorStacks/HLEF_PredictorStack_Class_RFM_select.tif"))
+hoh_stack_select <- rast(here("data/Rasters/PredictorStacks/Hoh_PredictorStack_Class_RFM_select.tif"))
+mas_stack_select <- rast(here("data/Rasters/PredictorStacks/Mas_PredictorStack_Class_RFM_select.tif"))
+col_stack_select <- rast(here("data/Rasters/PredictorStacks/Col_PredictorStack_Class_RFM_select.tif"))
+
+names(hlef_stack_select) == features
+names(hoh_stack_select) == features
+names(mas_stack_select) == features
 names(col_stack_select) == features
 
 ```
+
 
 Tiling?
 ```{r}
@@ -261,22 +291,34 @@ hlef_tiles <- makeTiles(hlef_stack_select, c(1000, 1000),
 ```{r}
 soc_path <- here("data/Rasters/SOC_Predictions/SOC_Predictions_Depth/")
 
-soc_pred_func <- function(model, pred_stack, depth_ints, numcores) {
+soc_pred_func <- function(model, pred_stack, depth_ints) {
   stopifnot(is.vector(depth_ints))
-  stopifnot(numcores < parallel::detectCores())
-  
-  model$quantile_response = 0.5
+  # stopifnot(numcores < parallel::detectCores())
+  # `model` must be the underlying ranger object (e.g. QRFM_stocks$model$model),
+  # NOT the mlr3 learner: terra::predict dispatches predict.ranger, and the saved
+  # mlr3 learner is unusable under the installed mlr3 (`always_included` col-role).
+  # Quantile (median) prediction requires the model trained with keep.inbag = TRUE.
   name <- str_extract(deparse(substitute(pred_stack)), "hlef|hoh|mas|col")
-  
+  # predict.ranger returns a ranger.prediction list; pull out $predictions so terra
+  # (esp. the parallel cores > 1 path) receives a plain numeric matrix.
+  ranger_pred <- function(model, ...) predict(model, ...)$predictions
+
   for(i in 1:length(depth_ints)) {
-    predict(pred_stack, model, 
-                const = data.frame(lower_depth = depth_ints[i]), 
-                na.rm = TRUE, cores = numcores, 
+    fn <- paste0(soc_path, "PNW_", name,"_", depth_ints[[i]],
+                                  "cm_SOC_RFM_2.tif")
+    if(!file.exists(fn)){
+      predict(pred_stack, model, fun = ranger_pred,
+                type = "quantiles", quantiles = 0.5,
+                const = data.frame(lower_depth = depth_ints[i]),
+                na.rm = TRUE, cpkgs = "ranger",
                 filename = paste0(soc_path, "PNW_", name,"_", depth_ints[[i]],
-                                  "cm_SOC_RFM_noWIP.tif"),
-                overwrite = TRUE,
-                wopt=list(steps=25))
-    gc()
+                                  "cm_SOC_RFM_2.tif"),
+                overwrite = TRUE)
+      gc()
+    } else {
+      message("already file at: ", fn)
+    }
+    
   }
   gc()
   # rast_stack_sum <- sum(rast(rast_list))
@@ -288,13 +330,7 @@ soc_pred_func <- function(model, pred_stack, depth_ints, numcores) {
   #return(rast_stack_sum)
 }
 
-#test <- soc_pred_func(QRFM_stocks_nw, hlef_stack_select, 25)
-
-terraOptions(
-    memfrac = 0.5, 
-    memmax = 2,
-    memmin = 0.1
-)
+# test <- soc_pred_func(QRFM_stocks$model$model, hlef_stack_select, depth_ints = 25)
 
 # p <- spatSample(hlef_stack_select, size = 1, na.rm = T, as.points = T)
 # b <- terra::buffer(p, 1000)
@@ -313,36 +349,44 @@ terraOptions(
 
 ```{r}
 #| eval: false
+#| label: Predict to maps
 
-# soc_pred_func(model = QRFM_stocks_nw,
-#               pred_stack = hlef_stack_select,
-#               numcores = 4,
-#               depth_ints = seq(25, 100, 25))
-# soc_pred_func(model = QRFM_stocks_nw, 
-#               pred_stack = hoh_stack_select, 
-#               depth_ints = seq(25, 100, 25),
-#               numcores = 3)
-# soc_pred_func(model = QRFM_stocks_nw, 
-#               pred_stack = mas_stack_select, 
-#               depth_ints = seq(25, 100, 25),
-#               numcores = 2)
-# soc_pred_func(model = QRFM_stocks_nw, 
-#               pred_stack = col_stack_select, 
-#               depth_ints = seq(25, 100, 25),
-#               numcores = 2)
+soc_pred_func(model = QRFM_stocks$model$model,
+              pred_stack = hlef_stack_select,
+              # numcores = 4,
+              depth_ints = seq(25, 100, 25))
+soc_pred_func(model = QRFM_stocks$model$model,
+              pred_stack = hoh_stack_select,
+              depth_ints = seq(25, 100, 25)
+              # numcores = 3
+              )
+soc_pred_func(model = QRFM_stocks$model$model,
+              pred_stack = mas_stack_select,
+              depth_ints = seq(25, 100, 25)
+              # numcores = 2
+              )
+soc_pred_func(model = QRFM_stocks$model$model,
+              pred_stack = col_stack_select,
+              depth_ints = seq(25, 100, 25)
+              # numcores = 2 
+              )
 ```
 
 ```{r}
-hlef_soc <- rast(list.files(soc_path, pattern = "hlef", full.names = TRUE)) |> 
+hlef_soc_list <- list.files(soc_path, pattern = "hlef", full.names = TRUE) |> str_subset("RFM_2")
+hlef_soc <- rast(hlef_soc_list) |> 
   sum() 
 
-hoh_soc <- rast(list.files(soc_path, pattern = "hoh", full.names = TRUE)) |> 
+hoh_soc_list <- list.files(soc_path, pattern = "hoh", full.names = TRUE) |> str_subset("RFM_2")
+hoh_soc <- rast(hoh_soc_list) |> 
   sum() 
 
-mas_soc <- rast(list.files(soc_path, pattern = "mas", full.names = TRUE)) |> 
+mas_soc_list <- list.files(soc_path, pattern = "mas", full.names = TRUE) |> str_subset("RFM_2")
+mas_soc <- rast(mas_soc_list) |> 
   sum() 
 
-col_soc <- rast(list.files(soc_path, pattern = "col", full.names = TRUE)) |> 
+col_soc_list <- list.files(soc_path, pattern = "col", full.names = TRUE) |> str_subset("RFM_2")
+col_soc <- rast(col_soc_list) |> 
   sum() 
 plot(hlef_soc)
 plot(hoh_soc)
@@ -443,9 +487,9 @@ C_map_simp <- function(C_map){
     
     return(data.frame("Name" = name, 
                       "Total_area" = area_tot, 
-                      "AverageSOC_Mgha" = C_mean, 
+                      "AverageSOC_Mgha" = C_mean*100, 
                       #"MaxSOC_Mgha" = C_max,
-                      "Total_SOC_Tg" = TotalC_sum/1e6,
+                      "Total_SOC_Tg" = (TotalC_sum*100)/1e6,
                       stringsAsFactors = T))
 }
 
@@ -768,20 +812,23 @@ readr::write_csv(ensemble_PNW, "data/dataframes/ensemble_Frac_Estimates_PNW.csv"
 soc_quantpred_func <- function(model, pred_stack, depth_ints, numcores) {
   stopifnot(is.vector(depth_ints))
   stopifnot(numcores < parallel::detectCores())
-  
+  # `model` must be the underlying ranger object (e.g. QRFM_stocks_nw$model$model)
+  # trained with keep.inbag = TRUE; the 0.025/0.975 quantiles come from predict.ranger.
   name <- str_extract(deparse(substitute(pred_stack)), "hlef|hoh|mas|col")
-  
+  # pull $predictions out of the ranger.prediction list for terra (incl. cores > 1)
+  ranger_pred <- function(model, ...) predict(model, ...)$predictions
+
   rast_low_list <- list()
   rast_high_list <- list()
   for(i in 1:length(depth_ints)) {
-    model$quantile_response = 0.025
-    rast_low_list[[i]] <- predict(pred_stack, model, 
-                const = data.frame(lower_depth = depth_ints[i]), 
-                na.rm = TRUE, cores = numcores, wopt=list(steps=10))
-    model$quantile_response = 0.975
-    rast_high_list[[i]] <- predict(pred_stack, model, 
-                const = data.frame(lower_depth = depth_ints[i]), 
-                na.rm = TRUE, cores = numcores, wopt=list(steps=10))
+    rast_low_list[[i]] <- predict(pred_stack, model, fun = ranger_pred,
+                type = "quantiles", quantiles = 0.025,
+                const = data.frame(lower_depth = depth_ints[i]),
+                na.rm = TRUE, cores = numcores, cpkgs = "ranger", wopt=list(steps=10))
+    rast_high_list[[i]] <- predict(pred_stack, model, fun = ranger_pred,
+                type = "quantiles", quantiles = 0.975,
+                const = data.frame(lower_depth = depth_ints[i]),
+                na.rm = TRUE, cores = numcores, cpkgs = "ranger", wopt=list(steps=10))
   }
   
   rast_low_stack_sum <- sum(rast(rast_low_list), na.rm = T)
@@ -808,20 +855,20 @@ soc_quantpred_func <- function(model, pred_stack, depth_ints, numcores) {
 
 ```{r}
 #| eval: false
-soc_quantpred_func(model = QRFM_stocks_nw, 
-              pred_stack = hlef_stack_select, 
+soc_quantpred_func(model = QRFM_stocks_nw$model$model,
+              pred_stack = hlef_stack_select,
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks_nw, 
-              pred_stack = hoh_stack_select, 
+soc_quantpred_func(model = QRFM_stocks_nw$model$model,
+              pred_stack = hoh_stack_select,
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks_nw, 
-              pred_stack = mas_stack_select, 
+soc_quantpred_func(model = QRFM_stocks_nw$model$model,
+              pred_stack = mas_stack_select,
               depth_ints = seq(25, 100, 25),
               numcores = 6)
-soc_quantpred_func(model = QRFM_stocks_nw, 
-              pred_stack = col_stack_select, 
+soc_quantpred_func(model = QRFM_stocks_nw$model$model,
+              pred_stack = col_stack_select,
               depth_ints = seq(25, 100, 25),
               numcores = 6)
 ```

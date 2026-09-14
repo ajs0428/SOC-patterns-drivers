@@ -739,8 +739,8 @@ readr::write_csv(LMM_testlabpred,
                  here("data/dataframes/PNW_SOC_Edaphic_LMM_test_pred_response.csv")) 
 
 mod_errdf_lab <- data.frame("LandscapeClass" = c("Full", "Wetland", "Upland"),
-                            "LMM.LogMargR2" = c(mumin_R2m_lab, r2_subset_wet$r2_marginal, r2_subset_wet$r2_conditional),
-                            "LMM.LogCondR2" = c(mumin_R2c_lab, r2_subset_upl$r2_marginal, r2_subset_upl$r2_conditional),
+                            "LMM.LogMargR2" = c(mumin_R2m_lab, r2_subset_wet$r2_marginal, r2_subset_upl$r2_marginal),
+                            "LMM.LogCondR2" = c(mumin_R2c_lab, r2_subset_wet$r2_conditional, r2_subset_upl$r2_conditional),
                             "LMM.nLogPredObsR2" = c(r2_po_lab, r2_po_lab_w, r2_po_lab_u),
                             "LMM.nlogPredObsRMSE" = c(rmse_po_lab, rmse_po_lab_w, rmse_po_lab_u)
                             ) 

@@ -180,12 +180,13 @@ saveRDS(tune_instance_nw, file = here("analysis/models/MLR3_RFM_Ranger_tune_inst
 ```{r}
 #| eval: false
 tune_instance_nw <- readRDS(file = here("analysis/models/MLR3_RFM_Ranger_tune_instance_nw_noWIP.rds"))
-RF_lrn_nw_tuned = lrn("regr.ranger", 
-                        quantile_response = 0.5,
-              quantiles = c(0.025, 0.5, 0.975))
-RF_lrn_nw_tuned$predict_type = "quantiles"
+RF_lrn_nw_tuned = lrn("regr.ranger")
 RF_lrn_nw_tuned$param_set$values = tune_instance_nw$result_learner_param_vals[[1]]
 RF_lrn_nw_tuned$param_set$values$num.threads <- 1
+RF_lrn_nw_tuned$param_set$values$keep.inbag <- TRUE  # <- REQUIRED for ranger quantile regression; set AFTER the param-set overwrite so it survives
+RF_lrn_nw_tuned$predict_type      = "quantiles"
+RF_lrn_nw_tuned$quantiles         <- c(0.025, 0.5, 0.975)  # in current mlr3learners these are R6 fields, NOT lrn() args
+RF_lrn_nw_tuned$quantile_response <- 0.5
 set.seed(11)
 RF_lrn_nw_tuned$train(RF_task_nw)$model
 
