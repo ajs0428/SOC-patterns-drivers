@@ -7,16 +7,6 @@ output:
     theme: readable
 ---
 
-```{css, echo=FALSE}
-pre {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-h1, h3, h4 {
-  text-align: center;
-}
-```
 
 ```{r setup, include=FALSE}
 library(formatR)
@@ -661,17 +651,17 @@ semivariograms <- (ggplot(vario_all_df, aes(x = distance_km, y = semivariance)) 
 (ggplot(vario_h_df, aes(x = distance_km, y = semivariance)) +
   geom_point()+ 
   xlab("Distance HRW (km)") +
-  ylim(0, 1.2*max(vario_all_df$semivariance)))/
+  ylim(0, 1.2*max(vario_h_df$semivariance)))/
 (ggplot(vario_m_df, aes(x = distance_km, y = semivariance)) +
   geom_point()+ 
   xlab("Distance MRW (km)") +
-  ylim(0, 1.2*max(vario_all_df$semivariance)))/
+  ylim(0, 1.2*max(vario_m_df$semivariance)))/
 (ggplot(vario_c_df, aes(x = distance_km, y = semivariance)) +
   geom_point()+ 
   xlab("Distance CVW (km)") +
-  ylim(0, 1.2*max(vario_all_df$semivariance))) + plot_layout(axes = "collect")
+  ylim(0, 1.2*max(vario_c_df$semivariance))) + plot_layout(axes = "collect")
 
-save(semivariograms, file = "writing/Figures/Supplemental/Semivariograms.Rdata" |> here())
+save(semivariograms, file = "writing/Figures/Supplemental/Semivariograms.RData" |> here())
 ```
 
 

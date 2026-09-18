@@ -1035,32 +1035,50 @@ saveRDS(shap_full_mod_lab_plot, "/Users/Anthony/OneDrive - UW/University of Wash
 
 
 ```{r}
-lab_func <-  function(x) {
-  subtitle_lab = if(is.null((x$results$.feature))){
-    str_replace_all(str_extract(x$data$.feature, 
-                ":lower_depth|:grad_1000|:WIP|:MAT|:Clay|:PET_MAP|:pH|:MAP")[1],
-                           c(`:lower_depth` = "Depth",
-                             `:grad_1000` = "Gradient 1000m",
-                             `:WIP` = "WIP",
-                             `:MAT` = "MAT",
-                             `:Clay` = "Clay",
-                             `:PET_MAP` = "PET::MAP",
-                             `:pH` = "pH",
-                             `:MAP` = "MAP"
-                             ))
-  } else {
-    str_replace_all(str_extract(x$data$results$.feature, 
-                ":lower_depth|:grad_1000|:WIP|:MAT|:Clay|:PET_MAP|:pH|:MAP")[1],
-                           c(`:lower_depth` = "Depth",
-                             `:grad_1000` = "Gradient 1000m",
-                             `:WIP` = "WIP",
-                             `:MAT` = "MAT",
-                             `:Clay` = "Clay",
-                             `:PET_MAP` = "PET::MAP",
-                             `:pH` = "pH",
-                             `:MAP` = "MAP"
-                             ))
+# ia_1 and ia_lab_1 were saved as already-rendered ggplots (the Interaction object
+# was overwritten at the same path upstream) under ggplot2 3.x, and those objects no
+# longer dispatch under ggplot2 4.x. Rebuild iml's plot from the stored results
+# instead; ia_2-ia_5 are still Interaction objects and keep their own $results.
+ia_results <- function(x) {
+  as.data.frame(if(is.null(x$results)) x$data else x$results)
+}
+
+ia_plot_build <- function(x, sort = TRUE) {
+  res <- ia_results(x)
+  if(sort) {
+    res$.feature <- factor(res$.feature, levels = res$.feature[order(res$.interaction)])
   }
+  ggplot(res, aes(y = .feature, x = .interaction)) +
+    geom_point() +
+    geom_segment(aes(yend = .feature, x = 0, xend = .interaction)) +
+    scale_x_continuous("Overall interaction strength") +
+    scale_y_discrete("Features")
+}
+
+# Shared x axis for a set of panels, taken from the data and rounded up to the next
+# 0.05. A hard-coded limit both wastes panel width and silently drops any point
+# above it. Each assembled figure sets its own limit from the panels it contains;
+# ia_xlim spans all ten and is the fallback for a panel shown on its own.
+ia_lim <- function(...) {
+  c(0, ceiling(20 * max(sapply(list(...), \(x) max(ia_results(x)$.interaction)))) / 20)
+}
+
+ia_xlim <- ia_lim(ia_1, ia_2, ia_3, ia_4, ia_5,
+                  ia_lab_1, ia_lab_2, ia_lab_3, ia_lab_4, ia_lab_5)
+
+lab_func <-  function(x, xlim = ia_xlim) {
+  subtitle_lab = str_replace_all(
+    str_extract(as.character(x$data$.feature), 
+                ":lower_depth|:grad_1000|:WIP|:MAT|:Clay|:PET_MAP|:pH|:MAP")[1],
+                           c(`:lower_depth` = "Depth",
+                             `:grad_1000` = "Gradient 1000m",
+                             `:WIP` = "WIP",
+                             `:MAT` = "MAT",
+                             `:Clay` = "Clay",
+                             `:PET_MAP` = "PET::MAP",
+                             `:pH` = "pH",
+                             `:MAP` = "MAP"
+                             ))
   x + scale_y_discrete(labels = \(y) 
         str_replace_all(y, c(`:lower_depth` = "",
                              `:grad_1000` = "",
@@ -1086,18 +1104,18 @@ lab_func <-  function(x) {
                              )),
         ) + 
     ggtitle(subtitle_lab) +
-    scale_x_continuous(limits = c(0, 0.65)) +
+    scale_x_continuous(limits = xlim) +
     ylab("") +
     xlab("Interaction Strength")
   }
 
-ia_1_plot <- plot(ia_1) |> lab_func() + theme_param
+ia_1_plot <- ia_plot_build(ia_1) |> lab_func() + theme_param
 ia_2_plot <- plot(ia_2)|> lab_func() + theme_param
 ia_3_plot <- plot(ia_3)|> lab_func() + theme_param
 ia_4_plot <- plot(ia_4)|> lab_func() + theme_param
 ia_5_plot <- plot(ia_5)|> lab_func() + theme_param
 
-ia_lab_1_plot <- plot(ia_lab_1) |> lab_func() + theme_param
+ia_lab_1_plot <- ia_plot_build(ia_lab_1) |> lab_func() + theme_param
 ia_lab_2_plot <- plot(ia_lab_2)|> lab_func() + theme_param
 ia_lab_3_plot <- plot(ia_lab_3)|> lab_func() + theme_param
 ia_lab_4_plot <- plot(ia_lab_4)|> lab_func() + theme_param
@@ -1110,13 +1128,15 @@ ia_lab_5_plot <- plot(ia_lab_5)|> lab_func() + theme_param
 ```{r}
 #| fig-width: 6.5
 #| out-width: "6.5"
+#| message: false
 
 ia_plots <- ia_1_plot + ia_2_plot + ia_3_plot + ia_4_plot +
   plot_layout(nrow = 1, ncol = 4, axis_titles = "collect", guides = "collect")  +
     plot_annotation() & 
     theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1)) &
-  theme_param
+  theme_param &
+  scale_x_continuous(limits = ia_lim(ia_1, ia_2, ia_3, ia_4))
 
 ia_plots
 
@@ -1125,7 +1145,8 @@ ia_lab_plots <- ia_lab_1_plot + ia_lab_2_plot + ia_lab_3_plot + ia_lab_4_plot +
     plot_annotation() & 
     theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1)) &
-  theme_param
+  theme_param &
+  scale_x_continuous(limits = ia_lim(ia_lab_1, ia_lab_2, ia_lab_3, ia_lab_4))
 
 ia_lab_plots
 
@@ -1136,7 +1157,8 @@ ia_both_plots <- (ia_1_plot + ylab(expression(SOC~Stock~g~cm^{2}))) +
     plot_annotation() & 
     theme(plot.tag = element_text(size = 8, face = "bold"),
           plot.tag.position = c(0.1, 1)) &
-  theme_param
+  theme_param &
+  scale_x_continuous(limits = ia_lim(ia_1, ia_2, ia_3, ia_lab_1, ia_lab_2, ia_lab_3))
 
 ia_both_plots
 

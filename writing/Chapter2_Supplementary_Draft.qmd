@@ -546,24 +546,9 @@ Partial correlation strength for mineral SOC % differed between wetlands and upl
 readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/shap_interact_pdp.rds")
 ```
 
-```{r}
-#| fig-width: 8
-#| fig-height: 4
-#| include: false
-ale_rf_stocks <- readRDS(paste0(dir_loc,"SOIL CARBON/All_WA/writing/Figures/ALE_RF_Stocks_Plot.rds"))
-ale_rf_stocks
 
 
-```
 
-```{r}
-#| fig-width: 8
-#| fig-height: 4
-#| include: false
-ale_rf_lab <- readRDS(paste0(dir_loc,"SOIL CARBON/All_WA/writing/Figures/ALE_RF_Lab_Plot.rds"))
-ale_rf_lab
-
-```
 
 ```{r}
 #| label: fig-lmm-interact
