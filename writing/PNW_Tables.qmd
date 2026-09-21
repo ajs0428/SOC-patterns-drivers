@@ -314,13 +314,17 @@ mutate_tab <- function(table){
 WIP Model summary
 
 ```{r}
-All_WIP_Acc_DF |>
+All_WIP_Acc_DF_table <- All_WIP_Acc_DF |>
   mutate(dplyr::mutate(across(where(is.numeric), ~base::round(.x, 2)))) |> 
   dplyr::rename("Study Area" = StudyArea,
                 "Overall\nAccuracy" = OverallAcc,
                 "Wetland\nOmission Error" = OmissionWet,
                 "Wetland\nCommission Error" = ComissionWet) |> 
   flextable_fun()
+All_WIP_Acc_DF_table
+
+saveRDS(All_WIP_Acc_DF_table, here("writing/Tables/All_WIP_Acc_DF_table.rds"))
+
 ```
 
 WIP Predictors

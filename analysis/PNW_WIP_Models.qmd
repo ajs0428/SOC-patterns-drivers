@@ -81,12 +81,12 @@ CVW_Model <- get(load(here("analysis/models/COL_RF_Model_Final.RData")))
 Accuracy stats 
 - Pulling HRW from Halabisky et al., 2023
 ```{r}
-
+HRW_Kappa = caret::confusionMatrix(as.table(HRW_ConfMat_only))
 
 All_WIP_Acc_DF <- data.frame(StudyArea = c("HLEF", "HRW", "MRW", "CVW"),
                              OverallAcc = c(HLEF_ConfMat$overall[[1]], 0.92, 
                                             MRW_ConfMat$overall[[1]], CVW_ConfMat$overall[[1]]),
-                             Kappa = c(HLEF_ConfMat$overall[[2]], kappa(HRW_ConfMat_only)[[1]], 
+                             Kappa = c(HLEF_ConfMat$overall[[2]], HRW_Kappa$overall[2][[1]][[1]], 
                                    MRW_ConfMat$overall[[2]], CVW_ConfMat$overall[[2]]),
                              OmissionWet = c(1- HLEF_ConfMat$byClass[[1]], 0.14, 
                                            1- MRW_ConfMat$byClass[[1]], 1- CVW_ConfMat$byClass[[1]]),

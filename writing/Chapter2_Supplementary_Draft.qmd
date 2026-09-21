@@ -298,7 +298,9 @@ We calculated terrain indices using the Surface Metrics Toolbox developed by @ha
 
 We derived training data for wetlands and uplands (non-wetlands) using the geospatial dataset from the National Wetland Inventory (NWI) and the Wetland Mapper Tool [@NationalWetlandsInventory]. We extracted 3000 total training points from NWI wetlands in the HLEF, MRW, and CVW study areas (6000 total points) with approximately 2/3 of the training points classified as "upland" and 1/3 classified as "wetland". The training points were then used to extract data from the geospatial metrics in each study area. A random forest model was then constructed using a 70:30 training and testing dataset partition and then used to generate a preliminary WIP model. From this preliminary model, we utilized a similar approach to @halabiskyWetlandIntrinsicPotential2023 and generated another training dataset and a validation dataset by conducting a stratified sampling of 600 points and 300 points, respectively across the gradient of the preliminary model. The points from this stratification were then verified as either wetland or upland by two analysts who conducted site visits and referenced points using aerial imagery, pre-existing NWI data, and lidar-derived hillshades.
 
-The new training and validation points were then used in another separate random forest model which generated the final mapped prediction of the WIP model. The most important variables derived from the mean decrease accuracy, a default method from the Random Forest models in all four study watersheds are shown in @fig-PNW-WIPimp-plot. Mean decrease accuracy was chosen over mean decrease gini due to the permutation calculation that is less sensitive and biased towards categorical and continuous predictors, respectively.
+The new training and validation points were then used in another separate random forest model which generated the final mapped prediction of the WIP model. The kappa accuracy metric showed the best model performance in the HRW followed by the CVW, MRW, and HLEF [@tbl-wip-acc]. Omission and Commission error was highly imbalanced in the CVW and potentially indicates a classification threshold above 50% could reduce mis-classified uplands and wetlands. However, to be consistent across all four study areas we used the ≥50% threshold for determining wetland coverage in all four study watersheds.
+
+The most important variables derived from the mean decrease accuracy, a default method from the Random Forest models in all four study watersheds are shown in @fig-PNW-WIPimp-plot. Mean decrease accuracy was chosen over mean decrease gini due to the permutation calculation that is less sensitive and biased towards categorical and continuous predictors, respectively.
 
 \pagebreak
 
@@ -309,6 +311,19 @@ The new training and validation points were then used in another separate random
 
 
 readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Tables/wipPredictors_table.rds")
+```
+
+
+\pagebreak
+
+```{r}
+#| include: true
+#| label: tbl-wip-acc
+#| tbl-cap: Accuracy metrics for Wetland Intrinsic Potential models across the four study areas
+
+All_WIP_Acc_DF_table <- readRDS(here("writing/Tables/All_WIP_Acc_DF_table.rds"))
+
+All_WIP_Acc_DF_table
 ```
 
 \pagebreak
