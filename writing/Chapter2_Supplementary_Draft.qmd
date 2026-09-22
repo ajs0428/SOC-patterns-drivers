@@ -5,65 +5,9 @@ fig-dpi: 150
 format:
   docx:
     reference-doc: custom-reference-doc.docx
-    toc: true
-    toc-depth: 2
+    toc: false
     output-file: Chapter2_Supplementary_Draft
     output-ext: docx
-
-authors: 
-    - name: Anthony J Stewart
-      affiliations:
-        - ref: uw
-      corresponding: true
-      email: ajs0428@uw.edu
-      orcid: 0000-0002-9655-9938
-    - name: Meghan Halabisky
-      affiliations:
-        - ref: uw
-      corresponding: false
-      email: halabisk@uw.edu
-      orcid: 0000-0002-1174-2486
-    - name: David V. D'Amore
-      affiliations:
-        - ref: fs
-      corresponding: false
-      email: david.v.damore@usda.gov
-      orcid: 0000-0002-5481-8428
-    - name: Diogo Spinola
-      affiliations:
-        - ref: ub
-      corresponding: false
-      email: diogo.spinola@unbc.ca
-      orcid: 0000-0003-3525-9461
-    - name: Chad Babcock
-      affiliations:
-        - ref: mn
-      corresponding: false
-      email: cbabcock@umn.edu
-      orcid: 0000-0001-9597-4462
-    - name: L. Monika Moskal
-      affiliations:
-        - ref: uw
-      corresponding: false
-      email: lmmoskal@uw.edu
-      orcid: 0000-0003-1563-6506
-    - name: David Butman
-      affiliations:
-        - ref: uw
-      corresponding: false
-      email: dbutman@uw.edu
-      orcid: 0000-0003-3520-7426
-affiliations:
-  - id: uw
-    name: School of Environmental and Forest Sciences, University of Washington, Seattle, WA
-  - id: fs
-    name: Forest Service, US Department of Agriculture, Pacific Northwest Research Station, 3625 Olympia, WA, USA 
-  - id: ub
-    name: Department of Ecosystem Science and Management, University of Northern British Columbia, 3333 University Way, Prince George, British Columbia, Canada 
-  - id: mn
-    name: Department of Forest Resources, University of Minnesota, St. Paul, 55108, MN, USA
-filters:
-  - authors-block/authors-block.lua
 
 csl: american-geophysical-union.csl
 

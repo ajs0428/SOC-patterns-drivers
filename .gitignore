@@ -3,6 +3,7 @@
 !*/
 !writing/*.qmd
 !writing/*.R
+!writing/_quarto.yml
 .Rproj.user
 writing/Chapter2_Manuscript_Draft_NoWetMap.qmd
 writing/textgraveyard.qmd
