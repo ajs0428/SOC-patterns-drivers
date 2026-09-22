@@ -893,8 +893,8 @@ shap_lab_2_3_plot <- sv_dependence(shapviz(ks_lab),
                                     v = c(ks_lab_vars$column[3]), 
                   color_var = ks_lab_vars$column[2])
 shap_lab_ph_map_plot <- sv_dependence(shapviz(ks_lab), 
-                                    v = c(ks_lab_vars$column[4]), 
-                  color_var = ks_lab_vars$column[1])
+                                    v = c(ks_lab_vars$column[2]), 
+                  color_var = ks_lab_vars$column[4])
 
 shap_wipx_depth_plot <- sv_dependence(shapviz(ks), 
                                     v = c(ks_vars$column[2]), 
@@ -978,7 +978,7 @@ shap_1_2_pdp_plot <- shap_pdp_plot_func(shap_1_2_plot,
                                         xlab = "Depth (cm)") + 
                                           theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
 shap_wipx_depth_pdp_plot <- shap_pdp_plot_func(shap_wipx_depth_plot, 
-                                               name = "Depth",
+                                               name = "Depth (cm)",
                                                colour_pal = "RdPu",
                                                xlab = "WIP %",
                                                reverse = TRUE) + 
@@ -1002,9 +1002,9 @@ shap_lab_2_3_pdp_plot <- shap_pdp_plot_func(shap_lab_2_3_plot,
                                           theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
 
 shap_lab_ph_map_pdp_plot <- shap_pdp_plot_func(shap_lab_ph_map_plot, 
-                                        name = "Depth (cm)", 
+                                        name = "MAP (mm)", 
                                         colour_pal = "Blues",
-                                        xlab = "MAP")+ 
+                                        xlab = "pH")+ 
                                           theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
 ```
 
