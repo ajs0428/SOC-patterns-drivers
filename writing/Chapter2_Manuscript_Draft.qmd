@@ -25,34 +25,36 @@ knitr::opts_chunk$set(
   tidy = T,
   collapse = TRUE
 )
-library(rgl)
-library(terra)
-library(tidyverse)
-library(lme4)
-library(MASS)
-library(mgcv)
-library(lmerTest)
-library(MuMIn)
-library(car)
-library(ggplot2)
-library(forcats)
-library(ggeffects)
-library(glmnet)
-library(stats)
-library(ggcorrplot)
-library(RColorBrewer)
-library(kableExtra)
-library(formatR)
-library(ggpubr)
-library(grid)
-library(gridExtra)
-library(flextable)
-library(gtsummary)
-library(stringr)
-library(effectsize)
-library(officer)
-library(patchwork)
-library(here)
+suppressPackageStartupMessages({
+  library(rgl)
+  library(terra)
+  library(tidyverse)
+  library(lme4)
+  library(MASS)
+  library(mgcv)
+  library(lmerTest)
+  library(MuMIn)
+  library(car)
+  library(ggplot2)
+  library(forcats)
+  library(ggeffects)
+  library(glmnet)
+  library(stats)
+  library(ggcorrplot)
+  library(RColorBrewer)
+  library(kableExtra)
+  library(formatR)
+  library(ggpubr)
+  library(grid)
+  library(gridExtra)
+  library(flextable)
+  library(gtsummary)
+  library(stringr)
+  library(effectsize)
+  library(officer)
+  library(patchwork)
+  library(here)
+})
 
 knitr::knit_hooks$set(webgl = hook_webgl)
 rgl::setupKnitr(autoprint = TRUE)
@@ -135,7 +137,7 @@ mutate_tab <- function(table) {
 
 ## Abstract
 
-Inland freshwater wetlands are poorly mapped and represented despite disproportionately storing soil organic carbon (SOC) relative to their surface area. Here, we assess if digital soil mapping models improve by adding a spatially-continuous wetland probability, the Wetland Intrinsic Potential, WIP, as a predictor for SOC stocks and SOC across both wetlands and uplands in heterogeneous landscapes. We collected soil samples in four watershed study areas across the Pacific Northwest and evaluated both linear mixed models and quantile random forest models to predict SOC stock (g cm^-2^) distribution and mineral soil SOC (SOC %) concentration. The quantile random forest model with WIP as a predictor was the best performing and most accurate model for SOC stocks. However, WIP was not included in models for SOC concentration in the mineral soil. Instead, edaphic factors including depth, pH, and clay content were primary predictors of mineral SOC concentration, consistent with the well-known accumulation of coarse, particulate organic material in wetlands. Using the best performing SOC stock model, we mapped SOC stocks across the four watersheds with scaled up estimates of mean wetland SOC stocks of 114-243 Mg C ha^-1^ compared to mean upland SOC stocks of 99.5-162 Mg C ha^-1^. The differences between wetland and upland SOC stocks were contrasted in comparison of new model maps to current SOC stock maps from an ensemble of global and region models. This study demonstrates how incorporating probabilistic wetland maps can show wetland-driven patterns of large SOC stocks contained in organic soils.
+Inland freshwater wetlands are poorly mapped and represented despite disproportionately storing soil organic carbon (SOC) relative to their surface area. Here, we assess if digital soil mapping models improve by adding a spatially-continuous wetland probability, the Wetland Intrinsic Potential, WIP, as a predictor for SOC stocks and SOC across both wetlands and uplands in heterogeneous landscapes. We collected soil samples in four watershed study areas across the Pacific Northwest and evaluated both linear mixed models and quantile random forest models to predict SOC stock (g cm^-2^) distribution and mineral soil SOC (SOC %) concentration. The quantile random forest model with WIP as a predictor was the best performing and most accurate model for SOC stocks. However, WIP was not included in models for mineral SOC % in the mineral soil. Instead, edaphic factors including depth, pH, and clay content were primary predictors of mineral SOC %, consistent with the well-known accumulation of coarse, particulate organic material in wetlands. Using the best performing SOC stock model, we mapped SOC stocks across the four watersheds with scaled up estimates of mean wetland SOC stocks of 114-243 Mg C ha^-1^ compared to mean upland SOC stocks of 99.5-162 Mg C ha^-1^. The differences between wetland and upland SOC stocks were contrasted in comparison of new model maps to current SOC stock maps from an ensemble of global and region models. This study demonstrates how incorporating probabilistic wetland maps can show wetland-driven patterns of large SOC stocks contained in organic soils.
 
 ## Plain Language Summary
 
@@ -264,7 +266,7 @@ wa/ta
 
 Wetland mapping conducted with the Wetland Intrinsic Potential (WIP) Tool ( [@fig-PNW-WIP-Maps; @halabiskyWetlandIntrinsicPotential2023]) and setting the wetland classification threshold at ≥ 50% identified considerably more wetland area than the National Wetland Inventory (NWI) (Supplementary Table 2). Overall accuracy for the WIP models including both wetland and non-wetland identification was 87% in the HLEF, 92% in the HRW, 90% in the MRW, and 93% in the CVW. Wetland omission error was 15%, 14%, 12%, and 2% while wetland commission error was 10%, 11%, 6%, and 20% for the HLEF, HRW, MRW, and CVW, respectively. The largest percentage increase of wetland area identified occurred in the HLEF (155%) and the lowest occurred in the HRW (50.1%). HLEF had the largest relative wetland extent proportionally to the total watershed extent (20%) while the CVW had the lowest total and proportional wetland extent (2.7%). The most important variables for these models included mostly terrain metrics such as gradient and deviation from mean elevation at various scales (See Methods for explanations on multiscale terrain metrics; Supplementary Figure 1). <!--# Supplementary Figure -->
 
-![Wetland identification maps derived from the Wetland Intrinsic Potential (WIP) Tool (Halabisky et al., 2023). Insets show zoomed in sections with the WIP shading removed for uplands (WIP probability \< 50%). Wetlands mapped by the National Wetland Inventory (NWI) are shown in orange polygons. Riverine wetlands were removed due to impeding visualization. Satellite imagery is provided by Google Satellite.](Figures/PNW%20WIP%20Maps%20Horizontal.png){#fig-PNW-WIP-Maps fig-align="center"}
+![Wetland identification maps derived from the Wetland Intrinsic Potential (WIP) Tool (Halabisky et al., 2023). Insets show zoomed in sections with the WIP shading removed for uplands (WIP probability \< 50%). Wetlands mapped by the National Wetland Inventory (NWI) are shown in orange polygons. Riverine wetlands were removed due to impeding visualization. Satellite imagery is provided by Google Satellite.](Figures/PNW_WIP_Maps_Horizontal.png){#fig-PNW-WIP-Maps fig-align="center"}
 
 ### Variation across study areas along climatic gradient
 
@@ -396,7 +398,7 @@ SHAP dependence plots, showing the effects of predictors on model predictions (e
 #| fig-height: 7
 #| out-width: 6.5in
 #| fig-dpi: 300
-#| fig-cap: SHAP (SHapley Additive exPlanations) variable importance for the linear mixed models (LM) (A., C., E.) on the left and quantile random forest (RF B., D., F.) models on the right. A. & B. correspond to the RF model containing the Wetland Intrinsic Potential as a predictor while C. & D. do not. The scaled 95% confidence intervals for scaled LM coefficients for SOC stocks and mineral SOC %, respectively. Note, individual Parent Material (PM) and Landform categories are shown but are considered a group under an overall PM and Landform categorical variable. For SHAP plots, variables are ordered by the abosolute sum of all SHAP values within a predictor (i.e. Depth). Colored points on the bar plots are the min-max scaled feature values for each observation (i.e. Higher, 80-90% WIP would be closer to 1). 
+#| fig-cap: Plots of 95% confidence intervals for scaled coefficient estimates in the linear mixed models (LM) in the left column (A., C., E.) and SHAP (SHapley Additive exPlanations) value distributions in the quantile random forest (RF) on the right column (B., D., F.) models. The top row plots (A. & B.) correspond to the LM and RF models for SOC stocks containing the Wetland Intrinsic Potential (WIP) among the input predictors. The middle row (C. & D.) corresponds to LM and RF for SOC stocks without the WIP as a predictor. The bottom row (E. & F.) corresponds to LM and RF models for mineral SOC concentration (SOC %), both of which did not contain WIP since it was not significant in model feature selection. Note, for Depth specifically, higher values (yellow color) correspond to deeper soil observations and lower (purple color) correspond to more shallow soil observations. For example, in B., shallow depth (purple) generally increased predicted SOC stock (SHAP value > 0) whereas deeper (more yellow) generally decreased predicted SOC stock (SHAP value < 0). Individual Parent Material (PM) and Landform categories are shown but are considered a group under an overall PM and Landform categorical variable. For SHAP plots, variables are ordered by the absolute sum of all SHAP values within a predictor (i.e. Depth). Colored points on the bar plots are the min-max scaled feature values for each observation (i.e. Higher, 80-90% WIP would be closer to 1). 
 #| include: true
 
 # LMM_coef_plot <- get(load(here("writing/Figures/LMM_coef_plots_graphs.RData")))
@@ -420,7 +422,7 @@ SHAP dependence plots showed SHAP values had a strong decline with mineral SOC w
 #| fig-height: 7
 #| out-width: 5.5in
 #| fig-dpi: 300
-#| fig-cap: SHAP (SHapley Additive exPlanations) dependence plots from quantile random forest models using the top predictors of SOC stock (A., B., and C.) and mineral SOC % (D. & E.). Similar to partial dependence plots, each figure shows how the SHAP value (contribution to the model prediction) varies with another predictor variable on the x-axis. 
+#| fig-cap: SHAP (SHapley Additive exPlanations) dependence plots from quantile random forest models using the top predictors of SOC stock (A., B., & C.) and mineral SOC % (D., E., & F.). Each point represents a 25 cm sample interval for SOC stock or mineral SOC concentration (SOC %), and each point has an assigned SHAP value (y-axis) and corresponding predictor value (x-axis). Similar to partial dependence plots, each figure shows how the SHAP value (+/- contribution to the model prediction) varies with the value of the predictor variable on the x-axis. For example, in A., points with high WIP values (x-axis) contribute to larger, more positive SHAP values (y-axis) and thus higher predictions of SOC stock and in D. higher (deeper) depth values (x-axis) correspond to more negative SHAP values (y-axis) and lower mineral SOC % (Note, SOC stock and mineral SOC % values not shown).
 #| include: true
 
 
@@ -466,11 +468,11 @@ DSM for SOC is frequently challenged by landscapes that span different climate r
 
 Yet, simply including the WIP as a predictor in DSM is not a silver bullet for modeling SOC stocks. The improvement of the WIP addition was approximately a 5% increase in test R^2^ compared to the model without WIP. Additionally, there was still high variability in the upper end of our SOC stock predictions and still approximately 50% of the variation left unexplained in our test dataset.The RF with WIP under-predicted large SOC stocks in MRW wetlands [@fig-predact-graph downward triangles] and did not distinguish SOC stock patterns corresponding to wetland areas in the CVW [@fig-ensemble-map-compare]. These patterns in the two drier study areas (MRW and CVW) might indicate that climate factors were still strongly affecting the predictions of SOC stocks in wetland soils or that we may need additional predictors for SOC stocks beyond our current suite of predictors. For example, at the watershed scale more explicit forest community or vegetation metrics that differentiate hydric, mesic, and xeric plant communities or classification wetland classification information such as Hydrogeomorphic classes could help identify carbon accumulation areas [@daugherty2019; @goyette2024; @wiesmeierSoilOrganicCarbon2019]. @chizenDriversSoilCarbon2025 found that wetland class explained the largest amount of variability in the Prairie Pothole region and @pearseSoilOrganicCarbon2018 showed that SOC stock can vary widely between different wetland types and vegetation cover. Incorporating the variation within a wetland different wetland classes as continuous probabilities, similar to peatland probabilities in other previous research [@helfensteinThreedimensionalSpaceTime2024; @delanceyLargescaleProbabilisticIdentification2019].
 
-It is well known to DSM practicioners that improvements to wetland maps would benefit DSM for SOC stocks. @henglAssessmentSoilOrganic2023 used topography-derived hydrologic variables and lithological maps to represent potential wetland and wet areas in a DSM approach in Alberta, Canada but found that wetland SOC stocks were underestimated due to resolution. @waldenMultiscaleMappingAustralias2023 used DSM for blue carbon and terrestrial carbon stocks incorporating a multi-resolution decomposition of topographic wetness index (TWI) to improve Australia's national carbon inventory but indicated inland freshwater wetland ecosystems were included under terrestrial categories. The regional ensemble model by @jones2024 used 11 different DSM sources, where some used implicit and explicit wetland data which we have noted have difficulty distinguishing small wetlands [@feeney2022]. Wetland inventories and maps used by larger regional scale models can benefit from updating via remote sensing technology and more advanced geospatial modeling [@wulder2018] and there has been growing research incorporating modeled wetland data into SOC predictions. @helfensteinThreedimensionalSpaceTime2024 more directly used peatland occurrence maps as predictors for SOC and further developed dynamic peatland occurrence maps over time between 1953 and 2022 to more accurately estimate changes in SOC. Although not wetland-specific, @larsonSoilMoistureControls2023 used a similar approach to our WIP wetland probability by including a predictor variable from a separate machine learning model designed to capture probabilistic soil moisture further used to accurately map SOC and tree biomass. Future DSM approaches for SOC stock can continue to improve wetland representation using explicit modeling for wetland presence.
+It is well known to DSM practicioners that improvements to wetland maps would benefit DSM for SOC stocks. @henglAssessmentSoilOrganic2023 used topography-derived hydrologic variables and lithological maps to represent potential wetland and wet areas in a DSM approach in Alberta, Canada but found that wetland SOC stocks were underestimated due to resolution. @waldenMultiscaleMappingAustralias2023 used DSM for blue carbon and terrestrial carbon stocks incorporating a multi-resolution decomposition of topographic wetness index (TWI) to improve Australia's national carbon inventory but indicated inland freshwater wetland ecosystems were included under terrestrial categories. The regional ensemble model by @jones2024 used 11 different DSM sources, where some used implicit and explicit wetland data which we have noted have difficulty distinguishing small wetlands [@feeney2022]. Wetland inventories and maps used by larger regional scale models can benefit from updating via remote sensing technology and more advanced geospatial modeling [@wulder2018] and there has been growing research incorporating modeled wetland data into SOC predictions. @helfensteinThreedimensionalSpaceTime2024 more directly used peatland occurrence maps as predictors for SOC and further developed dynamic peatland occurrence maps over time between 1953 and 2022 to more accurately estimate changes in SOC. Although not wetland-specific, @larsonSoilMoistureControls2023 used a similar approach to our WIP wetland probability by including a predictor variable from a separate machine learning model designed to capture probabilistic soil moisture which was further used to accurately map SOC and tree biomass. Future DSM approaches for SOC stock can continue to improve wetland representation using explicit modeling for wetland presence.
 
 ### Drivers of SOC stocks across scales
 
-Depth as the largest significant predictor in both models for SOC stock was largely expected since SOC stocks typically decline with depth [@jobbagyVerticalDistributionSoil2000] and there were no other spatially-explicit predictors that accounted for variation within the pedon. Using depth as a predictor in a DSM approach has been termed "3D" mapping [@poggioNationalScale3D2014; @sotheLargeScaleMapping2022]. But our approach differs slightly by applying a "2.5D" DSM method using the mass-preserving spline function to harmonize our dataset observations across 25cm depth intervals [@maloneMappingContinuousDepth2009; @obrienMpspline2MasspreservingSpline2022]. The advantages with our approach allowed us to maintain the original dataset variation without inflating observations. Additionally, we limited the influence of large depth intervals on SOC stocks and obtained a negative exponential decline of SOC stock with Depth. This allowed our approach to use Depth as an effective predictor similar to "3D" DSM but with the mass-preserving spline of "2.5D" DSM.
+Depth as the largest significant predictor in both LM and RF models for SOC stock was largely expected since SOC stocks typically decline with depth [@jobbagyVerticalDistributionSoil2000] and there were no other spatially-explicit predictors that accounted for SOC stock variation within the pedon. Our modeled SOC stocks likely reflect the realistic decreases in SOC stock with depth across these watersheds, however, these predictions should be cautiously interpreted due to the high variability with soil structure (e.g. coarse fragment and root content; shallow bedrock) along the soil profile. This variation is likely implied in model predictions but ~in-situ~ observations can differ due to these soil structure characteristics. Using depth as a predictor in a DSM approach has been termed "3D" mapping [@poggioNationalScale3D2014; @sotheLargeScaleMapping2022]. But our approach differs slightly by applying a "2.5D" DSM method using the mass-preserving spline function to harmonize our dataset observations across 25cm depth intervals [@maloneMappingContinuousDepth2009; @obrienMpspline2MasspreservingSpline2022]. The advantages with our approach allowed us to maintain the original dataset variation without inflating observations. Additionally, we limited the influence of large depth intervals on SOC stocks and obtained a negative exponential decline of SOC stock with Depth. This allowed our approach to use Depth as an effective predictor similar to "3D" DSM but with the mass-preserving spline of "2.5D" DSM. Our modeled SOC stocks across 
 
 After Depth, many of the largest predictors of SOC stock in both the LM and RF included large scale climatic variables, primarily PET:MAP and MAT. Climatic variables are a significant large scale factor in the original soil formation equation [@jennyFactorsSoilFormation1941] and the SCORPAN framework [@chenDigitalMappingGlobalSoilMap2022; @feeney2022; @minasnyChapterOneDigital2013; @minasnyDigitalMappingPeatlands2019]. In particular, water availability climatic predictors such as PET:MAP and MAP have been shown to outweigh temperature predictors such as MAT on overall SOC stocks [@vonfrommControlsRelationshipsSoil2024; @hobleyDriversSoilOrganic2015; @jobbagyVerticalDistributionSoil2000]. Wetlands need persistent water saturation to maintain their high SOC stocks [@maGloballyRobustRelationship2022]. However, temperature has been shown to have a greater effect on SOC held in organic horizons or composed in coarse particulate forms [@georgiouEmergentTemperatureSensitivity2024; @garcía-palacios2024] and this can be pronounced in cooler climates such as the Pacific Northwest [@mcnicolLargeClimatesensitiveSoil2019]. Since wetlands tend to accumulate SOC tends in near-surface organic horizons as particulate organic matter, a combination of moisture decline and temperature rise could significantly impact wetland SOC stocks [@quan2025]. Previous research has shown that higher temperatures can stimulate decomposition in wetland and peatland organic soils [@hribljanElevationTemperatureAre2023; @fellmanVulnerabilityWetlandSoil2017]. In addition to the RF model ranking PET:MAP as a significant predictor, partial correlation analysis showed wetland SOC distinguished by the WIP was negatively associated with MAT (Supplementary Table 5)<!--# Supplementary Figure -->.
 

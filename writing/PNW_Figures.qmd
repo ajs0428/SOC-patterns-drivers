@@ -218,9 +218,9 @@ ia_lab_5$results <- ia_lab_5$results |> dplyr::arrange(desc(.interaction)) |> sl
 theme_param <- theme(
     text = element_text(size = 8),
     legend.position = 'right', 
-    legend.key.size = unit(0.6, "cm"),
+    legend.key.size = unit(0.3, "cm"),
     legend.spacing.x = unit(1.2, "cm"),
-    legend.text = element_text(size = rel(0.70), hjust = 0.5),
+    legend.text = element_text(size = rel(0.90), hjust = 0.5),
     panel.background = element_blank(),
     panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
     axis.ticks = element_blank(),
@@ -410,7 +410,7 @@ qrf_lab_plot <- predict_plot(RF_testlabpred, fill_var = "Clay") +
     colours = RColorBrewer::brewer.pal(n = 9, name = "Greens"),
     breaks  = c(0, 15, 30),
     limits  = c(0, 30),
-    name    = "Clay"
+    name    = "Clay %"
   ) +
     annotate(geom = "text", x = 3, y = 8.2,
              label = as.expression(bquote(R^2 == .(qrf_lab_r2)))) 
@@ -713,7 +713,7 @@ qrf_lab_shap <- sv_importance(shapviz(ks_lab), kind = "beeswarm",
 coef_plots <- (coef_fig_lmm_stocks + ggtitle("Linear Mixed") + ylab(expression(SOC~Stock~g~cm^{2}))) +
   (qrf_stocks_shap) + ggtitle("Random Forest") +
   (coef_fig_lmm_stocks_nw + ylab(expression(SOC~Stock~g~cm^{2})) ) + qrf_stocks_nw_shap +
-  (coef_fig_lmm_lab + ylab(expression(SOC~"%"))) +
+  (coef_fig_lmm_lab + ylab(expression(Mineral~SOC~"%"))) +
   qrf_lab_shap + 
     plot_layout(nrow = 3, ncol = 2, axis_titles = "collect", guides = "collect")  +
     plot_annotation(tag_levels = list(c("A.", "B.","C.", "D.", "E.", "F."))) & 
@@ -888,10 +888,13 @@ shap_2_3_plot <- sv_dependence(shapviz(ks),
                   color_var = ks_vars$column[2])
 shap_lab_1_2_plot <- sv_dependence(shapviz(ks_lab), 
                                     v = c(ks_lab_vars$column[1]), 
-                  color_var = ks_lab_vars$column[2])
+                  color_var = ks_lab_vars$column[3])
 shap_lab_2_3_plot <- sv_dependence(shapviz(ks_lab), 
                                     v = c(ks_lab_vars$column[3]), 
                   color_var = ks_lab_vars$column[2])
+shap_lab_ph_map_plot <- sv_dependence(shapviz(ks_lab), 
+                                    v = c(ks_lab_vars$column[4]), 
+                  color_var = ks_lab_vars$column[1])
 
 shap_wipx_depth_plot <- sv_dependence(shapviz(ks), 
                                     v = c(ks_vars$column[2]), 
@@ -910,8 +913,8 @@ sd <- sv_dependence(s, v = "WIP", color_var = "lower_depth")
 sd_df <- sd$data
 pnw_sX$shap <- sd_df$shap
 
-ggplot(data = pnw_sX |> group_by(site), aes(x = WIP, y = shap, colour = site)) +
-  geom_line(linewidth = 1)
+# ggplot(data = pnw_sX |> group_by(site), aes(x = WIP, y = shap, colour = site)) +
+#   geom_line(linewidth = 1)
 
 dep <- tibble(
   feature_val = get_feature_values(s)[["WIP"]]*100,
@@ -922,13 +925,28 @@ dep <- tibble(
                                                     Col = "CVW"))
                      ) 
 site_vals <- c("HLEF" = "#a55a1a", "HRW" = "#1d9907", "MRW" = "#007f96", "CVW" = "#f0cf36")
+
+dep <- dep |> mutate(site = factor(site, levels = names(site_vals)))
+stopifnot(!anyNA(dep$site))
+
 shap_site_plot <- ggplot(dep, aes(feature_val, shap, color = site, fill = site)) +
   geom_point(shape = 21, size = 1.75, colour = "black", alpha = 0.7) +
-  geom_line(stat = "smooth", size = 1.1, alpha = 0.8, se = FALSE, method = "loess", formula = y ~ x, show.legend = F) +
+  geom_line(stat = "smooth", linewidth = 1.1, alpha = 0.8, se = FALSE, method = "loess", formula = y ~ x, show.legend = F) +
   scale_color_manual(values = site_vals) + 
   scale_fill_manual(values = site_vals, name = "Study Area") + 
   labs(x = "WIP %", y = str_c("SHAP Value"), color = "Site") +
-  theme_param
+  theme(
+    text = element_text(size = 8),
+    legend.position = 'right', 
+    legend.key.size = unit(0.6, "cm"),
+    legend.spacing.x = unit(1.2, "cm"),
+    legend.text = element_text(size = rel(0.90), hjust = 0.5),
+    panel.background = element_blank(),
+    panel.grid.major = element_line(colour = "grey80", linewidth = 0.2),
+    axis.ticks = element_blank(),
+    axis.text = element_text(size = rel(0.8)),
+    axis.title = element_text(size = rel(1))
+    ) 
 shap_site_plot
 ```
 
@@ -957,26 +975,37 @@ shap_pdp_plot_func <- function(shap_interact, name, colour_pal, xlab, reverse = 
 shap_1_2_pdp_plot <- shap_pdp_plot_func(shap_1_2_plot, 
                                         name = "WIP %", 
                                         colour_pal = "YlGnBu",
-                                        xlab = "Depth (cm)")
+                                        xlab = "Depth (cm)") + 
+                                          theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
 shap_wipx_depth_pdp_plot <- shap_pdp_plot_func(shap_wipx_depth_plot, 
                                                name = "Depth",
                                                colour_pal = "RdPu",
                                                xlab = "WIP %",
-                                               reverse = TRUE)
+                                               reverse = TRUE) + 
+                                          theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
 shap_2_3_pdp_plot <- shap_pdp_plot_func(shap_2_3_plot, 
                                         name = "WIP %", 
                                         colour_pal = "YlGnBu",
                                         reverse = FALSE,
-                                        xlab = "PET:MAP")
+                                        xlab = "PET:MAP")+ 
+                                          theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
 shap_lab_1_2_pdp_plot <- shap_pdp_plot_func(shap_lab_1_2_plot, 
-                                            name = "pH", 
-                                        colour_pal = "Reds",
-                                        xlab = "Depth (cm)")
+                                            name = "Clay %", 
+                                        colour_pal = "Greens",
+                                        xlab = "Depth (cm)")+ 
+                                          theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
 
 shap_lab_2_3_pdp_plot <- shap_pdp_plot_func(shap_lab_2_3_plot, 
                                         name = "pH", 
                                         colour_pal = "Reds",
-                                        xlab = "Clay %")
+                                        xlab = "Clay %")+ 
+                                          theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
+
+shap_lab_ph_map_pdp_plot <- shap_pdp_plot_func(shap_lab_ph_map_plot, 
+                                        name = "Depth (cm)", 
+                                        colour_pal = "Blues",
+                                        xlab = "MAP")+ 
+                                          theme(legend.text = element_text(size = rel(0.90), hjust = 0.5))
 ```
 
 
@@ -1002,7 +1031,16 @@ shap_interact_pdp <- ((shap_site_plot )  + plot_spacer()) /
           plot.tag.position = c(0, 1.02))
 shap_interact_pdp 
 
-saveRDS(shap_interact_pdp, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/shap_interact_pdp.rds")
+shap_interact_pdp_wpH <- shap_site_plot   + shap_1_2_pdp_plot +
+  shap_2_3_pdp_plot +  shap_lab_1_2_pdp_plot  +
+  shap_lab_2_3_pdp_plot + shap_lab_ph_map_pdp_plot +
+  plot_layout(nrow = 3, ncol = 2, axis_titles = "collect_y", guides = "collect")  + 
+  plot_annotation(tag_levels = list(c("A.", "B.","C.", "D.", "E.", "F."))) & 
+    theme(plot.tag = element_text(size = 8, face = "bold"),
+          plot.tag.position = c(0, 1.02))
+shap_interact_pdp_wpH
+
+saveRDS(shap_interact_pdp_wpH, file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/shap_interact_pdp.rds")
 ```
 
 
