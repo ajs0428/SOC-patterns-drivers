@@ -65,6 +65,8 @@ affiliations:
 filters:
   - authors-block/authors-block.lua
 
+csl: american-geophysical-union.csl
+
 crossref:
   tbl-prefix: "Supplementary Table "
   tbl-title: "Supplementary Table"
