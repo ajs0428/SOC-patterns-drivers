@@ -330,9 +330,9 @@ All_WIP_Acc_DF_table
 
 ```{r}
 #| label: fig-PNW-WIPimp-plot
-#| height: 5
-#| width: 7
-#| outwidth: 5.5in
+#| fig-height: 5
+#| fig-width: 7
+#| out-width: 5.5in
 #| fig-cap: Variable importance plots derived by using mean decrease accuracy for the final WIP models in all four watersheds. Only the top 5 predictors were included from each watershed. We observed multiscale terrain metrics such as Gradient, and Deviation occurring frequently. Other terrain derived metrics such as depth to water (DTW), and topographic wetness index (TWI) were included in some but not all models. But we note that Canopy Height in the HRW and the normalized difference yellow index and enhanced vegetation index in the HLEF were vegetation indices which may have helped identify peat occurance.
 
 PNW_WIPimp_plot <- readRDS("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/PNW_WIPimp_plot.rds")
@@ -466,7 +466,6 @@ cp ~/OneDrive\ -\ UW/University\ of\ Washington/Data\ and\ Modeling/SOIL\ CARBON
 #| warning: false
 #| message: false
 #| include: false
-#| 
 
 model_resid_fit_plot.Rdata <- get(load("/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/Supplemental/model_resid_fit_plot.Rdata"))
 model_resid_fit_plot.Rdata
@@ -584,7 +583,7 @@ lmm_interact_plots
 #| message: false
 #| fig-dpi: 300
 #| fig-width: 6.5
-#| height: 4
+#| fig-height: 4
 #| out-width: 6in
 #| fig-cap: Interaction values for the largest three predictors by SHAP value in the RFM for SOC stock and mineral SOC %. Interaction values are derived by the H-Statistic.
 
@@ -609,7 +608,7 @@ uncertainty_table_mapped_SOC <- readRDS("/Users/Anthony/OneDrive - UW/University
 uncertainty_table_mapped_SOC
 ```
 
-## \`References
+## References
 
 ::: {#refs}
 :::
