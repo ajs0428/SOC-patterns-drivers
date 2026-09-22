@@ -26,38 +26,12 @@ knitr::opts_chunk$set(
   collapse = TRUE
 )
 suppressPackageStartupMessages({
-  library(rgl)
-  library(terra)
   library(tidyverse)
-  library(lme4)
-  library(MASS)
-  library(mgcv)
-  library(lmerTest)
-  library(MuMIn)
-  library(car)
-  library(ggplot2)
-  library(forcats)
-  library(ggeffects)
-  library(glmnet)
-  library(stats)
-  library(ggcorrplot)
-  library(RColorBrewer)
-  library(kableExtra)
-  library(formatR)
-  library(ggpubr)
-  library(grid)
-  library(gridExtra)
   library(flextable)
-  library(gtsummary)
-  library(stringr)
-  library(effectsize)
   library(officer)
   library(patchwork)
   library(here)
 })
-
-knitr::knit_hooks$set(webgl = hook_webgl)
-rgl::setupKnitr(autoprint = TRUE)
 ```
 
 ```{r}
