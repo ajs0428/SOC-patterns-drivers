@@ -62,6 +62,51 @@ rgl::setupKnitr(autoprint = TRUE)
 
 ```{r}
 #| include: false
+#| label: figure-export-setup
+
+# ---- Export figures to the journal submission folder -------------------------
+# Set save_figs <- FALSE to render the manuscript without re-writing the files.
+save_figs <- TRUE
+
+fig_out_dir <- file.path(
+  "/Users/Anthony/Library/CloudStorage/OneDrive-UW/University of Washington",
+  "Writing and Drafting/All Study Area SOC/Submission/JGRB/Revision2/Figures"
+)
+if (save_figs) dir.create(fig_out_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Saves a ggplot/patchwork object at the same dimensions used in the chunk
+# options (fig-width, fig-height, fig-dpi) so the exported file matches the
+# manuscript figure exactly.
+save_fig <- function(plot, name, width, height, dpi = 300, formats = "png") {
+  if (!save_figs) return(invisible(NULL))
+  out <- file.path(fig_out_dir, paste0(name, ".", formats))
+  for (i in seq_along(formats)) {
+    ggplot2::ggsave(
+      filename = out[i],
+      plot = plot,
+      width = width,
+      height = height,
+      units = "in",
+      dpi = dpi,
+      bg = "white"
+    )
+  }
+  invisible(out)
+}
+
+# Copies a figure that is embedded as a static image (![...](Figures/*.png))
+# into the same submission folder under its figure number.
+copy_fig <- function(from, name) {
+  if (!save_figs) return(invisible(NULL))
+  from <- here("writing", from)
+  dest <- file.path(fig_out_dir, paste0(name, ".", tools::file_ext(from)))
+  file.copy(from, dest, overwrite = TRUE)
+  invisible(dest)
+}
+```
+
+```{r}
+#| include: false
 #| label: functions_tab_data
 std_border <- fp_border(color = "gray10", width = 0.1)
 thick_border <- fp_border(color = "black", width = 1.5)
@@ -162,6 +207,13 @@ In this research, we assess if, and to what magnitude, a probabilistic map of we
 ## Methods
 
 ### Study Areas
+
+```{r}
+#| include: false
+#| label: save-fig-studymap
+
+copy_fig("Figures/PNW_Study_Areas.png", "Figure1_PNW_Study_Areas")
+```
 
 ![Map of study watersheds in the Pacific Northwest of North America. The Heen Latinee Experimental Forest (HLEF) is located in Southeast Alaska. The Hoh River Watershed (HRW), Mashel River Watershed (MRW), and Colville Valley Watershed (CVW) are located in Washington State. The size of the red dots is proportional to the size of the inset circle for each study area. Mean annual temperature (˚C) and mean annual precipitation (mm) are included on the left side of each site name. Basemap imagery provided by OpenStreetMap. Map lines delineate study areas and do not necessarily depict accepted national boundaries](Figures/PNW_Study_Areas.png){#fig-studymap fig-align="center" width="6.5in"}
 
@@ -266,6 +318,13 @@ wa/ta
 
 Wetland mapping conducted with the Wetland Intrinsic Potential (WIP) Tool ( [@fig-PNW-WIP-Maps; @halabiskyWetlandIntrinsicPotential2023]) and setting the wetland classification threshold at ≥ 50% identified considerably more wetland area than the National Wetland Inventory (NWI) (Supplementary Table 2). Overall accuracy for the WIP models including both wetland and non-wetland identification was 87% in the HLEF, 92% in the HRW, 90% in the MRW, and 93% in the CVW. Wetland omission error was 15%, 14%, 12%, and 2% while wetland commission error was 10%, 11%, 6%, and 20% for the HLEF, HRW, MRW, and CVW, respectively. The largest percentage increase of wetland area identified occurred in the HLEF (155%) and the lowest occurred in the HRW (50.1%). HLEF had the largest relative wetland extent proportionally to the total watershed extent (20%) while the CVW had the lowest total and proportional wetland extent (2.7%). The most important variables for these models included mostly terrain metrics such as gradient and deviation from mean elevation at various scales (See Methods for explanations on multiscale terrain metrics; Supplementary Figure 1). <!--# Supplementary Figure -->
 
+```{r}
+#| include: false
+#| label: save-fig-PNW-WIP-Maps
+
+copy_fig("Figures/PNW_WIP_Maps_Horizontal.png", "Figure2_PNW_WIP_Maps")
+```
+
 ![Wetland identification maps derived from the Wetland Intrinsic Potential (WIP) Tool (Halabisky et al., 2023). Insets show zoomed in sections with the WIP shading removed for uplands (WIP probability \< 50%). Wetlands mapped by the National Wetland Inventory (NWI) are shown in orange polygons. Riverine wetlands were removed due to impeding visualization. Satellite imagery is provided by Google Satellite.](Figures/PNW_WIP_Maps_Horizontal.png){#fig-PNW-WIP-Maps fig-align="center"}
 
 ### Variation across study areas along climatic gradient
@@ -350,6 +409,10 @@ The LM for predicting mineral SOC % showed a better fit to the training data tha
 
 predact_graphs<- readRDS(here("writing/Figures/Model_Test_Fit_Scatter2.rds"))
 
+# matches fig-width/fig-height/fig-dpi above (displayed at out-height: 7.5in)
+save_fig(predact_graphs, "Figure3_Model_Test_Fit_Scatter",
+         width = 6.26, height = 10.06, dpi = 300)
+
 predact_graphs
 ```
 
@@ -406,6 +469,11 @@ SHAP dependence plots, showing the effects of predictors on model predictions (e
 # LMM_coef_plot
 
 all_model_var_imp_plot<- readRDS(file = "/Users/Anthony/OneDrive - UW/University of Washington/Data and Modeling/SOIL CARBON/All_WA/writing/Figures/LMM_RFM_coef_plots_graphs.rds")
+
+# matches fig-width/fig-height/fig-dpi above (displayed at out-width: 6.5in)
+save_fig(all_model_var_imp_plot, "Figure4_LMM_RFM_Variable_Importance",
+         width = 6.5, height = 7, dpi = 300)
+
 all_model_var_imp_plot
 
 ```
@@ -427,6 +495,11 @@ SHAP dependence plots showed SHAP values had a strong decline with mineral SOC w
 
 
 shap_interact_pdp <- readRDS(here("writing/Figures/shap_interact_pdp.rds"))
+
+# matches fig-width/fig-height/fig-dpi above (displayed at out-width: 5.5in)
+save_fig(shap_interact_pdp, "Figure5_SHAP_Dependence_Plots",
+         width = 7, height = 7, dpi = 300)
+
 shap_interact_pdp
 ```
 
@@ -453,6 +526,13 @@ The RF for SOC stocks including the WIP was used to upscale estimates 1m SOC sto
 An ensemble mean of global and regional models for the PNW region [@jonesEnsembleModelInput2024] showed 1m SOC stocks varied with broad similarly to our estimates across the four watersheds ([@tbl-socmap2]). The ensemble combination of global models from Jones and D'Amore, 2024 had slightly higher but comparable estimates for total 1m SOC stocks in the HLEF, MRW, and CVW with higher mean SOC stocks and larger areas. However, we estimated substantially less total SOC in the HRW at `r tbl_socmap2$body$dataset$Total_SOC_Tg[3]` TgC compared to `r tbl_socmap2$body$dataset$Total_SOC_Tg[4]` TgC in Jones in D'Amore, 2024 ([@fig-ensemble-map-compare]). We used the same WIP map with a threshold of 50% wetland probability to define wetlands in both the ensemble maps and our SOC maps. We saw small differences in wetland extent due to the differences in resolution (60m in Jones and D'Amore 2024, 4-5 m in our maps). For wetlands defined by the WIP, our estimates of mean SOC stocks were slightly higher than Jones and D'Amore, 2024 for the HLEF and for the HRW but lower for wetlands in the MRW and CVW. Mean and total wetland SOC stock estimates from this study and Jones and D'Amore, 2024 were higher than upscaled mean and total wetland SOC estimates from the National Wetland Condition Assessment and the National Land Cover Database (NWCA) published by @uhranImprovedWetlandSoil2021. However, estimated mean and total upland SOC stock from Jones and D'Amore, 2024 were much higher than our estimates. There is a notable difference for mean and total upland SOC stock for the HRW between our estimates and Jones and D'Amore, 2024.
 
 \pagebreak
+
+```{r}
+#| include: false
+#| label: save-fig-ensemble-map-compare
+
+copy_fig("Figures/PNW_Ensemble_All.png", "Figure6_PNW_Ensemble_Comparison")
+```
 
 ![Comparison of mapped soil organic carbon (SOC) stocks between the ensemble of regional and global models from Jones and D'Amore, 2024 and the Random Forest Model (RFM). The ensemble model map has a resolution of 60m compared to a resolution of 4m for the quantile random forest model generated map.](Figures/PNW_Ensemble_All.png){#fig-ensemble-map-compare fig-align="center" width="4.82in"}
 
